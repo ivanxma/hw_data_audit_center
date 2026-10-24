@@ -1,6 +1,20 @@
 # HeatWave Audit Center
 
-Oracle Linux 9 web application for registered HeatWave tables:
+## Background
+
+HeatWave Audit Center is a prototype for exploring row-change auditing with OCI
+MySQL HeatWave. It brings connection setup, table registration, capture controls
+and audit-history exploration into one web application running on an Oracle
+Linux 9 Compute VM.
+
+The aim is to capture changes to registered source tables through Debezium and
+OCI messaging, retain BEFORE and AFTER row images in a target HeatWave database,
+and make row history, schema changes and activity charts easier to investigate.
+
+**This is an independent prototype for evaluation, demonstration and rehearsal.
+It is not an Oracle product and is not supported or endorsed by Oracle.**
+
+The data flow is:
 
 HeatWave binlog → Debezium on OCI Container Instances → OCI Streaming or managed Apache Kafka → history writer on OCI Container Instances → target HeatWave audit store.
 
