@@ -151,6 +151,22 @@ class RuntimeConfigTests(unittest.TestCase):
         self.assertFalse(details.vnics[0].is_public_ip_assigned)
         self.assertFalse(details.containers[0].is_resource_principal_disabled)
         self.assertEqual(details.freeform_tags["flow-id"], "1")
+        replacement_tokens = []
+        for previous_instance in ("old-instance", "old-instance", "later-instance"):
+            cloud.create_workload(
+                flow,
+                settings,
+                payload,
+                "history-writer",
+                ["python", "worker.py"],
+                replacement_of=previous_instance,
+            )
+            replacement_tokens.append(
+                cloud.containers.create_container_instance.call_args.kwargs["opc_retry_token"]
+            )
+        self.assertEqual(replacement_tokens[0], replacement_tokens[1])
+        self.assertNotEqual(token, replacement_tokens[0])
+        self.assertNotEqual(replacement_tokens[0], replacement_tokens[2])
         # A new principal-based workload has no mandatory Vault image credential.
         cloud.vault.get_secret.reset_mock()
         settings.pop("image_pull_secret_ocid")

@@ -61,11 +61,13 @@ Cluster creation also requires administrator-configured `rawfka` service access 
 
 Changes to workload defaults apply to subsequent deployment revisions; an existing instance retains its deployed settings. Stop and replace a flow through Control Center for changed images or configuration, preserving its durable checkpoint and schema-history stores. Start/stop/restart use the OCI Container Instances API and verify flow ownership.
 
-For a Debezium image update, select the published release in workload settings,
-select the flow row and choose **Update Debezium image**. The action validates
+For a Debezium image update, select the flow row and choose **Update Debezium image**.
+Choose the exact completed release in its dialog and submit the update. This choice
+applies only to the selected flow; Workload settings remain deployment defaults.
+The action validates
 the image, stops only Debezium, and waits for INACTIVE before replacement. The
 writer continues draining the queue. If shutdown is still pending after 60 seconds,
-wait for INACTIVE and retry Update. The new instance
+wait for INACTIVE, reopen Update and choose the intended release again. The new instance
 uses the same connector name, Connect state topics and JDBC schema history.
 The previous instance stays stopped for rollback and can be explicitly deleted
 from the OCI resource inventory after verification. Never start both copies.
@@ -118,7 +120,7 @@ Connect, preventing mixed Jersey/HK2 versions. The image check detects duplicate
 Jersey classes and initializes the Jersey server runtime before publication;
 loading the OCI SASL provider alone cannot detect this startup failure.
 
-The image releases table shows the destination, release, component, status, creation time and result. Select a row to download its build log. CSV download, search, paging, sorting, resizing and column reordering use the shared table controls. Completed releases appear by name in OCI Container Instances → Workload settings. Saving the selection resolves it to a verified, same-compartment `@sha256:` address. Creating a build does not replace a running workload; use the normal flow replacement procedure to deploy it.
+The image releases table shows the destination, release, component, status, creation time and result. Select a row to download its build log. CSV download, search, paging, sorting, resizing and column reordering use the shared table controls. Completed releases appear by name in OCI Container Instances → Workload settings for initial deployment defaults, and in the matching Control Center Update image dialog for a specific flow. The dialog lists only available completed app-built releases from the configured repository; the current digest is excluded. Submitting resolves the release to a verified, same-compartment `@sha256:` address without changing other flows or global defaults. Creating a build does not replace a running workload.
 
 `heatwave-audit-image-builder.service` processes one build at a time, with a maximum of four active/queued requests. Application source is copied into a private, checksummed context; runtime configuration, credentials, TLS files, logs and local databases are excluded. The worker rejects changed context files, checks image imports, verifies the repository again before upload, then checks the published digest in OCI inventory. Authenticated administrator routes and CSRF checks protect build submission and log access. Build states and logs are stored under Git-ignored `.data/image-builds/`.
 
@@ -144,6 +146,12 @@ An interrupted upload can leave an image in Registry even when the build status 
 References: [Oracle OCIR credential helper tutorial](https://docs.oracle.com/en/learn/cred-helper/index.html), [Container Instances private registry policy](https://docs.oracle.com/en-us/iaas/Content/container-instances/permissions/policy-reference.htm), [Podman build](https://docs.podman.io/en/latest/markdown/podman-build.1.html), [Podman push](https://docs.podman.io/en/latest/markdown/podman-push.1.html).
 
 ## HeatWave DB system controls
+
+Database connection setup can create dedicated Debezium/history-writer accounts
+using temporary administrator inputs. This is separate from creating or starting
+an OCI DB system. See [dedicated database accounts](dedicated-database-accounts.md)
+for selected-database grants, direct Vault password storage and handoff to runtime
+credentials. Existing deployed registrations are not automatically migrated.
 
 Select one or more DB systems in the HeatWave resource table and use **Start selected** or **Stop selected** on the left toolbar. Start requires all selected systems to be `INACTIVE`; Stop requires `ACTIVE`. Stop prompts for confirmation because database connections and any dependent capture or history writing will be interrupted. The application uses OCI's `FAST` shutdown mode, checks every selected system's compartment and state before any action, and omits ETag/If-Match headers. OCI operations are asynchronous; refresh to see their resulting state. If OCI rejects one of several submissions, the page reports each result. It does not imply an all-or-nothing cloud transaction.
 

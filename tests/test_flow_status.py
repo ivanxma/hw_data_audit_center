@@ -123,7 +123,7 @@ class FlowStatusTests(unittest.TestCase):
             self.assertEqual(
                 service._operate(self.cloud, self.flow, "update_debezium"), "deploying"
             )
-            self.cloud.create_debezium.assert_called_once_with(self.flow)
+            self.cloud.create_debezium.assert_called_once_with(self.flow, replacement_of="capture")
             self.cloud.container_action.assert_called_once_with("capture", "stop", 1)
             update.assert_called_with(1, connector_ocid="replacement", status="deploying")
             self.assertEqual(self.instances["writer"].lifecycle_state, "ACTIVE")
@@ -183,7 +183,7 @@ class FlowStatusTests(unittest.TestCase):
         self.instances["capture"].lifecycle_state = "INACTIVE"
         self.cloud.config["debezium"]["image_url"] = "old-image"
         service = WorkflowService(MagicMock(), lambda: self.cloud, "operator")
-        with self.assertRaisesRegex(ValueError, "newly built"):
+        with self.assertRaisesRegex(ValueError, "already deployed"):
             service._operate(self.cloud, self.flow, "update_debezium")
         self.cloud.create_debezium.assert_not_called()
         self.cloud.container_action.assert_not_called()
@@ -199,6 +199,7 @@ class FlowStatusTests(unittest.TestCase):
         with patch.object(service, "_ready"), patch.object(service, "_update") as update:
             self.assertEqual(service._operate(self.cloud, self.flow, "update_writer"), "deploying")
             update.assert_called_with(1, processor_ocid="replacement-writer", status="deploying")
+            self.cloud.create_processor.assert_called_once_with(self.flow, replacement_of="writer")
             self.cloud.create_debezium.assert_not_called()
             self.cloud.container_action.assert_called_once_with("writer", "stop", 1)
             self.assertEqual(self.instances["capture"].lifecycle_state, "ACTIVE")
@@ -230,9 +231,22 @@ class FlowStatusWebTests(unittest.TestCase):
                 json.dumps({"admin_users": ["operator"]})
             )
             for action in ("stop", "stop_all", "update_debezium", "update_writer"):
-                response = self.client.post("/flows/1/" + action, data={"csrf": "test-form-token"})
+                values = {"csrf": "test-form-token"}
+                if action.startswith("update_"):
+                    values.update(
+                        image_release_id="selected-release", expected_instance_id="old-instance"
+                    )
+                response = self.client.post("/flows/1/" + action, data=values)
                 self.assertEqual(response.status_code, 302)
-                operate.assert_called_with(1, action)
+                if action.startswith("update_"):
+                    operate.assert_called_with(
+                        1,
+                        action,
+                        image_release_id="selected-release",
+                        expected_instance_id="old-instance",
+                    )
+                else:
+                    operate.assert_called_with(1, action)
 
     def test_status_requires_login_and_never_mutates_repository(self):
         self.assertEqual(self.client.get("/flows/1/status").status_code, 302)

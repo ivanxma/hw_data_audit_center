@@ -66,7 +66,7 @@ class WorkflowService:
                 return False
             time.sleep(min(2, remaining))
 
-    def action(self, flow_id, action):
+    def action(self, flow_id, action, *, image_release_id=None, expected_instance_id=None):
         if action not in {
             "deploy",
             "refresh",
@@ -99,6 +99,19 @@ class WorkflowService:
                     status = "complete"
                 else:
                     cloud = self.cloud_factory()
+                    if action in {"update_debezium", "update_writer"}:
+                        from .workload_images import select
+
+                        role, field = (
+                            ("debezium", "connector_ocid")
+                            if action == "update_debezium"
+                            else ("processor", "processor_ocid")
+                        )
+                        if not expected_instance_id or flow[field] != expected_instance_id:
+                            raise ValueError(
+                                "The deployed workload changed. Reopen Update image and choose a release again."
+                            )
+                        select(cloud, role, image_release_id)
                     status = self._operate(cloud, flow, action)
                     # Refresh must not erase the pause intent used by live health checks.
                     self._update(
@@ -142,7 +155,7 @@ class WorkflowService:
                 current_images.append(container.image_url)
             if cloud.config[role]["image_url"] in current_images:
                 raise ValueError(
-                    f"Select a newly built {label} release in workload settings before updating."
+                    f"This {label} image is already deployed. Choose a different published release."
                 )
             self._ready(cloud, flow)
             cloud.validate_workload(cloud.config[role], require_image=True)
@@ -156,10 +169,10 @@ class WorkflowService:
             # Recheck ownership/state immediately before creation, including inactive retries.
             if cloud.owned_container(old_id, flow_id).lifecycle_state != "INACTIVE":
                 raise ValueError(f"{label} must be INACTIVE before creating its replacement.")
-            new_id = create(flow)
+            new_id = create(flow, replacement_of=old_id)
             if new_id == old_id:
                 raise ValueError(
-                    f"Select a newly built {label} release in workload settings before updating."
+                    f"This {label} image is already deployed. Choose a different published release."
                 )
             self._update(flow_id, **{field: new_id, "status": "deploying"})
             # Keep the stopped previous instance for rollback/explicit retirement.

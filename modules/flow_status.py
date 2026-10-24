@@ -15,12 +15,13 @@ def image_status(cloud, field, item, container):
     role = "debezium" if field == "connector_ocid" else "processor"
     settings = cloud.config.get(role, {})
     selected, deployed = settings.get("image_url"), getattr(container, "image_url", None)
+    item["deployed_image"] = deployed or ""
     item["update_available"] = bool(selected and deployed and selected != deployed)
     item["selected_release"] = settings.get("image_release", "")
     if item["update_available"] and item["state"] == "ACTIVE":
         label = "Debezium" if role == "debezium" else "history writer"
         item["guidance"] = (
-            f"Select this flow and choose Update {label} image. It stops and replaces only this workload."
+            f"Workload default differs. Update {label} image opens a release picker for this flow."
         )
 
 
@@ -47,7 +48,7 @@ def inspect_flow(cloud, flow):
                     label
                     + " is stopped. Use Update "
                     + ("Debezium" if role == "debezium" else "history writer")
-                    + " image to deploy the selected release; Start would run the old image."
+                    + " image to choose a release; Start runs the currently deployed image."
                     if item["update_available"]
                     else label + " is stopped. Start or Resume runs its existing deployed image."
                 )
@@ -123,7 +124,7 @@ def inspect_flow(cloud, flow):
     )
     if capture_paused:
         workloads[0]["guidance"] = "Capture is paused. Start resumes from saved offsets. " + (
-            "A newer image is ready; Update Debezium image replaces and starts capture."
+            "Workload default differs; Update Debezium image opens a release picker."
             if workloads[0].get("update_available")
             else "The history writer can continue draining queued records."
         )

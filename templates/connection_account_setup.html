@@ -1,0 +1,18 @@
+<div data-account-toggle><label class="checkbox-field"><input type="checkbox" name="create_account" data-create-account><span data-account-toggle-label>Create Debezium user</span></label></div>
+<section class="account-setup" data-account-section hidden>
+<p class="notice">The database username and Vault password secret above are used only as the setup administrator. Create and test the dedicated account below, then its username and secret replace those fields before registration.</p>
+<input type="hidden" name="account_setup_id" value="" disabled>
+<div class="form-grid">
+<label>Dedicated username *<input name="account_username" maxlength="32" pattern="[A-Za-z][A-Za-z0-9_-]{0,31}" autocomplete="off" disabled></label>
+<label>New account password *<input name="account_password" type="password" minlength="12" maxlength="256" autocomplete="new-password" disabled><small>Saved directly to OCI Vault; never returned or stored in the app repository.</small></label>
+<label>MySQL account host *<input name="account_host" value="%" maxlength="255" autocomplete="off" disabled><small>Must permit the VM and worker containers. Use your deployment's host pattern to narrow access.</small></label>
+<label>Password Vault *<select name="account_vault_id" data-account-vault disabled><option value="">Choose a Vault</option></select></label>
+<label>Vault encryption key *<select name="account_key_id" disabled><option value="">Choose an enabled AES key</option></select></label>
+</div>
+<div class="panel-heading"><h3>Database grants</h3><button type="button" class="button" data-account-load>Load databases</button></div>
+<div class="account-schema-list" data-account-schemas><p class="muted">Test administrator access and load databases, then select the required databases.</p></div>
+<div data-account-maintenance hidden><label class="checkbox-field"><input type="checkbox" name="account_maintenance" disabled>Allow partition preparation and cleanup (ALTER, DROP)</label><p class="muted">Optional target maintenance. MySQL's DROP privilege also permits dropping tables and databases in the selected scope; it cannot be restricted to partition cleanup.</p></div>
+<p class="notice" data-account-grants></p>
+<p data-account-result role="status" aria-live="polite"></p>
+<div class="dialog-actions"><button type="button" class="primary" data-account-create disabled>Create and test dedicated account</button></div>
+</section>

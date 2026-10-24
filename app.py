@@ -340,6 +340,37 @@ def create_app(test_config=None):
             message="Connected to MySQL " + result["server_version"] + " using TLS encryption.",
         )
 
+    @app.route("/connections/account-schemas", methods=["POST"])
+    @protected(admin=True)
+    def account_schemas():
+        from modules.connections import connection_failure, connection_values
+        from modules.database_objects import discover
+
+        try:
+            values = connection_values(request.form)
+            data = discover(values, Cloud())
+            if values["role"] == "target":
+                data["schemas"] = [
+                    name for name in data["schemas"] if not name.lower().startswith("mysql_")
+                ]
+            return jsonify(data)
+        except Exception as error:
+            code, message = connection_failure(error)
+            return jsonify(ok=False, code=code, message=message), 400
+
+    @app.route("/connections/create-account", methods=["POST"])
+    @protected(admin=True)
+    def create_connection_account():
+        from modules.account_setup import create
+
+        setup_id = request.form.get("account_setup_id", "")
+        with repo.named_lock(g.db, "db-account", setup_id):
+            result = create(Cloud(), request.form, g.record["username"])
+        repo.record(g.db, None, "create-dedicated-account", "complete", g.record["username"])
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.route("/configuration/scope")
     @protected(admin=True)
     def resource_scope():
@@ -659,6 +690,10 @@ def create_app(test_config=None):
         if request.method == "POST":
             action = request.form.get("action")
             if action == "connection":
+                if request.form.get("create_account") == "on":
+                    raise ValueError(
+                        "Create and test the dedicated account first. Its username and Vault secret must populate the connection before registration."
+                    )
                 from modules.connections import connection_values, verify_connection
 
                 with repo.named_lock(g.db, "mappings", "all"):
@@ -863,6 +898,18 @@ def create_app(test_config=None):
         flows = repo.flows(g.db)
         return render_template("control.html", flows=flows)
 
+    @app.route("/flows/<int:flow_id>/images/<role>")
+    @protected(admin=True)
+    def flow_image_choices(flow_id, role):
+        from modules.workload_images import choices
+
+        if role not in {"debezium", "processor"}:
+            abort(404)
+        flow = repo.get_flow(g.db, flow_id)
+        response = jsonify(choices(Cloud(), flow, role))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     from modules.capture_pages import register as register_capture_pages
 
     register_capture_pages(app, protected, lambda: Cloud(), flash)
@@ -902,7 +949,16 @@ def create_app(test_config=None):
         from modules.workflows import SourceNotReady, WorkflowService
 
         try:
-            status = WorkflowService(g.db, Cloud, g.record["username"]).action(flow_id, action)
+            service = WorkflowService(g.db, Cloud, g.record["username"])
+            if action in {"update_debezium", "update_writer"}:
+                status = service.action(
+                    flow_id,
+                    action,
+                    image_release_id=request.form.get("image_release_id", ""),
+                    expected_instance_id=request.form.get("expected_instance_id", ""),
+                )
+            else:
+                status = service.action(flow_id, action)
         except SourceNotReady as error:
             return render_template("validation.html", flow=error.flow, result=error.result), 409
         message = (

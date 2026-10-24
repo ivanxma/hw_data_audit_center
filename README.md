@@ -175,6 +175,21 @@ lifecycle, ownership and dependency checks still apply. The observed HTTP 412
 issue and revised behavior are documented in
 [HeatWave lifecycle operations](docs/service-provisioning.md#heatwave-lifecycle-operations-and-etags).
 
+Control Center's **Update Debezium image** and **Update history writer image**
+actions open a release-selection dialog for the selected flow. Review the current
+image, choose an available completed component release and confirm its digest.
+The update replaces only that workload using existing checkpoints; it does not
+change other flows or Workload settings defaults. See the
+[image update procedure](docs/operations.md#update-an-image-without-losing-position).
+
+Add connection supports **Create Debezium user** for sources and **Create history
+writer user** for targets. Use the administrator only for setup, select databases,
+and store the new password directly in a same-compartment Vault. The dedicated
+username and secret reference populate the connection after grant/login checks;
+the administrator is not registered. Target partition maintenance is an explicit
+additional grant option. See [dedicated database accounts](docs/dedicated-database-accounts.md)
+for exact grants, scope limits and retry behavior.
+
 Control Center shows each process's latest safe logged error, report time, failed
 step and recovery guidance alongside process/exit status. New workload images
 report structured diagnostics; older images can expose only the limited cause

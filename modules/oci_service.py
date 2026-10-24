@@ -204,7 +204,7 @@ class Cloud:
             return self.containers.stop_container_instance(resource_id)
         raise ValueError("Unsupported container action.")
 
-    def create_processor(self, flow):
+    def create_processor(self, flow, *, replacement_of=None):
         self.validate_flow(flow)
         settings = self.config["processor"]
         self.check(self.network.get_subnet(settings["subnet_id"]).data)
@@ -247,10 +247,15 @@ class Cloud:
         payload["region"] = self.config["region"]
         payload["queue"] = transport_profile(self.config, flow)
         return self.create_workload(
-            flow, settings, payload, "history-writer", ["python", "worker.py"]
+            flow,
+            settings,
+            payload,
+            "history-writer",
+            ["python", "worker.py"],
+            replacement_of=replacement_of,
         )
 
-    def create_debezium(self, flow):
+    def create_debezium(self, flow, *, replacement_of=None):
         self.validate_flow(flow)
         from .debezium import connector_config
 
@@ -302,7 +307,9 @@ class Cloud:
                 }
                 control[role].update(database=database, **self.tls_profile(container=True))
             payload["capture_control"] = control
-        return self.create_workload(flow, settings, payload, "debezium", None)
+        return self.create_workload(
+            flow, settings, payload, "debezium", None, replacement_of=replacement_of
+        )
 
     def validate_workload(self, settings, *, require_image=False):
         """Verify deployment attachments before stopping an existing workload."""
@@ -355,7 +362,7 @@ class Cloud:
             ]
         return image_pull_secrets
 
-    def create_workload(self, flow, settings, payload, name, command):
+    def create_workload(self, flow, settings, payload, name, command, *, replacement_of=None):
         image_pull_secrets = self.validate_workload(settings)
         # Only non-secret settings and Vault OCIDs enter OCI container metadata.
         details = oci.container_instances.models.CreateContainerInstanceDetails(
@@ -394,9 +401,12 @@ class Cloud:
         )
         from .fingerprints import digest
 
-        retry_token = digest(
-            [flow["connector_name"], flow["id"], name, payload, settings["image_url"]]
-        )
+        identity = [flow["connector_name"], flow["id"], name, payload, settings["image_url"]]
+        if replacement_of:
+            # Stable for retries of this replacement, distinct when an older image
+            # is deliberately deployed again from a different registered instance.
+            identity.append(replacement_of)
+        retry_token = digest(identity)
         return self.containers.create_container_instance(
             details, opc_retry_token=retry_token
         ).data.id

@@ -4,7 +4,7 @@ const ids={connection:'connection-dialog',flow:'flow-dialog',queue:'queue-dialog
 const originals=new Map();
 for(const id of Object.values(ids)){
  const dialog=document.getElementById(id);if(!dialog)continue;
- const form=dialog.querySelector('form'),submit=form.querySelector('.dialog-actions .primary');
+ const form=dialog.querySelector('form'),submit=form.querySelector(':scope > .dialog-actions .primary');
  originals.set(id,{
   action:form.getAttribute('action'),title:dialog.querySelector('h2').textContent,submit:submit.innerHTML,
   fields:[...form.elements].filter(field=>field.name).map(field=>({field,disabled:field.disabled,required:field.required,options:field.tagName==='SELECT'?field.innerHTML:null}))
@@ -20,7 +20,7 @@ function resetEditor(dialog){
  const form=dialog.querySelector('form');window.configurationForms?.cancelLoads();
  form.reset();form.setAttribute('action',saved.action);delete form.dataset.editing;delete form.dataset.prefilling;
  dialog.querySelector('h2').textContent=saved.title;
- const submit=form.querySelector('.dialog-actions .primary');submit.innerHTML=saved.submit;submit.disabled=false;
+ const submit=form.querySelector(':scope > .dialog-actions .primary');submit.innerHTML=saved.submit;submit.disabled=false;
  form.querySelectorAll('[data-edit-only]').forEach(node=>node.remove());
  for(const {field,disabled,required,options} of saved.fields){
   if(options!==null)field.innerHTML=options;
@@ -37,7 +37,7 @@ document.addEventListener('click',event=>{
 const node=document.querySelector('[data-edit-entry]');if(!node)return;
 const entry=JSON.parse(node.dataset.editEntry),dialog=document.getElementById(ids[entry.kind]);
 if(!dialog)return;
-const form=dialog.querySelector('form'),submit=form.querySelector('.dialog-actions .primary');
+const form=dialog.querySelector('form'),submit=form.querySelector(':scope > .dialog-actions .primary');
 const field=name=>form.elements.namedItem(name);
 form.setAttribute('action',entry.url);form.dataset.editing='true';
 dialog.querySelector('h2').textContent={connection:'Edit connection',queue:'Edit queue connection',flow:'Edit table mapping'}[entry.kind];

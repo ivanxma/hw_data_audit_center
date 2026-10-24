@@ -106,22 +106,37 @@ binary. Saving a selection does not alter existing instances.
 
 ## Update an image without losing position
 
-1. Build and select the corrected component image in Workload settings.
+1. Build and publish the corrected component image in Container Registry.
 2. Select the flow row and choose **Update history writer image** or
-   **Update Debezium image**. The button is available for a running or stopped
-   workload when a different image is selected. Preflight verifies the source,
+   **Update Debezium image**. The button is available for a deployed, non-retired
+   workload in ACTIVE or INACTIVE state. Its dialog shows the currently deployed
+   image and a dropdown of completed, available app-built releases for the matching
+   component and configured private repository. Choose the exact release and review
+   its build time, repository and digest. The current digest is excluded; an earlier
+   published release can be selected after compatibility review. This choice applies
+   only to the selected flow and does not change Workload settings defaults.
+   Preflight verifies the source,
    queue, private registry image/digest and same-compartment attachments before
    stopping the affected workload.
-3. Confirm the update. It stops only that workload and waits for OCI INACTIVE
+3. Click the dialog's **Update image** button. It stops only that workload and waits for OCI INACTIVE
    before creating its replacement. The other workload keeps its current state.
    Existing connector identities, offsets, consumer groups and history remain.
    A writer update can temporarily grow the queue while Debezium continues.
 4. If shutdown takes more than 60 seconds, the app reports that it is still
-   stopping. Wait for INACTIVE and click the same Update action again. It never
+   stopping. Wait for INACTIVE, reopen Update image and choose the intended release again. It never
    creates a second active instance before shutdown is confirmed. If creation
    fails, retry Update; the old instance remains stopped and registered until
    a replacement is returned. Verify task/process health and advancing target
    checkpoints after replacement; retire the old stopped instance explicitly.
+
+The submitted release ID is resolved again under the flow lock. The backend checks
+the completed build's component, repository, VM compartment/region and the live
+registry image's availability/digest before stopping anything. A dialog opened for
+an instance that has since been replaced is rejected; reopen it to see current
+state. Start/Resume continues to use the instance's deployed digest. Workload
+settings retain the defaults used for initial deployments; **Workload default
+differs** describes a difference from those defaults, not proof that one release
+is newer or that an update is required.
 
 **Start/Resume runs the existing deployed image.** It does not install a selected
 new release. An inactive writer means no queue consumption until started or
