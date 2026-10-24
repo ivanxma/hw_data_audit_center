@@ -34,6 +34,14 @@ def mysql_failure(error, endpoint):
     elif code in {1054, 1064}:
         guidance = "MySQL rejected an application query or table layout. Use the operation and MySQL code shown here to investigate compatibility."
         status = 500
+    elif code in {2002, 2003, 2005}:
+        guidance = (
+            "Cannot connect to the configured database. Verify that its DB system is ACTIVE, "
+            "then check the configured endpoint/port, DNS, routes and security rules. "
+            "An INACTIVE DB system must be started before retrying."
+        )
+    elif code in {2006, 2013, 2055}:
+        guidance = "The database connection was lost. Check DB availability or a restart, then reconnect and retry the operation."
     elif code == 1062:
         guidance = "A registration with these unique values already exists. Refresh and select the existing registration."
         status = 409
@@ -133,7 +141,14 @@ def oci_failure(error):
         guidance = "OCI is temporarily unavailable or throttling requests. Refresh the inventory before retrying the same creation request."
         response_status = 503
     elif status == 412:
-        guidance = "OCI rejected the resource version check. Refresh the resource list, wait for any active operation to finish, and retry."
+        guidance = (
+            "OCI rejected the HeatWave operation precondition. This app does not send an "
+            "ETag/If-Match header for HeatWave operations. Refresh the DB state and check "
+            "for an active start/stop/update work request. If it repeats, retain this request "
+            "ID for service investigation; changing IAM or a database password will not fix it."
+            if "dbsystem" in normalized
+            else "OCI rejected the resource version check. Refresh the resource list, wait for any active operation to finish, and retry."
+        )
         response_status = 409
     elif status == 409:
         guidance = "Refresh the resource state and resolve the conflict before retrying."

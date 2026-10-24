@@ -5,6 +5,7 @@ import time
 from collections import OrderedDict
 
 from .connector_health import from_logs
+from .process_errors import from_logs as process_error_from_logs
 
 _cache = OrderedDict()
 _lock = threading.Lock()
@@ -28,6 +29,8 @@ def inspect_flow(cloud, flow):
     for field, label in (("connector_ocid", "Debezium"), ("processor_ocid", "History writer")):
         resource_id = flow.get(field)
         item = {"role": label, "state": "NOT_DEPLOYED", "process": "", "exit_code": None}
+        log_container = None
+        log_text = None
         if resource_id:
             instance = cloud.owned_container(resource_id, flow["id"])
             item["state"] = instance.lifecycle_state
@@ -37,6 +40,7 @@ def inspect_flow(cloud, flow):
                 )
                 if container.container_instance_id != resource_id:
                     raise ValueError("Container does not belong to the registered instance.")
+                log_container = container
                 role = "debezium" if field == "connector_ocid" else "processor"
                 image_status(cloud, field, item, container)
                 item["guidance"] = (
@@ -55,6 +59,7 @@ def inspect_flow(cloud, flow):
                         raise ValueError("Container does not belong to the registered instance.")
                     processes.append(container)
                 if processes:
+                    log_container = processes[0]
                     image_status(cloud, field, item, processes[0])
                 failed = next(
                     (
@@ -84,12 +89,30 @@ def inspect_flow(cloud, flow):
                             text = (
                                 raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
                             )
+                            log_text = text
                             item["task_state"] = from_logs(text)
                         except Exception:
                             # Lack of log access cannot establish connector readiness.
                             item["task_state"] = "UNAVAILABLE"
                 else:
                     item["process"] = "STARTING"
+        if log_container is not None:
+            try:
+                if log_text is None:
+                    response = cloud.containers.retrieve_logs(
+                        log_container.id
+                        if hasattr(log_container, "id")
+                        else instance.containers[0].container_id
+                    ).data
+                    raw = response.content if hasattr(response, "content") else response.read()
+                    log_text = raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
+                latest = process_error_from_logs(log_text, label)
+                if latest:
+                    item["last_error"] = latest
+                    if item.get("process") == "EXITED" and not item.get("update_available"):
+                        item["guidance"] = latest["guidance"]
+            except Exception:
+                item["error_log_status"] = "unavailable"
         workloads.append(item)
     states = [w["state"] for w in workloads]
     capture_paused = (

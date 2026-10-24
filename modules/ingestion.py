@@ -64,10 +64,12 @@ class BatchWriter:
         self.started = None
         self.owned = set()
         self.last_commit = None
+        self.stage = "queue_validation"
 
     def assigned(self, consumer, partitions):
         from .checkpoints import assignment
 
+        self.stage = "checkpoint_recovery"
         assignment(consumer, self.db, self.flow, partitions)
         self.owned = {(p.topic, p.partition) for p in partitions}
 
@@ -112,6 +114,7 @@ class BatchWriter:
         events = []
         schemas = []
         offsets = {}
+        self.stage = "decode"
         for message in messages:
             lane = (message.topic(), message.partition())
             if lane not in self.owned:
@@ -134,9 +137,11 @@ class BatchWriter:
                 raise ValueError("Message is outside the registered topics.")
             offsets[lane] = max(offsets.get(lane, 0), message.offset() + 1)
         started = self.clock()
+        self.stage = "target_write"
         written = write_batch(self.db, self.flow, events)
         # One public-schema partition has one owner in the stable writer group.
         # Cross-topic causal ordering is not inferred from arrival or event_time.
+        self.stage = "schema_write"
         for message in schemas:
             write_schema_event(
                 self.db,
@@ -148,6 +153,7 @@ class BatchWriter:
             )
         from .checkpoints import save
 
+        self.stage = "checkpoint_write"
         save(self.db, self.flow, offsets)
         # Pace synchronous commits, including full batches, to avoid OCI Streaming's
         # offset-commit rate ceiling. Nothing is acknowledged until persistence succeeds.
@@ -156,6 +162,7 @@ class BatchWriter:
             remaining = self.last_commit + interval - self.clock()
             if remaining > 0:
                 time.sleep(remaining)
+        self.stage = "queue_ack"
         committed = self.consumer.commit(
             offsets=[
                 TopicPartition(topic, part, offset)
@@ -186,6 +193,7 @@ class BatchWriter:
             on_lost=self.revoked,
         )
         while not stopping():
+            self.stage = "queue_poll"
             message = self.consumer.poll(0.1)
             if message is not None:
                 self.add(message)

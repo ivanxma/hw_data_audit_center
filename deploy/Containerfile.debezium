@@ -16,7 +16,7 @@ RUN /opt/vault-python/bin/python /opt/install_jdbc_history.py
 # from the OCI SDK can load first and break the Connect REST server at startup.
 RUN /opt/vault-python/bin/python -c 'from pathlib import Path; import re; base={re.split(r"-(?=\d)",p.name,1)[0] for p in Path("/kafka/libs").glob("*.jar")}; [p.unlink() for p in Path("/opt/streaming-libs").glob("*.jar") if re.split(r"-(?=\d)",p.name,1)[0] in base]'
 COPY --chown=1001:1001 deploy/debezium_bootstrap.py /opt/debezium_bootstrap.py
-COPY --chown=1001:1001 modules/transport.py modules/workload_secrets.py modules/connector_health.py /opt/modules/
+COPY --chown=1001:1001 modules/transport.py modules/workload_secrets.py modules/connector_health.py modules/process_errors.py /opt/modules/
 COPY --chown=1001:1001 modules/capture_runtime.py modules/capture_requests.py modules/capture_start.py modules/mysql_util.py modules/repository.py modules/config.py modules/validation.py modules/fingerprints.py /opt/modules/
 USER 1001
 ENTRYPOINT ["/opt/vault-python/bin/python", "/opt/debezium_bootstrap.py"]

@@ -98,40 +98,28 @@ def lifecycle(db, cloud, ids, action, actor):
             row = cloud.check(response.data)
             if row.lifecycle_state != required:
                 raise ValueError(
-                    "Every selected DB system must be "
-                    + required
-                    + " to "
-                    + action
-                    + ". Refresh the resource list."
+                    f"{row.display_name} is {row.lifecycle_state}. "
+                    f"{action.capitalize()} requires {required}. "
+                    "Refresh the DB state and wait for any active operation to finish."
                 )
-            checked.append((row, response.headers.get("etag")))
+            checked.append(row)
         results = []
-        for row, etag in checked:
+        for row in checked:
             kwargs = {
-                "if_match": etag,
                 "opc_retry_token": uuid.uuid4().hex,
                 "retry_strategy": oci.retry.NoneRetryStrategy(),
             }
             try:
-                for attempt in range(2):
-                    try:
-                        if action == "start":
-                            response = cloud.mysql.start_db_system(row.id, **kwargs)
-                        else:
-                            response = cloud.mysql.stop_db_system(
-                                row.id,
-                                oci.mysql.models.StopDbSystemDetails(shutdown_type="FAST"),
-                                **kwargs,
-                            )
-                        break
-                    except oci.exceptions.ServiceError as error:
-                        if attempt or error.status != 412 or error.code != "NoEtagMatch":
-                            raise
-                        fresh = cloud.mysql.get_db_system(row.id)
-                        current = cloud.check(fresh.data)
-                        if current.lifecycle_state != required or not fresh.headers.get("etag"):
-                            raise error
-                        kwargs["if_match"] = fresh.headers["etag"]
+                # HeatWave lifecycle POSTs intentionally omit optional If-Match.
+                # GET representation/version ETags have caused repeat 412 failures.
+                if action == "start":
+                    response = cloud.mysql.start_db_system(row.id, **kwargs)
+                else:
+                    response = cloud.mysql.stop_db_system(
+                        row.id,
+                        oci.mysql.models.StopDbSystemDetails(shutdown_type="FAST"),
+                        **kwargs,
+                    )
                 request_id = response.headers.get("opc-work-request-id", "")
                 repo.record(db, None, action + "-heatwave", "submitted", actor)
                 results.append(
@@ -144,7 +132,13 @@ def lifecycle(db, cloud, ids, action, actor):
                     {
                         "name": row.display_name,
                         "status": "failed",
-                        "message": diagnostic["message"] + " " + diagnostic["guidance"],
+                        "message": (
+                            f"Could not {action} {row.display_name}. "
+                            f"Last checked DB state: {row.lifecycle_state}. "
+                            + diagnostic["message"]
+                            + " "
+                            + diagnostic["guidance"]
+                        ),
                         "request_id": diagnostic["request_id"],
                     }
                 )

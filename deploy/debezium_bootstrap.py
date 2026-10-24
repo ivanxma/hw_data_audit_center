@@ -9,6 +9,8 @@ from pathlib import Path
 import requests
 
 from modules.connector_health import MARKER, summarize
+from modules.process_errors import MARKER as ERROR_MARKER
+from modules.process_errors import describe
 from modules.transport import (
     backend,
     jaas,
@@ -116,7 +118,8 @@ def main():
                     outcome = poll(config, secret)
                     if outcome:
                         print("AUDIT_CAPTURE_REQUEST " + json.dumps(outcome), flush=True)
-                except Exception:
+                except Exception as error:
+                    print(ERROR_MARKER + json.dumps(describe(error, "target_connect")), flush=True)
                     print(
                         "AUDIT_CAPTURE_CONTROL unavailable; pending requests have not been acknowledged.",
                         flush=True,
@@ -146,7 +149,8 @@ def main():
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
+    except Exception as error:
+        print(ERROR_MARKER + json.dumps(describe(error, "configuration")), flush=True)
         print(
             "Debezium startup failed. Check workload identity, Vault permissions, queue topics and source settings.",
             flush=True,

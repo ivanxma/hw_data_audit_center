@@ -95,6 +95,7 @@ def snapshot(source, context, role):
             "modules/transport.py",
             "modules/workload_secrets.py",
             "modules/connector_health.py",
+            "modules/process_errors.py",
             "modules/capture_runtime.py",
             "modules/capture_requests.py",
             "modules/capture_start.py",

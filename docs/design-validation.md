@@ -51,6 +51,15 @@ causal order across row/schema topics, cross-table atomic reconstruction, or a
 total order across databases. Schema fidelity is still partial where metadata
 does not establish every property.
 
+DDL can also change data without any per-row event: partition exchange, partition
+drop/truncate and table-level truncation are important examples. The application
+does not expand DDL into synthetic row changes, materialize affected row sets,
+reconcile source membership or automatically flag every such coverage gap.
+Schema storage depends on matching decoded `tableChanges`, so even a logged DDL
+statement is not guaranteed a target schema record. An empty structural delta
+does not imply unchanged contents. See [audit limitations](limitations.md) for
+examples, algorithm nuances, chart/history implications and operating policy.
+
 Default processor settings are:
 
 ```json

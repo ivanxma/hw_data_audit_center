@@ -142,10 +142,11 @@ class HeatWaveResourceTests(unittest.TestCase):
             self.assertEqual(result[0]["status"], "submitted")
             args = c.mysql.stop_db_system.call_args
             self.assertEqual(args.args[1].shutdown_type, "FAST")
-            self.assertEqual(args.kwargs["if_match"], "version")
+            self.assertNotIn("if_match", args.kwargs)
             row.lifecycle_state = "INACTIVE"
             lifecycle(MagicMock(), c, ["db"], "start", "admin")
             c.mysql.start_db_system.assert_called_once()
+            self.assertNotIn("if_match", c.mysql.start_db_system.call_args.kwargs)
 
     def test_deletion_distinguishes_this_installation_from_other_apps_and_legacy_provenance(self):
         row = Obj(
@@ -170,51 +171,27 @@ class HeatWaveResourceTests(unittest.TestCase):
                 delete_selected(MagicMock(), c, "heatwave", ["resource"], "admin")
             c.mysql.delete_db_system.assert_not_called()
 
-    def test_etag_retry_refreshes_scope_and_state_and_is_bounded(self):
-        for state, compartment, repeats, expected_calls in (
-            ("INACTIVE", "scope", False, 2),
-            ("INACTIVE", "scope", True, 2),
-            ("UPDATING", "scope", False, 1),
-            ("INACTIVE", "foreign", False, 1),
+    def test_lifecycle_ignores_response_etag_and_reports_failed_state_without_retry(self):
+        c = cloud()
+        row = Obj(
+            id="db", display_name="Example DB", compartment_id="scope", lifecycle_state="INACTIVE"
+        )
+        c.mysql.get_db_system.return_value = Obj(data=row, headers={"etag": "version--gzip"})
+        c.mysql.start_db_system.side_effect = oci.exceptions.ServiceError(
+            412,
+            "NoEtagMatch",
+            {"opc-request-id": "example-request"},
+            "private service detail",
+            operation_name="start_db_system",
+        )
+        with (
+            patch("modules.heatwave_resources.repo.named_lock"),
+            patch("modules.heatwave_resources.repo.record"),
         ):
-            with self.subTest(state=state, compartment=compartment, repeats=repeats):
-                c = cloud()
-                row = Obj(
-                    id="db", display_name="DB", compartment_id="scope", lifecycle_state="INACTIVE"
-                )
-                fresh = Obj(
-                    id="db", display_name="DB", compartment_id=compartment, lifecycle_state=state
-                )
-                c.mysql.get_db_system.side_effect = [
-                    Obj(data=row, headers={"etag": "old"}),
-                    Obj(data=fresh, headers={"etag": "new"}),
-                ]
-                error = oci.exceptions.ServiceError(
-                    412,
-                    "NoEtagMatch",
-                    {},
-                    "private service detail",
-                    operation_name="start_db_system",
-                )
-                c.mysql.start_db_system.side_effect = [error, error if repeats else Obj(headers={})]
-                with (
-                    patch("modules.heatwave_resources.repo.named_lock"),
-                    patch("modules.heatwave_resources.repo.record"),
-                ):
-                    if compartment == "foreign":
-                        with self.assertRaises(ValueError):
-                            lifecycle(MagicMock(), c, ["db"], "start", "admin")
-                    else:
-                        result = lifecycle(MagicMock(), c, ["db"], "start", "admin")
-                        self.assertEqual(
-                            result[0]["status"],
-                            "submitted" if state == "INACTIVE" and not repeats else "failed",
-                        )
-                        self.assertNotIn("private service detail", str(result))
-                self.assertEqual(c.mysql.start_db_system.call_count, expected_calls)
-                if expected_calls == 2:
-                    first, second = c.mysql.start_db_system.call_args_list
-                    self.assertEqual(second.kwargs["if_match"], "new")
-                    self.assertEqual(
-                        first.kwargs["opc_retry_token"], second.kwargs["opc_retry_token"]
-                    )
+            result = lifecycle(MagicMock(), c, ["db"], "start", "admin")
+        self.assertEqual(c.mysql.start_db_system.call_count, 1)
+        self.assertNotIn("if_match", c.mysql.start_db_system.call_args.kwargs)
+        self.assertEqual(result[0]["status"], "failed")
+        self.assertIn("Last checked DB state: INACTIVE", result[0]["message"])
+        self.assertIn("does not send", result[0]["message"])
+        self.assertNotIn("private service detail", str(result))

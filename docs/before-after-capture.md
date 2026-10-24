@@ -26,7 +26,9 @@ binlog_row_value_options = ''
 binlog_expire_logs_seconds = 604800
 ```
 
-`ROW` produces row events. `FULL` requests all available columns in the images.
+`ROW` produces row events for ordinary DML. DDL remains statement-logged and can
+change row sets without per-row images; see [coverage limitations](limitations.md).
+`FULL` requests all available columns in row-event images.
 The empty value disables `PARTIAL_JSON`, so JSON changes carry complete values.
 Seven-day retention is this application's starting recommendation, not a
 guarantee: budget for the longest outage, catch-up time and a safety margin.
@@ -197,6 +199,13 @@ for every existing row. Privilege changes, failed logins and actor attribution
 need a separately configured database-audit source; row images do not provide
 complete security evidence. See [schema_history.py](../modules/schema_history.py).
 
+Partition exchanges, partition drops/truncates, table truncation/drop and some
+column alterations can affect many rows without individual DML envelopes.
+An unchanged schema definition or empty semantic delta does not establish an
+unchanged row set. The current schema writer also depends on matching decoded
+`tableChanges` entries; it is not a raw-DDL catch-all. See
+[DDL-driven data changes and mitigations](limitations.md#ddl-can-change-data-without-producing-row-image-events).
+
 ## Acceptance checks before live use
 
 1. Validate observed source settings and writer sessions; register one test table
@@ -211,6 +220,10 @@ complete security evidence. See [schema_history.py](../modules/schema_history.py
    index plan and benchmark representative history volumes.
 6. Exercise expired-history recovery, key changes, source failover and schema
    gaps explicitly. Report coverage rather than inventing missing values.
+7. On authorized disposable tables, test partition exchange/drop/truncate and
+   table-level DDL. Record which statements/schema events the chosen connector
+   actually emits and which row images are absent. Do not treat event-chart
+   counts or a successful DDL parse as proof of complete row-history coverage.
 
 Local automated checks cover the implementation's baseline behavior. A live
 HeatWave-to-transport-to-target capture and capacity test is still required;

@@ -145,7 +145,7 @@ References: [Oracle OCIR credential helper tutorial](https://docs.oracle.com/en/
 
 ## HeatWave DB system controls
 
-Select one or more DB systems in the HeatWave resource table and use **Start selected** or **Stop selected** on the left toolbar. Start requires all selected systems to be `INACTIVE`; Stop requires `ACTIVE`. Stop prompts for confirmation because database connections and any dependent capture or history writing will be interrupted. The application uses OCI's `FAST` shutdown mode, checks every selected system's compartment and state before any action, and sends the fetched ETag for concurrency control. OCI operations are asynchronous; refresh to see their resulting state. If OCI rejects one of several submissions, the page reports each result. It does not imply an all-or-nothing cloud transaction.
+Select one or more DB systems in the HeatWave resource table and use **Start selected** or **Stop selected** on the left toolbar. Start requires all selected systems to be `INACTIVE`; Stop requires `ACTIVE`. Stop prompts for confirmation because database connections and any dependent capture or history writing will be interrupted. The application uses OCI's `FAST` shutdown mode, checks every selected system's compartment and state before any action, and omits ETag/If-Match headers. OCI operations are asynchronous; refresh to see their resulting state. If OCI rejects one of several submissions, the page reports each result. It does not imply an all-or-nothing cloud transaction.
 
 Creation uses an availability-domain selector, a live DB-system shape selector and a live MySQL version selector. Configurations reload when the shape changes. The configuration list contains an OCI default choice for that shape and active custom configurations from the VM compartment with the exact same shape. Oracle owns its default templates globally; selecting the default omits `configuration_id` and lets OCI apply its default. It does not attach a foreign custom configuration. The backend validates the shape, version and custom configuration again before creation. The form creates a standalone DB system; adding or sizing a HeatWave analytical cluster is a separate operation.
 
@@ -173,6 +173,46 @@ The app does not create or change IAM policies. Source/target database passwords
 
 References: [Oracle resource-principal Kafka authentication](https://docs.oracle.com/en/learn/ocifn-kafka-resource-principal/), [Oracle Java resource-principal login module](https://github.com/oracle/oci-java-sdk/blob/master/bmc-addons/bmc-sasl/src/main/java/com/oracle/bmc/auth/sasl/ResourcePrincipalsLoginModule.java).
 
-DB system Start/Stop keeps OCI ETag concurrency checks. On `NoEtagMatch` (HTTP 412), the app refreshes the resource and retries once only if the compartment and required state still match. Further conflicts show refresh guidance and the OCI request ID.
+DB system Start/Stop does not send ETag/If-Match headers. Errors identify the requested action, resource, last checked lifecycle state and OCI request ID. See the observed failure and concurrency considerations below.
 
 For a history-writer image update, use **Update history writer image** on the selected flow. The action stops only that writer and waits for INACTIVE before replacement. It preserves the connector and writer checkpoints. Saving an image selection or pressing Start does not upgrade an existing instance. See the [replacement procedure](operations.md#update-an-image-without-losing-position).
+
+## HeatWave lifecycle operations and ETags
+
+HeatWave OCI operations in this application **do not send ETag/If-Match headers**.
+This applies to Start/Stop; the existing HeatWave creation/deletion paths also do
+not send them. Request identifiers, instance-principal authentication and the VM
+compartment restriction remain in effect. Deletion still requires installation
+ownership and unused dependencies. Start/Stop can operate on permitted selected
+DB systems in the compartment, with a fresh supported-state check.
+
+The observed failure was HTTP 412 `NoEtagMatch` on DB-system Start even after a
+fresh GET/retry. Some GET responses carried representation ETags ending in
+`--gzip`; requesting an uncompressed representation removed that suffix, but a
+subsequent resource-version mismatch still occurred. It would be inaccurate to
+attribute every 412 solely to compression or to tell the operator that refreshing
+must resolve it. ETags are opaque; the app does not strip a suffix and reuse a
+modified token.
+
+Oracle documents `if_match` as optional for StartDbSystem/StopDbSystem. The revised
+lifecycle path omits it, checks each selected resource's compartment and required
+state before submitting, and uses one idempotency token per operation. Start
+requires INACTIVE and Stop requires ACTIVE. The OCI service still validates its
+own operation/state prerequisites. There is a possible race between the read and
+submission; without If-Match this is not optimistic version locking. A concurrent
+operation can still be rejected and must be reviewed, rather than retried blindly.
+[Oracle Python DB system client](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/mysql/client/oci.mysql.DbSystemClient.html).
+
+A failed action reports the resource name, requested action, last checked DB
+state, safe OCI code and request ID. A remaining 412 is not automatically an IAM
+or password problem. Refresh the lifecycle state, inspect ongoing work requests
+and retain the request ID for service investigation. The app does not switch
+principals, broaden scope or disable ownership checks to work around failures.
+
+A stopped target can make the history writer exit with a database connectivity
+error while the Container Instance remains ACTIVE. Restore DB availability,
+verify the configured login, then restart/resume the registered workload with its
+existing image and checkpoints. Source reconnection and target checkpoint
+progress must be verified separately. Prior stopped instances from image
+replacement are not themselves evidence that the currently registered workload
+is stopped; do not start every inactive instance or create duplicate writers.

@@ -108,6 +108,13 @@ New audit tables use monthly event-time RANGE partitions, a `(event_time,event_i
 
 Row-key and image fingerprints use a Vault-referenced HMAC key. Primary-key lookup accepts the complete key as JSON. Public schema events are archived separately with available before/after definitions and semantic differences. Detailed metadata is labeled partial where the event does not establish every MySQL property. Privilege/security capture requires a separate configured database-audit collector; row CDC alone does not provide it.
 
+**Coverage limitation:** partition exchanges, partition drops/truncates and other
+DDL can change large row sets without individual row-image events, even with
+ROW/FULL logging. Schema evidence does not reconstruct those missing row changes;
+history searches and charts count only captured events. See
+[audit coverage and limitations](docs/limitations.md) before using this prototype
+for a table that requires complete row history.
+
 ## Validation
 
 ```bash
@@ -162,6 +169,16 @@ See [service provisioning and scope](docs/service-provisioning.md) for operation
 Container Registry includes **Build & publish** for `debezium-<UTC timestamp>-<revision>` and `historywriter-<UTC timestamp>-<revision>` releases. The OL9 VM builds and uploads them to the selected same-compartment repository using its instance principal. Workload settings show release names and pin the selected digest internally. See [image build and publish](docs/service-provisioning.md#image-build-and-publish).
 
 HeatWave resources support multi-select Start/Stop. DB system creation loads OCI availability domains, available shapes, shape-matched configurations and MySQL versions instead of requiring typed values.
+
+HeatWave OCI operations do not send ETag/If-Match headers. Fresh compartment,
+lifecycle, ownership and dependency checks still apply. The observed HTTP 412
+issue and revised behavior are documented in
+[HeatWave lifecycle operations](docs/service-provisioning.md#heatwave-lifecycle-operations-and-etags).
+
+Control Center shows each process's latest safe logged error, report time, failed
+step and recovery guidance alongside process/exit status. New workload images
+report structured diagnostics; older images can expose only the limited cause
+they actually logged. Passwords, SQL text and row images are excluded.
 
 Capture position controls and recovery semantics are described in [Capture start](docs/capture-start.md).
 

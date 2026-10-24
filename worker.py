@@ -7,20 +7,23 @@ import signal
 
 from modules.ingestion import BatchSettings, BatchWriter
 from modules.mysql_util import open_connection
+from modules.process_errors import MARKER, describe
 from modules.queue_service import create_consumer
 from modules.workload_secrets import WorkloadSecrets
 
 
-def main():
+def run(status):
     flow = json.loads(os.environ["AUDIT_WORKER_CONFIG"])
     if flow.get("writer_protocol") != 2:
         raise ValueError("Deploy this image with writer protocol 2 configuration.")
     settings = BatchSettings.from_config(flow.get("batch", {}))
+    status["stage"] = "secrets"
     secret = WorkloadSecrets(flow)
     fingerprint_key = secret(flow["fingerprint_secret_ocid"]).encode()
     if not fingerprint_key:
         raise ValueError("Fingerprint secret is empty.")
     target = flow["target"]
+    status["stage"] = "target_connect"
     db, _ = open_connection(
         {
             "mode": "tcp",
@@ -45,24 +48,34 @@ def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     try:
+        status["stage"] = "queue_connect"
         consumer = create_consumer(
             flow["queue"], secret, "audit-writer-" + str(flow["id"]), resource_principal=True
         )
-        BatchWriter(consumer, db, flow, fingerprint_key, settings).run(lambda: stopping)
+        writer = BatchWriter(consumer, db, flow, fingerprint_key, settings)
+        status["writer"] = writer
+        writer.run(lambda: stopping)
     finally:
         if consumer is not None:
             consumer.close()
         db.close()
 
 
+def main():
+    status = {"stage": "configuration"}
+    try:
+        run(status)
+    except Exception as error:
+        writer = status.get("writer")
+        stage = writer.stage if writer else status["stage"]
+        logging.error("%s%s", MARKER, json.dumps(describe(error, stage)))
+        raise
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:
         main()
-    except Exception as error:
-        # Do not print raw API/DB exceptions, credentials or row images.
-        logging.error(
-            "history_writer_stopped error_type=%s; review queue, target, retention and source evidence",
-            type(error).__name__,
-        )
+    except Exception:
+        # Diagnostic text comes only from safe codes; never print raw exceptions.
         raise SystemExit(1)

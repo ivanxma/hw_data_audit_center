@@ -156,6 +156,13 @@ See [capture position and recovery](capture-start.md).
 
 ## Browsing and charts
 
+Before source partition/table maintenance, review [audit coverage limitations](limitations.md).
+EXCHANGE PARTITION and DROP/TRUNCATE PARTITION can change the source row set
+without per-row BEFORE/AFTER events. Preserve separately coordinated evidence
+where complete row history is required; this prototype does not automate that
+capture or reconcile the gap. An empty chart interval is not proof of no
+DDL-driven data change.
+
 Control Center uses one row per flow with process blocks, status and next-step
 tips. Select one checkbox row for lifecycle actions; multi-selection is available
 for CSV export. Columns resize/reorder/sort and full values open in a dialog.
@@ -172,6 +179,17 @@ database or registered table in a pie/bar chart. A database slice opens table ba
 a table slice opens its time-series bars with the date range preserved. Unavailable
 targets are marked explicitly and excluded from the known total. Global views are
 bounded to 100 mappings; narrow by source for larger installations.
+
+Process blocks include the latest safe logged error, its report time, failed step
+and recovery guidance. MySQL connection error 2003 indicates that the configured
+database is unreachable: check that its DB system is ACTIVE before retrying the
+workload, then review endpoint/port, DNS, routing and security rules. This can
+follow a source/target DB stop while OCI Container Instances still report ACTIVE.
+Older images may log only an exception class; the UI does not invent missing
+numeric codes. Deploy current images for structured stage-specific diagnostics.
+
+HeatWave Start/Stop omit ETag/If-Match and retain fresh scope/state checks and
+idempotency tokens. See [the observed 412 issue](service-provisioning.md#heatwave-lifecycle-operations-and-etags).
 
 ## Recovery, retention and backups
 

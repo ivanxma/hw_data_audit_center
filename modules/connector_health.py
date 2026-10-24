@@ -3,6 +3,8 @@
 import json
 import time
 
+from .process_errors import record
+
 MARKER = "AUDIT_CONNECTOR_HEALTH "
 
 
@@ -21,7 +23,28 @@ def summarize(document, now=None):
             else "STARTING"
         )
     )
-    return {"state": state, "tasks": len(tasks), "checked_at": time.time() if now is None else now}
+    checked_at = time.time() if now is None else now
+    result = {"state": state, "tasks": len(tasks), "checked_at": checked_at}
+    if state == "FAILED":
+        trace = "\n".join(str(task.get("trace", "")) for task in tasks)
+        code = (
+            "DB_ACCESS_DENIED"
+            if "Access denied" in trace
+            else "DB_UNREACHABLE"
+            if any(
+                text in trace
+                for text in (
+                    "Communications link failure",
+                    "Connection refused",
+                    "connect timed out",
+                )
+            )
+            else "DB_SCHEMA_MISSING"
+            if "Unknown database" in trace
+            else "PROCESS_FAILED"
+        )
+        result["failure"] = record(code, "connector_task", checked_at=checked_at)
+    return result
 
 
 def from_logs(text, now=None):
