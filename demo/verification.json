@@ -1,0 +1,23 @@
+{
+  "duration_seconds": 300,
+  "resolution": [
+    2560,
+    1440
+  ],
+  "fps": 25,
+  "narration": "English, installed Daniel voice",
+  "captions": "embedded mov_text, WebVTT and SRT",
+  "chapters": 16,
+  "browser_errors": [],
+  "mode": "Illustrative replay; no live OCI or database mutations",
+  "bytes": 22074793,
+  "source_checks": "Three DML fixtures use the application event decoder and the same key fingerprint; schema delta uses the application comparison function.",
+  "narration_duration_seconds": 300.0,
+  "full_video_audio_decode": "passed",
+  "chapter_seek": "passed",
+  "mobile_player_layout": "passed",
+  "player_browser_errors": [],
+  "chart_counts": "Overview and table drill-down use the same 549-event orders sample",
+  "visual_review": "Architecture, row images, schema changes, security audit boundary and charts inspected from encoded video",
+  "sha256": "184cf30b6f197aec62b229958792dd12b5660b680144c0a9f4f036784ba8ef14"
+}

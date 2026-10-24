@@ -1,0 +1,150 @@
+'use strict';
+(()=>{
+const get=async url=>{const response=await fetch(url,{headers:{Accept:'application/json'}});let data;try{data=await response.json();}catch{throw Error('Sign in again or check service availability.');}if(!response.ok)throw Object.assign(Error(data.message||'Service access failed.'),{policy:data.policy,requestId:data.request_id});return data;};
+function options(select,rows,label='Select…'){select.replaceChildren(new Option(label,''));for(const row of rows)select.add(new Option(row.name||row.id,row.id||row.name));select.disabled=false;}
+const dialog=document.getElementById('flow-dialog');
+const mappingLoads={};
+async function loadMappingObjects(role,selected={}){
+ if(!dialog)return;
+ const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n),status=form.querySelector('[data-mapping-status]');
+ const connection=field(role+'_id'),schema=field(role+'_schema'),table=field(role+'_table');
+ const version=(mappingLoads[role]||0)+1;mappingLoads[role]=version;
+ const id=connection.value;
+ options(schema,[],id?'Loading schemas…':'Select a connection first');schema.disabled=true;
+ options(table,[],'Select a schema first');table.disabled=true;
+ if(!id)return;
+ try{
+  const data=await get(connection.selectedOptions[0].dataset.objectsUrl);
+  if(mappingLoads[role]!==version)return;
+  options(schema,data.schemas.map(name=>({name})));
+  if(selected.schema){schema.value=selected.schema;await loadMappingTables(role,selected.table);}
+ }catch(e){status.textContent=e.message;throw e;}
+}
+async function loadMappingTables(role,selected=''){
+ const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n),status=form.querySelector('[data-mapping-status]');
+ const connection=field(role+'_id'),schema=field(role+'_schema'),table=field(role+'_table'),id=connection.value,name=schema.value;
+ options(table,[],'Loading tables…');table.disabled=true;if(!id||!name){options(table,[],'Select a schema first');table.disabled=true;return;}
+ try{
+  const data=await get(connection.selectedOptions[0].dataset.objectsUrl+'?schema='+encodeURIComponent(name));
+  if(connection.value!==id||schema.value!==name)return;
+  options(table,role==='target'?data.tables.filter(t=>t.compatible):data.tables);
+  if(role==='target')table.add(new Option('Create new audit table','__new__'),1);
+  if(selected){
+   table.value=selected;
+   if(!table.value){status.textContent='The saved '+role+' table is not available. Choose an existing table'+(role==='target'?' or Create new audit table.':'.');}
+  }
+ }catch(e){status.textContent=e.message;throw e;}
+}
+let queueVersion=0;
+async function loadMappingQueue(selected={}){
+ if(!dialog)return;
+ const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n),status=form.querySelector('[data-mapping-status]');
+ const version=++queueVersion,queue=field('queue_connection_id'),topic=field('topic'),harness=field('connect_harness_id'),label=form.querySelector('[data-harness-field]');
+ const id=queue.value,streaming=!!id&&queue.selectedOptions[0].dataset.kind==='oci_streaming';
+ options(topic,[],id?'Loading streams / topics…':'Select a messaging connection first');topic.disabled=true;
+ label.hidden=!streaming;harness.disabled=!streaming;harness.required=streaming;status.textContent='';
+ if(!id)return;
+ status.textContent='Loading streams / Kafka topics…';
+ const [topicsResult,harnessResult]=await Promise.allSettled([get(queue.selectedOptions[0].dataset.topicsUrl),streaming?loadReference(harness):Promise.resolve()]);
+ if(queueVersion!==version)return;
+ const messages=[];
+ if(topicsResult.status==='fulfilled'){
+  const active=topicsResult.value.topics.filter(t=>t.state==='ACTIVE');
+  options(topic,active,active.length?'Select a stream / topic':'No active streams / topics');topic.disabled=!active.length;
+  if(selected.topic)topic.value=selected.topic;
+  if(!active.length)messages.push('No active topics. Create a stream or Kafka topic in OCI resources, then select this connection again.');
+ }else{
+  options(topic,[],'Unable to load streams / topics');topic.disabled=true;messages.push(topicsResult.reason.message+' Select the connection again to retry.');
+ }
+ if(harnessResult.status==='rejected'){options(harness,[],'Unable to load Connect harnesses');harness.disabled=true;messages.push(harnessResult.reason.message);}
+ else if(selected.harness)harness.value=selected.harness;
+ status.textContent=messages.join(' ');
+ if(messages.length)throw Error(messages.join(' '));
+}
+if(dialog){
+ const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n);
+ for(const role of ['source','target']){
+  field(role+'_id').addEventListener('change',()=>loadMappingObjects(role).catch(()=>{}));
+  field(role+'_schema').addEventListener('change',()=>loadMappingTables(role).catch(()=>{}));
+ }
+ field('queue_connection_id').addEventListener('change',()=>loadMappingQueue().catch(()=>{}));
+}
+async function loadReference(select){const requestId=String(Number(select.dataset.requestId||0)+1);select.dataset.requestId=requestId;if(select.closest('[data-pull-secret], [data-queue-credential]')?.hidden)return;const type=select.dataset.resourceOptions;let url='/configuration/options/'+type;if(type==='mysql_shape'||type==='mysql_configuration'){const form=select.closest('form'),parent=type==='mysql_shape'?'availability_domain':'shape_name',value=form.elements.namedItem(parent).value;if(!value){options(select,[],type==='mysql_shape'?'Select an availability domain first':'Select a shape first');select.disabled=true;return;}url+='?'+parent+'='+encodeURIComponent(value);}if(type==='image'){const repository=select.closest('form').elements.namedItem('repository_id')?.value;if(!repository){options(select,[],'Select a repository first');return;}url+='?repository_id='+encodeURIComponent(repository);}if(type==='key'){const vault=select.closest('form').elements.namedItem('vault_id')?.value;if(!vault){options(select,[],'Select a vault first');return;}url+='?vault_id='+encodeURIComponent(vault);}const data=await get(url);if(select.dataset.requestId!==requestId||select.closest('[data-queue-credential]')?.hidden)return;if(type==='mysql_shape'||type==='mysql_configuration'){const parent=type==='mysql_shape'?'availability_domain':'shape_name';if(new URL(url,location.origin).searchParams.get(parent)!==select.closest('form').elements.namedItem(parent).value)return;}options(select,data.options);if(select.closest('[data-pull-secret]')?.hidden)select.disabled=true;if(select.dataset.selected){select.value=select.dataset.selected;if(select.name==='repository_id')select.dispatchEvent(new Event('change'));}}
+document.querySelectorAll('[data-fingerprint-setup] [data-resource-options="vault"]').forEach(select=>loadReference(select).catch(e=>{options(select,[],e.message);select.closest('form').querySelector('[data-fingerprint-status]').textContent=e.message;}));
+let scope=null;
+async function loadScope(){if(scope)return scope;scope=await get('/configuration/scope');const select=document.getElementById('resource-compartment');if(select){options(select,scope.compartments);select.value=scope.selected;}document.querySelectorAll('[data-compartment-value]').forEach(input=>input.value=scope.selected);return scope;}
+function renderResources(panel,kind,resources,placeholder){
+const holder=panel.querySelector('[data-service-table]');
+panel.querySelectorAll('.table-toolbar-left [data-dialog],.table-toolbar-left [data-service-refresh]').forEach(action=>panel.querySelector('.panel-heading').append(action));
+const scroll=document.createElement('div');scroll.className='table-scroll';
+const table=document.createElement('table');table.id='resource-'+kind;table.dataset.selectable='true';table.dataset.deleteUrl='/configuration/services/'+kind+'/delete';table.dataset.deleteLabel='OCI resources';table.dataset.requireManaged='true';if(kind==='heatwave')table.dataset.lifecycleUrl='/configuration/services/heatwave/actions/';
+const header=table.createTHead().insertRow();for(const title of ['Name','State','Managed by this app','Resource ID']){const cell=document.createElement('th');cell.textContent=title;header.append(cell);}
+const body=table.createTBody();for(const row of resources){const tr=body.insertRow();tr.dataset.rowId=row.id;tr.dataset.managed=String(row.managed);tr.dataset.state=row.state;for(const value of [row.name,row.state,row.managed?'Yes':'No',row.id])tr.insertCell().textContent=value;}
+if(!resources.length){const cell=body.insertRow().insertCell();cell.colSpan=4;cell.className='table-empty';cell.textContent=placeholder;}
+scroll.append(table);holder.replaceChildren(scroll);window.initializeTables?.(panel);
+}
+async function loadService(kind){
+const panel=document.getElementById('service-panel-'+kind);if(!panel)return;
+const version=String(Number(panel.dataset.loadVersion||0)+1);panel.dataset.loadVersion=version;
+const message=panel.querySelector('[data-service-message]');message.textContent='Loading resources in the VM compartment…';message.classList.remove('notice','warning');
+renderResources(panel,kind,[],'Loading…');
+try{
+ await loadScope();const data=await get('/configuration/services/'+kind);if(panel.dataset.loadVersion!==version)return;
+ renderResources(panel,kind,data.resources,'No resources in this compartment.');message.textContent='';
+}catch(error){
+ if(panel.dataset.loadVersion!==version)return;
+ renderResources(panel,kind,[],'Resource list unavailable. Resolve the error above, then Refresh.');
+ message.classList.add('notice','warning');const text=document.createElement('p');text.textContent=error.message;message.replaceChildren(text);
+ if(error.policy){const details=document.createElement('details'),summary=document.createElement('summary'),policy=document.createElement('pre');summary.textContent='Required IAM policy for the VM dynamic group';policy.textContent=error.policy;details.append(summary,policy);message.append(details);}
+ if(error.requestId){const request=document.createElement('p');request.textContent='OCI request ID: '+error.requestId;message.append(request);}
+}
+}
+const groups=document.querySelector('[data-service-tabs]');
+function serviceTab(name){groups?.querySelectorAll('[data-service-tab]').forEach(button=>{const active=button.dataset.serviceTab===name;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));});document.querySelectorAll('[data-service-panel]').forEach(panel=>panel.hidden=panel.dataset.servicePanel!==name);document.querySelectorAll('[data-service-panel="'+name+'"] [data-service-refresh]').forEach(button=>loadService(button.dataset.serviceRefresh));if(name==='registry')loadBuilds().catch(()=>{});if(name==='queues')loadScope().catch(()=>{});if(name==='containers')document.querySelectorAll('.workload-settings [data-resource-options]').forEach(select=>loadReference(select).catch(e=>options(select,[],e.message)));}
+if(groups){groups.addEventListener('click',event=>{const button=event.target.closest('[data-service-tab]');if(button)serviceTab(button.dataset.serviceTab);});document.querySelector('[data-tab="resources"]')?.addEventListener('click',()=>serviceTab(groups.querySelector('[aria-selected="true"]')?.dataset.serviceTab||'streaming'));if(new URLSearchParams(location.search).get('tab')==='resources'){const kind=new URLSearchParams(location.search).get('service');const panel=document.getElementById('service-panel-'+kind);serviceTab(kind==='queues'?'queues':panel?.closest('[data-service-panel]')?.dataset.servicePanel||'streaming');}}
+document.addEventListener('click',event=>{const refresh=event.target.closest('[data-service-refresh]');if(refresh)loadService(refresh.dataset.serviceRefresh);const opener=event.target.closest('[data-dialog]');if(opener){const target=document.getElementById(opener.dataset.dialog);if(!target)return;target.querySelectorAll('[data-resource-options]').forEach(select=>loadReference(select).catch(e=>{options(select,[],e.message);}));if(target.querySelector('[data-compartment-value]'))loadScope().catch(e=>alert(e.message));if(target.id==='queue-dialog')loadQueueResources().catch(e=>alert(e.message));}});
+document.querySelectorAll('select[name="vault_id"]').forEach(select=>select.addEventListener('change',()=>{const key=select.closest('form').querySelector('[data-resource-options="key"]');if(key)loadReference(key).catch(e=>options(key,[],e.message));}));
+let queueResourceVersion=0;
+async function loadQueueResources(selected={}){
+ const form=document.getElementById('queue-dialog')?.querySelector('form');if(!form)return;
+ const version=++queueResourceVersion,select=form.querySelector('[data-queue-resource]'),principal=form.elements.namedItem('kind').value==='oci_streaming';
+ form.querySelectorAll('[data-queue-credential]').forEach(label=>{label.hidden=principal;const field=label.querySelector('input,select');field.disabled=principal;field.required=!principal;});
+ form.querySelector('[data-queue-auth-help]').textContent=principal?'OCI Streaming uses the VM instance principal for app access and the container resource principal for Debezium and the history writer. No queue username or token secret is needed. Access stays within the VM compartment.':'Apache Kafka uses the username and password configured on the selected cluster. Store its password in a Vault secret in the VM compartment.';
+ const secret=form.querySelector('[data-queue-secret]');
+ if(!principal){secret.dataset.resourceOptions='secret';}else{delete secret.dataset.resourceOptions;}
+ options(select,[],'Loading services…');select.disabled=true;
+ const [resources]=await Promise.all([get('/configuration/options/'+(principal?'stream_pool':'kafka_cluster')),principal?Promise.resolve():loadReference(secret)]);
+ if(queueResourceVersion!==version)return;
+ options(select,resources.options.filter(item=>item.state==='ACTIVE'));
+ if(selected.resource_ocid)select.value=selected.resource_ocid;
+ if(!principal&&selected.secret_ocid)secret.value=selected.secret_ocid;
+}
+window.configurationForms={
+ cancelLoads(){queueVersion++;queueResourceVersion++;for(const role of ['source','target'])mappingLoads[role]=(mappingLoads[role]||0)+1;document.querySelectorAll('#flow-dialog [data-resource-options],#queue-dialog [data-resource-options]').forEach(select=>select.dataset.requestId=String(Number(select.dataset.requestId||0)+1));},
+ async prefillMapping(values){
+  const results=await Promise.allSettled([
+   loadMappingObjects('source',{schema:values.source_schema,table:values.source_table}),
+   loadMappingObjects('target',{schema:values.target_schema,table:values.target_table}),
+   loadMappingQueue({topic:values.topic,harness:values.connect_harness_id})
+  ]);
+  const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+ },
+ prefillQueue:loadQueueResources
+};
+document.querySelectorAll('.workload-settings [name=repository_id]').forEach(select=>select.addEventListener('change',()=>{const image=select.closest('form').querySelector('[data-resource-options=image]');loadReference(image).catch(e=>options(image,[],e.message));}));
+document.querySelector('[data-queue-kind]')?.addEventListener('change',()=>loadQueueResources().catch(e=>alert(e.message)));
+const topicQueue=document.getElementById('topic-inventory-queue');
+if(topicQueue)topicQueue.addEventListener('change',async()=>{const id=topicQueue.value,status=document.querySelector('[data-topic-status]'),holder=document.getElementById('topic-inventory');holder.replaceChildren();status.textContent='';if(!id)return;status.textContent='Loading topics…';try{const data=await get('/queue-connections/'+id+'/topics');if(topicQueue.value!==id)return;const scroll=document.createElement('div');scroll.className='table-scroll';const table=document.createElement('table');table.id='managed-topics';table.dataset.selectable='true';table.dataset.deleteUrl='/queue-topics/delete?queue_id='+encodeURIComponent(id);table.dataset.deleteLabel='topics';const head=table.createTHead().insertRow();for(const label of ['Name','Partitions','State']){const cell=document.createElement('th');cell.textContent=label;head.append(cell);}const body=table.createTBody();for(const topic of data.topics){const row=body.insertRow();row.dataset.rowId=topic.name;for(const value of [topic.name,topic.partitions,topic.state])row.insertCell().textContent=value;}if(!data.topics.length){const cell=body.insertRow().insertCell();cell.colSpan=3;cell.textContent='No topics available.';}scroll.append(table);holder.append(scroll);window.initializeTables?.(holder);status.textContent='';}catch(e){if(topicQueue.value===id)status.textContent=e.message;}});
+
+document.querySelector('[data-topics-refresh]')?.addEventListener('click',()=>topicQueue?.dispatchEvent(new Event('change')));
+if(topicQueue){const selected=new URLSearchParams(location.search).get('queue_id');if(selected&&Array.from(topicQueue.options).some(option=>option.value===selected)){topicQueue.value=selected;topicQueue.dispatchEvent(new Event('change'));}}
+
+let buildSignature='';
+async function loadBuilds(){const panel=document.getElementById('image-build-panel');if(!panel||panel.closest('[data-service-panel]').hidden)return;const status=panel.querySelector('[data-build-status]');try{const data=await get('/configuration/image-builds');status.textContent=data.worker_available?'Builds run on this OL9 VM and upload to the selected private OCI Registry repository.':'Image builder unavailable. Start heatwave-audit-image-builder.service on the VM.';const signature=JSON.stringify(data.builds);if(signature===buildSignature)return;buildSignature=signature;const holder=panel.querySelector('[data-build-table]');panel.querySelectorAll('.table-toolbar-left [data-dialog], .table-toolbar-left [data-build-refresh]').forEach(button=>panel.querySelector('.panel-heading').append(button));const scroll=document.createElement('div');scroll.className='table-scroll';const table=document.createElement('table');table.id='image-builds';table.dataset.selectable='true';table.dataset.logDownload='true';const head=table.createTHead().insertRow();for(const title of ['Release','Component','Repository','Status','Created (UTC)','Message','Image address']){const th=document.createElement('th');th.textContent=title;head.append(th);}const body=table.createTBody();for(const build of data.builds){const row=body.insertRow();row.dataset.rowId=build.id;row.dataset.logUrl=build.log_url;for(const value of [build.tag,build.role==='processor'?'History writer':'Debezium',build.repository_name,build.status,build.created_at,build.message,build.image_url])row.insertCell().textContent=value;}if(!data.builds.length){const cell=body.insertRow().insertCell();cell.colSpan=7;cell.textContent='No image builds yet. Choose Build & publish to create a release.';}scroll.append(table);holder.replaceChildren(scroll);window.initializeTables?.(panel);}catch(e){status.textContent=e.message;}}
+document.querySelector('[data-build-refresh]')?.addEventListener('click',()=>{buildSignature='';loadBuilds();});
+setInterval(()=>{if(!document.hidden)loadBuilds();},5000);
+document.querySelectorAll('[data-pull-auth]').forEach(select=>{const sync=()=>{const label=select.closest('form').querySelector('[data-pull-secret]'),secret=label.querySelector('select');label.hidden=select.value!=='vault';secret.disabled=label.hidden;secret.required=!label.hidden;if(!label.hidden)loadReference(secret).catch(e=>options(secret,[],e.message));};select.addEventListener('change',sync);sync();});
+
+const heatwaveForm=document.querySelector('#create-heatwave form');
+if(heatwaveForm){const domain=heatwaveForm.elements.namedItem('availability_domain'),shape=heatwaveForm.elements.namedItem('shape_name'),config=heatwaveForm.elements.namedItem('configuration_id');domain.addEventListener('change',()=>{options(shape,[],'Loading available shapes…');shape.disabled=true;options(config,[],'Select a shape first');config.disabled=true;loadReference(shape).catch(e=>options(shape,[],e.message));});shape.addEventListener('change',()=>{options(config,[],'Loading matching configurations…');config.disabled=true;loadReference(config).catch(e=>options(config,[],e.message));});}
+})();

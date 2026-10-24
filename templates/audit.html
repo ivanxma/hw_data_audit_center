@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+{% set selected_tab = 'audit-trends' if request.args.get('tab') == 'audit-trends' else 'audit-history' %}
+<div class="page-heading audit-heading">
+  <div><div class="eyebrow">EVERY CHANGE TELLS A STORY</div><h1>Audit Center</h1><p>Browse row history, compare images and understand your rate of change.</p></div>
+  <div class="heading-actions">
+    <a class="button" data-keep-range href="{{ url_for('audit',tab='audit-global') }}">All tables overview</a>
+    {% if result %}<a class="button" data-preserve-tab href="{{ url_for('audit',**export_args) }}">{{ icon('download') }} Export page CSV</a>{% endif %}
+  </div>
+</div>
+<section class="panel">
+  <form class="filter-bar" method="get" data-audit-filters>
+    <input type="hidden" name="tab" data-tab-selection value="{{ selected_tab }}">
+    <label>Server / table<select name="flow_id" required><option value="">Select a registered table</option>{% for f in flows %}<option value="{{ f.id }}" {{ 'selected' if request.args.get('flow_id')==f.id|string else '' }}>{{ f.source_name }} / {{ f.source_schema }}.{{ f.source_table }}</option>{% endfor %}</select></label>
+    <label>Operation<select name="operation"><option value="">All operations</option>{% for op in ['CREATE','UPDATE','DELETE','SNAPSHOT','TRUNCATE'] %}<option {{ 'selected' if request.args.get('operation')==op else '' }}>{{ op }}</option>{% endfor %}</select></label>
+    <label>Record key<input name="key" placeholder='{"id":1042}' title="Complete primary-key JSON object" value="{{ request.args.get('key','') }}"></label>
+    <label>Interval<select name="interval">{% for value,label in [('hour','Hour'),('minute','Minute (one-hour view)'),('day','Day'),('week','Week (Monday UTC)')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('interval','hour')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Chart type<select name="chart_type">{% for value,label in [('line','Line'),('bar','Bar'),('stacked','Stacked bar')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('chart_type','line')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Quick range<select data-range-preset><option value="">Custom range</option><option value="1">Last hour</option><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="2160">Last 90 days</option></select></label>
+    <label>From (UTC)<input type="datetime-local" name="from" value="{{ request.args.get('from', result.get('from','') if result else '')[:16] }}"></label>
+    <label>To (UTC)<input type="datetime-local" name="to" value="{{ request.args.get('to', result.get('to','') if result else '')[:16] }}"></label>
+    <button class="primary">{{ icon('search') }} Apply filters</button>
+  </form>
+</section>
+{% if result %}
+<div class="notice">Choose any retained date range using From and To (UTC). Minute charts cover one hour; Day and Week support longer ranges. {% if request.args.get('key') and not request.args.get('from') %}Keyed history searches all retained events; the chart uses the displayed window.{% endif %}</div>
+<div class="audit-summary">
+  <strong>{{ '{:,}'.format(result.total) }} <span>matching changes</span></strong>
+  <div class="legend">{% for count in result.counts %}<span><i class="legend-dot {{ count.operation|lower }}"></i>{{ count.operation|capitalize }} <b>{{ count.n }}</b></span>{% endfor %}</div>
+</div>
+<div class="tabs" role="tablist" aria-label="Audit views" data-tabs-persist>
+  <button type="button" id="tab-audit-history" role="tab" data-tab="audit-history" aria-controls="audit-history" aria-selected="{{ 'true' if selected_tab == 'audit-history' else 'false' }}" tabindex="{{ 0 if selected_tab == 'audit-history' else -1 }}" class="{{ 'active' if selected_tab == 'audit-history' else '' }}">{{ icon('layers') }} Change history</button>
+  <button type="button" id="tab-audit-trends" role="tab" data-tab="audit-trends" aria-controls="audit-trends" aria-selected="{{ 'true' if selected_tab == 'audit-trends' else 'false' }}" tabindex="{{ 0 if selected_tab == 'audit-trends' else -1 }}" class="{{ 'active' if selected_tab == 'audit-trends' else '' }}">{{ icon('chart') }} Changes over time</button>
+</div>
+<section class="tab-content panel" id="audit-history" role="tabpanel" aria-labelledby="tab-audit-history" tabindex="0" {{ 'hidden' if selected_tab != 'audit-history' else '' }}>
+  <div class="panel-heading"><h2>Change history</h2><div class="heading-actions"><span class="muted">Page {{ result.page }} · 50 rows per page</span><button class="icon-button" data-reset-table="history-table" title="Reset column layout" aria-label="Reset column layout">{{ icon('refresh') }}</button></div></div>
+  <div class="table-scroll">
+    <table id="history-table" data-table data-selectable="true" data-selection-action="images">
+      <thead><tr><th data-sort="0">Event time (UTC) ↕</th><th data-sort="1">Operation ↕</th><th>Record key</th><th>Queue position</th></tr></thead>
+      <tbody>
+        {% for row in result.rows %}
+        <tr data-row-id="{{ row.event_id }}" data-image-dialog="event-{{ loop.index }}">
+          <td data-full-value="{{ row.event_time }}&#10;{{ row.event_id }}"><strong>{{ row.event_time }}</strong><small>{{ row.event_id[:16] }}…</small></td>
+          <td><span class="badge {{ row.operation|lower }}">{{ row.operation }}</span></td>
+          <td>
+            <code>{{ row.record_key|tojson }}</code>
+            <dialog id="event-{{ loop.index }}" class="wide-dialog">
+              <div class="dialog-heading"><div><span class="eyebrow">{{ row.operation }} · {{ row.event_time }}</span><h2>Row change details</h2></div><button class="icon-button" data-close aria-label="Close">×</button></div>
+              <code>{{ row.event_id }}</code>
+              <div class="image-pair">
+                <div><h3><span class="legend-dot delete"></span> Before image</h3><pre>{{ row.before_image|tojson(indent=2) }}</pre></div>
+                <div><h3><span class="legend-dot create"></span> After image</h3><pre>{{ row.after_image|tojson(indent=2) }}</pre></div>
+              </div>
+              <details><summary>Source metadata</summary><pre>{{ row.source_metadata|tojson(indent=2) }}</pre></details>
+            </dialog>
+          </td>
+          <td><code>{{ row.topic }}</code><small>Partition {{ row.partition_id }} · Offset {{ row.queue_offset }}</small></td>
+        </tr>
+        {% else %}<tr><td colspan="4" class="table-empty">No changes match your filters.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination"><span>{{ result.total }} records</span><div>{% if result.page>1 %}<a class="button" data-preserve-tab href="{{ url_for('audit',**prev_args) }}">← Previous</a>{% endif %}{% if result.page*50<result.total %}<a class="button" data-preserve-tab href="{{ url_for('audit',**next_args) }}">Next →</a>{% endif %}</div></div>
+</section>
+<section class="tab-content panel" id="audit-trends" role="tabpanel" aria-labelledby="tab-audit-trends" tabindex="0" {{ 'hidden' if selected_tab != 'audit-trends' else '' }}>
+  <div class="panel-heading"><div><h2>Changes over time</h2><p>Events per {{ request.args.get('interval','hour') }} · {{ result.get('from','')|replace('T',' ') }} → {{ result.get('to','')|replace('T',' ') }} · UTC</p></div><div class="heading-actions"><span class="badge neutral">{{ flow.source_schema }}.{{ flow.source_table }}</span><button type="button" class="icon-button" data-download-chart="audit-chart" title="Download chart PNG" aria-label="Download chart PNG">{{ icon('download') }}</button></div></div>
+  <div class="chart-legend" id="audit-chart-legend" aria-label="Chart legend"></div><div class="chart-container"><canvas id="audit-chart" data-type="{{ request.args.get('chart_type','line') }}" data-start="{{ result.get('chart_start','') }}" data-end="{{ result.get('chart_end','') }}" data-chart="{{ result.chart|tojson|forceescape }}" data-interval="{{ result.interval }}" role="img" aria-label="Changes over time by operation"></canvas><p id="chart-empty" hidden>No changes in this chart window.</p></div>
+</section>
+{% else %}
+<section class="panel empty-state">{{ icon('search') }}<h3>Your data’s history, ready to explore</h3><p>Select a server and registered table to browse changes and compare complete row images.</p></section>
+{% endif %}
+<script src="{{ url_for('static',filename='audit-charts.js') }}" defer></script>
+{% endblock %}

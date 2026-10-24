@@ -1,0 +1,22 @@
+ARG DEBEZIUM_IMAGE=quay.io/debezium/connect:3.4
+FROM docker.io/library/maven:3.9.9-eclipse-temurin-21 AS streaming-libs
+WORKDIR /build
+COPY deploy/streaming-java/pom.xml .
+COPY deploy/streaming-java/PrincipalRuntimeCheck.java .
+RUN javac -d /probe PrincipalRuntimeCheck.java
+RUN mvn -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/libs && rm -f /libs/kafka-clients-*.jar /libs/slf4j-*.jar /libs/lz4-java-*.jar /libs/snappy-java-*.jar /libs/zstd-jni-*.jar
+FROM ${DEBEZIUM_IMAGE}
+USER root
+RUN microdnf install -y python3 python3-pip && microdnf clean all && python3 -m venv /opt/vault-python && /opt/vault-python/bin/pip install --no-cache-dir 'oci>=2.160,<3' 'requests>=2.32,<3' 'mysql-connector-python>=9.5,<10'
+COPY --from=streaming-libs /libs /opt/streaming-libs
+COPY --from=streaming-libs /probe /opt/streaming-check
+COPY deploy/install_jdbc_history.py /opt/install_jdbc_history.py
+RUN /opt/vault-python/bin/python /opt/install_jdbc_history.py
+# Connect owns its shared runtime libraries. An older duplicate Jersey/HK2 jar
+# from the OCI SDK can load first and break the Connect REST server at startup.
+RUN /opt/vault-python/bin/python -c 'from pathlib import Path; import re; base={re.split(r"-(?=\d)",p.name,1)[0] for p in Path("/kafka/libs").glob("*.jar")}; [p.unlink() for p in Path("/opt/streaming-libs").glob("*.jar") if re.split(r"-(?=\d)",p.name,1)[0] in base]'
+COPY --chown=1001:1001 deploy/debezium_bootstrap.py /opt/debezium_bootstrap.py
+COPY --chown=1001:1001 modules/transport.py modules/workload_secrets.py modules/connector_health.py /opt/modules/
+COPY --chown=1001:1001 modules/capture_runtime.py modules/capture_requests.py modules/capture_start.py modules/mysql_util.py modules/repository.py modules/config.py modules/validation.py modules/fingerprints.py /opt/modules/
+USER 1001
+ENTRYPOINT ["/opt/vault-python/bin/python", "/opt/debezium_bootstrap.py"]

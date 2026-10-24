@@ -1,0 +1,82 @@
+{
+  "compartment_id": "",
+  "region": "",
+  "streaming": {
+    "bootstrap_servers": "",
+    "stream_pool_id": "",
+    "kind": "oci_streaming",
+    "connect_harness_id": "",
+    "connect_topics": {
+      "config": "",
+      "offset": "",
+      "status": ""
+    },
+    "incarnation": "",
+    "connect_profiles": {},
+    "auth_mode": "principal"
+  },
+  "kafka": {
+    "bootstrap_servers": "",
+    "username": "",
+    "secret_ocid": "",
+    "kind": "oci_kafka",
+    "cluster_id": "",
+    "connect_topics": {},
+    "replication_factor": 3,
+    "incarnation": "",
+    "connect_profiles": {}
+  },
+  "processor": {
+    "availability_domain": "",
+    "subnet_id": "",
+    "repository_id": "",
+    "registry_endpoint": "",
+    "image_pull_auth": "resource_principal",
+    "image_pull_secret_ocid": "",
+    "image_url": "",
+    "shape": "CI.Standard.E4.Flex",
+    "ocpus": 1,
+    "memory_in_gbs": 4,
+    "batch": {
+      "max_records": 250,
+      "max_bytes": 4194304,
+      "max_wait_ms": 500
+    },
+    "offset_commit_interval_ms": 500
+  },
+  "debezium": {
+    "availability_domain": "",
+    "subnet_id": "",
+    "repository_id": "",
+    "registry_endpoint": "",
+    "image_pull_auth": "resource_principal",
+    "image_pull_secret_ocid": "",
+    "image_url": "",
+    "shape": "CI.Standard.E4.Flex",
+    "ocpus": 1,
+    "memory_in_gbs": 6,
+    "server_id_base": 54000
+  },
+  "resources": {
+    "audit-registry": {
+      "kind": "repository",
+      "spec": {
+        "display_name": "heatwave-audit",
+        "is_public": false
+      }
+    },
+    "audit-stream-pool": {
+      "kind": "stream_pool",
+      "spec": {
+        "name": "heatwave-audit"
+      }
+    }
+  },
+  "fingerprint_secret_ocid": "",
+  "retention": {},
+  "mysql_tls": {
+    "vm_ca_bundle": "",
+    "container_ca_bundle": "",
+    "mode": "REQUIRED"
+  }
+}

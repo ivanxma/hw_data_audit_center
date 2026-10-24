@@ -1,0 +1,2 @@
+{% for f in flows %}<span hidden data-flow-watch="{{ f.id }}" data-status="{{ f.status }}" data-url="{{ url_for('flow_status',flow_id=f.id) }}"></span>{% endfor %}
+<script src="{{ url_for('static',filename='flow-status.js') }}" defer></script>
