@@ -224,3 +224,8 @@ existing image and checkpoints. Source reconnection and target checkpoint
 progress must be verified separately. Prior stopped instances from image
 replacement are not themselves evidence that the currently registered workload
 is stopped; do not start every inactive instance or create duplicate writers.
+
+
+See [the same-compartment limitation](compartment-scope.md) for Vault/secret
+selection, other OCI resource boundaries and the host-only database identity
+exception. Broader IAM access does not expand this application boundary.

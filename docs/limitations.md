@@ -121,8 +121,17 @@ Neither operation is a full archive/restore mechanism.
 | Scaling | One connector/writer per table flow; automatic fleet scaling/shared multi-table extraction are not implemented |
 | Retention / archives | Payload cleanup is opt-in; metadata grows; verified archive export/restore is not implemented |
 
-See the [user manual](user-manual/index.html#ddl-data-limitations),
+See the [user manual](user-manual/html/index.html#ddl-data-limitations),
 [capture contract](before-after-capture.md) and
 [design validation](design-validation.md). Service/connector versions and exact
 DDL behavior require acceptance tests; a healthy process or successful DDL parse
 is not a row-history completeness guarantee.
+
+
+## Same-compartment deployment boundary
+
+Vaults, keys, credential/fingerprint secrets and other app-managed OCI resources
+must remain in the VM compartment and region. Cross-compartment sharing is not
+supported by this prototype. This is an application restriction; host-only MySQL
+connection testing does not attest DB-system compartment placement. See the
+[resource boundary matrix](compartment-scope.md) and user manual Appendix K.

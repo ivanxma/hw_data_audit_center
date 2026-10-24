@@ -17,7 +17,7 @@ for(const id of Object.values(ids)){
 }
 function resetEditor(dialog){
  const saved=originals.get(dialog.id);if(!saved)return;
- const form=dialog.querySelector('form');window.configurationForms?.cancelLoads();
+ const form=dialog.querySelector('form');window.configurationForms?.cancelLoads();if(dialog.id==='connection-dialog')window.connectionSecrets?.cancel();
  form.reset();form.setAttribute('action',saved.action);delete form.dataset.editing;delete form.dataset.prefilling;
  dialog.querySelector('h2').textContent=saved.title;
  const submit=form.querySelector(':scope > .dialog-actions .primary');submit.innerHTML=saved.submit;submit.disabled=false;
@@ -67,6 +67,7 @@ if(entry.kind==='flow'){
  field('connect_harness_id').required=streaming;
 }
 applyLocks();dialog.showModal();
+if(entry.kind==='connection')window.connectionSecrets?.load();
 if(!nameOnly&&(entry.kind==='flow'||entry.kind==='queue')){
  form.dataset.prefilling='true';submit.disabled=true;
  const load=entry.kind==='flow'?window.configurationForms.prefillMapping:window.configurationForms.prefillQueue;

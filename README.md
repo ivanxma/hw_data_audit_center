@@ -22,11 +22,16 @@ The web application provides a dashboard, connection/table registration, source 
 
 Current guides: [setup and operations](docs/operations.md), [IAM and database access](docs/iam-policy.md), [capture positioning](docs/capture-start.md).
 
-The [user manual](docs/user-manual/index.html) covers the prototype background,
+The [user manual](docs/user-manual/html/index.html) covers the prototype background,
 architecture and network diagrams, OL9 installation, every app page and its
 fields/actions, operations, scaling, updates and cleanup. A
-[printable PDF](docs/user-manual/HeatWave-Audit-Center-User-Manual.pdf) is included.
+[printable PDF](docs/user-manual/pdf/HeatWave-Audit-Center-User-Manual.pdf) is included.
+A [Markdown edition](docs/user-manual/md/README.md) is also included.
 Screenshots use clearly labelled illustrative data.
+
+**Application limitation:** Vaults, secrets and other app-managed OCI resources
+must stay in the VM compartment and region. See the
+[supported resource boundary and host-only DB exception](docs/compartment-scope.md).
 
 ## Choose where Debezium starts reading
 

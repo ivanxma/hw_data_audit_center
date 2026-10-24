@@ -158,3 +158,8 @@ For a 404/403, keep the operation, safe OCI code and request ID; verify the corr
 domain/group, matching rule, compartment and regional service availability.
 Allow IAM changes to propagate, then retry the same identity. Do not broaden to
 `manage all-resources in tenancy` or fall back to user/API-key credentials.
+
+
+See [the same-compartment limitation](compartment-scope.md) for Vault/secret
+selection, other OCI resource boundaries and the host-only database identity
+exception. Broader IAM access does not expand this application boundary.

@@ -14,7 +14,7 @@ function update(){
  form.querySelector('[data-account-maintenance]').hidden=role!=='target';field('account_maintenance').disabled=!enabled||busy||role!=='target';
  form.querySelector('[data-account-toggle-label]').textContent=role==='source'?'Create Debezium user':'Create history writer user';
  form.querySelector('[data-connection-user-label]').textContent=enabled?'Setup administrator username *':'Database username *';
- form.querySelector('[data-connection-secret-label]').textContent=enabled?'Administrator Vault password secret OCID *':'Vault password secret OCID *';
+ form.querySelector('[data-connection-secret-label]').textContent=enabled?'Administrator password secret *':'Vault password secret *';
  if(!editing){save.disabled=enabled||busy;for(const name of ['name','role','host','port','database_name','username','secret_ocid'])field(name).disabled=busy;}dialog.querySelectorAll('[data-close]').forEach(button=>button.disabled=busy);
  if(!field('account_username').value)field('account_username').value=role==='source'?'debezium_reader':'history_writer';
  if(!field('account_setup_id').value)field('account_setup_id').value=id();
@@ -43,7 +43,7 @@ create.addEventListener('click',async()=>{
   if(!selection().includes(field('database_name').value))throw Error('Select the connection default database as well as any additional databases.');
   busy=true;update();result.textContent='Storing the password in Vault, creating the dedicated account and verifying its grants and login…';
   const data=await request('/connections/create-account',body);
-  field('username').value=data.username;field('secret_ocid').value=data.secret_ocid;toggle.checked=false;
+  field('username').value=data.username;window.connectionSecrets.select(data.secret_ocid,'Dedicated account password');toggle.checked=false;
   form.querySelector('[data-connection-result]').textContent=data.message+' Selected databases: '+data.schemas.join(', ')+'.';
   form.querySelector('[data-connection-result]').dataset.state='success';
  }catch(error){result.textContent=error.message;}

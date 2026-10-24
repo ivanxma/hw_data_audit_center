@@ -8,7 +8,7 @@ can use dedicated accounts without MySQL `SUPER`.
 
 1. Open **Configuration & setup → Connections → Add connection**. Fill in the
    endpoint, default database and role. Enter the setup administrator's username
-   and its existing Vault password-secret reference.
+   and select its existing password secret by name from the Vault secret dropdown.
 2. Tick **Create Debezium user** for a Source connection, or **Create history
    writer user** for a Target connection. The username/secret fields above are
    labelled as temporary setup-administrator inputs.
@@ -34,6 +34,8 @@ Unchecking account creation preserves the existing workflow for registering an
 already-provisioned account. Account creation is offered on Add connection;
 existing registration Edit restrictions and already-deployed credentials remain
 unchanged. The app does not silently migrate or restart existing flows.
+
+Both the administrator secret and the new credential secret/Vault must stay in the VM compartment. The dropdown lists ACTIVE secret metadata only. See the [same-compartment limitation](compartment-scope.md), which also applies to other managed OCI resources.
 
 ## Grant plans
 

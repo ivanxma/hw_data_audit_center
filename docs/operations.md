@@ -223,3 +223,8 @@ separate operator procedure. Restore and backlog recovery still need a controlle
 acceptance test for the actual deployment.
 
 Global charts count at most 100 registered tables per view. Each count query has a five-second MySQL execution limit; after 15 seconds the request starts no further table counts. A call already in progress may finish after that budget. Unavailable or uncounted tables remain visibly unknown and the total is marked incomplete. Narrow the database or date filters before retrying. Chart download icons export PNG; table download icons export the loaded counts as CSV.
+
+
+See [the same-compartment limitation](compartment-scope.md) for Vault/secret
+selection, other OCI resource boundaries and the host-only database identity
+exception. Broader IAM access does not expand this application boundary.

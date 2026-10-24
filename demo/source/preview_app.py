@@ -244,7 +244,7 @@ def render_page(endpoint, **kwargs):
                 dict(id="demo-harness", name="Orders Connect configuration", state="ACTIVE")
             ],
             "secret": [
-                dict(id="ocid1.vaultsecret.example.source", name="Demo source password reference")
+                dict(id="ocid1.vaultsecret.example.source", name="Demo source password reference", state="ACTIVE")
             ],
             "availability_domain": [dict(id="Example AD", name="Example AD")],
         }
