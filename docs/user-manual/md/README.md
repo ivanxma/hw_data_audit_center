@@ -401,6 +401,9 @@ Enabled buttons can still be rejected by server-side scope, ownership, state and
 
 Use this page for a first health overview. If a flow needs attention, open Control Center and inspect both workload tips. A green process state does not establish that data has arrived. Use Message Explorer and Audit Center for evidence, and workload logs/checkpoints for diagnosis.
 
+**Watch demo** opens the signed-in `/demo/` playback page. Play or pause the narrated video in the browser, use native seek/full-screen controls, enable English captions or select a chapter. The page does not require an MP4 download.
+
+
 <a id="connections"></a>
 
 ## 13. Configuration: HeatWave connections

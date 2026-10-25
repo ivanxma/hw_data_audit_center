@@ -64,8 +64,10 @@ for validation, recovery and GTID semantics.
 
 ## Five-minute demonstration
 
-[Watch or download the narrated demo](demo/heatwave-audit-oci-streaming-demo.mp4),
-or use the [chaptered player and demo materials](demo/index.html). The video shows
+Open **Dashboard → Watch demo** in the running application, or visit `/demo/`
+after signing in. The [demo playback page](demo/index.html) provides an embedded
+player, English captions and chapter navigation; the video plays in the browser.
+Its files are also available under `demo/` for local hosting. The video shows
 the source on the left, the application/browser in the centre and target audit
 evidence on the right, with the browser enlarged during app operations. It covers
 the OCI Streaming architecture, registration, INSERT/UPDATE/DELETE images, row-key
