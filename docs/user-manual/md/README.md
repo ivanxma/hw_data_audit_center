@@ -319,7 +319,7 @@ Use this sequence after installation. Each stage has a corresponding screen desc
 
 **Completion means verified evidence, not just an Active badge.** Compare source commit time, queue partition/offset, target event and target checkpoint progress. Keep the same registration identities and fingerprint key when continuity is intended.
 
-The provided [five-minute demonstration](../../../demo/index.html) illustrates these concepts with sample data. It is not proof that a particular deployment meets its operational or recovery requirements.
+The provided [five-minute demonstration](https://ivanxma.github.io/hw_data_audit_center/demo/) illustrates these concepts with sample data. It is not proof that a particular deployment meets its operational or recovery requirements.
 
 <a id="login"></a>
 
@@ -1429,7 +1429,7 @@ Do not claim a zero-loss recovery point or global transaction reconstruction unt
 - [Before/after capture and retrieval](../../before-after-capture.md)
 - [OCI resource provisioning](../../service-provisioning.md)
 - [Design validation and remaining engineering work](../../design-validation.md)
-- [Narrated demo and companion materials](../../../demo/index.html)
+- [Narrated demo and companion materials](https://ivanxma.github.io/hw_data_audit_center/demo/)
 
 ### Primary product documentation
 

@@ -64,10 +64,11 @@ for validation, recovery and GTID semantics.
 
 ## Five-minute demonstration
 
-Open **Dashboard → Watch demo** in the running application, or visit `/demo/`
-after signing in. The [demo playback page](demo/index.html) provides an embedded
-player, English captions and chapter navigation; the video plays in the browser.
-Its files are also available under `demo/` for local hosting. The video shows
+[Watch the five-minute demo](https://ivanxma.github.io/hw_data_audit_center/demo/)
+in your browser, with English captions and chapter navigation. No application
+login is required for this public demonstration. In the running application,
+**Dashboard → Watch demo** also opens the player after signing in.
+The player files are available under `demo/` for local hosting. The video shows
 the source on the left, the application/browser in the centre and target audit
 evidence on the right, with the browser enlarged during app operations. It covers
 the OCI Streaming architecture, registration, INSERT/UPDATE/DELETE images, row-key

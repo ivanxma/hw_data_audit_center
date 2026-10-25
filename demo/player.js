@@ -5,12 +5,12 @@ async function play(time){
  const request=++playRequest;
  if(Number.isFinite(time))video.currentTime=time;
  try{await video.play();if(request!==playRequest)return;status.textContent='';video.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});}
- catch(error){if(request!==playRequest||error.name==='AbortError')return;status.textContent='Use the video player controls to start playback. If the video is unavailable, refresh this page and sign in again.';}
+ catch(error){if(request!==playRequest||error.name==='AbortError')return;status.textContent='Use the video player controls to start playback. If the video is unavailable, refresh this page and try again.';}
 }
 button?.addEventListener('click',()=>{if(video.paused)play();else{playRequest++;video.pause();}});
 document.querySelectorAll('[data-seek]').forEach(chapter=>chapter.addEventListener('click',()=>play(Number(chapter.dataset.seek))));
 video.addEventListener('play',()=>{if(button)button.textContent='Pause demo';status.textContent='';});
 video.addEventListener('pause',()=>{if(button)button.textContent='Play demo';});
 video.addEventListener('ended',()=>{if(button)button.textContent='Replay demo';});
-video.addEventListener('error',()=>{status.textContent='The video could not be loaded. Refresh this page and sign in again.';});
+video.addEventListener('error',()=>{status.textContent='The video could not be loaded. Refresh this page and try again.';});
 })();
