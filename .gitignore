@@ -27,5 +27,5 @@ downloads/
 
 .ruff_cache/
 
-# Demo publishing configuration stays private.
-/.github/workflows/demo-pages.yml
+# Repository automation configuration stays private.
+/.github/
