@@ -26,3 +26,6 @@ downloads/
 *.zip
 
 .ruff_cache/
+
+# Demo publishing configuration stays private.
+/.github/workflows/demo-pages.yml
