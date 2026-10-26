@@ -1,279 +1,279 @@
 1
-00:00:00,600 --> 00:00:05,330
+00:00:00,600 --> 00:00:04,869
 Welcome to HeatWave Audit Center. Source left, controls in the centre,
 
 2
-00:00:05,330 --> 00:00:09,200
+00:00:04,870 --> 00:00:08,943
 audit history right. This walkthrough uses illustrative demo data.
 
 3
-00:00:10,600 --> 00:00:15,175
+00:00:10,600 --> 00:00:15,839
 This demonstration explains the current application and its limits. Oracle styling
 
 4
-00:00:15,175 --> 00:00:19,751
+00:00:15,840 --> 00:00:21,159
 does not imply Oracle authorship or endorsement. The security audit extension
 
 5
-00:00:19,751 --> 00:00:23,079
+00:00:21,160 --> 00:00:23,912
 shown later is not implemented in this application.
 
 6
-00:00:30,600 --> 00:00:34,776
+00:00:30,600 --> 00:00:35,272
 The web application runs on Oracle Linux nine. Debezium and the
 
 7
-00:00:34,776 --> 00:00:38,951
+00:00:35,273 --> 00:00:39,414
 history writer run on O C I Container Instances. Debezium reads
 
 8
-00:00:38,951 --> 00:00:43,127
+00:00:39,415 --> 00:00:42,968
 source changes, publishes to O C I Streaming, and the writer
 
 9
-00:00:43,127 --> 00:00:47,302
+00:00:42,969 --> 00:00:47,489
 commits history to the target. Vault holds credentials. Resource access stays
 
 10
-00:00:47,302 --> 00:00:49,200
+00:00:47,504 --> 00:00:48,870
 in the virtual machine compartment.
 
 11
-00:00:50,600 --> 00:00:54,169
+00:00:50,600 --> 00:00:53,855
 Begin with a demo orders table and a primary key. Creating
 
 12
-00:00:54,169 --> 00:00:57,738
+00:00:53,856 --> 00:00:58,119
 this table prepares the source before registration. Because capture starts later,
 
 13
-00:00:57,738 --> 00:01:01,307
+00:00:58,460 --> 00:01:01,510
 its first schema observation is a baseline. It is not a
 
 14
-00:01:01,307 --> 00:01:04,876
+00:01:01,617 --> 00:01:04,724
 claim that the earlier create statement was captured from the binary
 
 15
-00:01:04,876 --> 00:01:05,200
+00:01:04,725 --> 00:01:05,001
 log.
 
 16
-00:01:06,600 --> 00:01:10,847
+00:01:06,600 --> 00:01:10,801
 Register the source and target connections. The Test connection button checks
 
 17
-00:01:10,847 --> 00:01:15,093
+00:01:10,807 --> 00:01:15,132
 MySQL access using a Vault secret reference. Table mappings load schemas
 
 18
-00:01:15,093 --> 00:01:19,340
+00:01:15,133 --> 00:01:18,988
 and tables from those connections. Select one registration and choose Edit
 
 19
-00:01:19,340 --> 00:01:23,200
+00:01:19,001 --> 00:01:22,981
 to change its available settings. Existing capture identities remain protected.
 
 20
-00:01:24,600 --> 00:01:28,924
+00:01:24,600 --> 00:01:27,913
 Create or select a stream pool, a data stream, and a
 
 21
-00:01:28,924 --> 00:01:33,249
+00:01:27,998 --> 00:01:33,567
 Connect configuration. Add a queue connection using principal authentication. The mapping
 
 22
-00:01:33,249 --> 00:01:37,573
+00:01:33,568 --> 00:01:37,221
 uses the data stream; its separate schema stream must also be
 
 23
-00:01:37,573 --> 00:01:41,111
+00:01:37,249 --> 00:01:40,925
 ready. This demonstration uses O C I Streaming throughout.
 
 24
-00:01:42,600 --> 00:01:47,550
+00:01:42,600 --> 00:01:46,574
 A new flow initialized at End captures schema and future changes,
 
 25
-00:01:47,550 --> 00:01:52,500
+00:01:46,585 --> 00:01:52,545
 without copying existing rows. Restarts resume saved offsets. Verify messages and
 
 26
-00:01:52,500 --> 00:01:55,200
+00:01:52,605 --> 00:01:54,925
 target events, not just container status.
 
 27
-00:01:56,600 --> 00:02:00,857
+00:01:56,600 --> 00:02:01,123
 Insert order ten forty two. Debezium represents the insert as a
 
 28
-00:02:00,857 --> 00:02:05,114
+00:02:01,211 --> 00:02:05,568
 create event. Its before image is null; its after image contains
 
 29
-00:02:05,114 --> 00:02:09,370
+00:02:05,569 --> 00:02:09,365
 the new row. The writer stores the key, source position, queue
 
 30
-00:02:09,370 --> 00:02:13,627
+00:02:09,366 --> 00:02:14,374
 offset and images. A successful target commit must precede acknowledgement of
 
 31
-00:02:13,627 --> 00:02:14,401
+00:02:14,500 --> 00:02:15,041
 the message.
 
 32
-00:02:16,600 --> 00:02:20,522
+00:02:16,600 --> 00:02:20,839
 Now change the order status and amount. The same key links
 
 33
-00:02:20,522 --> 00:02:24,444
+00:02:20,840 --> 00:02:25,081
 the earlier and later versions. Select the update in Change history,
 
 34
-00:02:24,444 --> 00:02:28,366
+00:02:25,320 --> 00:02:29,779
 then Compare images. The before image shows new and eighty; the
 
 35
-00:02:28,366 --> 00:02:32,288
+00:02:29,780 --> 00:02:33,630
 after image shows paid and ninety nine point ninety five. Full
 
 36
-00:02:32,288 --> 00:02:34,784
+00:02:33,640 --> 00:02:36,372
 row images require the correct source settings.
 
 37
-00:02:38,600 --> 00:02:42,619
+00:02:38,600 --> 00:02:42,164
 Delete the source row. It disappears from the current source table,
 
 38
-00:02:42,619 --> 00:02:46,638
+00:02:42,562 --> 00:02:46,522
 but the audit record retains its final before image. The after
 
 39
-00:02:46,638 --> 00:02:50,658
+00:02:46,523 --> 00:02:50,633
 image is null. History remains available for the original insert, the
 
 40
-00:02:50,658 --> 00:02:54,677
+00:02:50,634 --> 00:02:54,703
 update and the deletion. Deleting source data does not erase audit
 
 41
-00:02:54,677 --> 00:02:55,042
+00:02:54,708 --> 00:02:55,078
 history.
 
 42
-00:02:56,600 --> 00:03:00,776
+00:02:56,600 --> 00:03:00,244
 Search with the typed record key, id ten forty two, and
 
 43
-00:03:00,776 --> 00:03:04,951
+00:03:00,337 --> 00:03:04,514
 a retained date range. The application computes the same keyed fingerprint
 
 44
-00:03:04,951 --> 00:03:09,127
+00:03:04,515 --> 00:03:08,176
 from the source identity, schema, table and key. An indexed lookup
 
 45
-00:03:09,127 --> 00:03:13,302
+00:03:08,177 --> 00:03:12,602
 finds that row’s changes. Separate image fingerprints describe content changes; the
 
 46
-00:03:13,302 --> 00:03:15,200
+00:03:12,716 --> 00:03:14,902
 event identity supports replay deduplication.
 
 47
-00:03:16,600 --> 00:03:21,110
+00:03:16,600 --> 00:03:20,098
 Add a region column with a default, and widen the amount
 
 48
-00:03:21,110 --> 00:03:25,620
+00:03:20,099 --> 00:03:24,559
 type. Schema events use the separate schema stream. The target stores
 
 49
-00:03:25,620 --> 00:03:30,130
+00:03:24,560 --> 00:03:29,722
 the prior definition, new definition and a semantic difference. Here, SQL
 
 50
-00:03:30,130 --> 00:03:34,640
+00:03:29,799 --> 00:03:34,577
 inspection shows the new column and decimal precision change. Defaults, indexes
 
 51
-00:03:34,640 --> 00:03:39,150
+00:03:34,871 --> 00:03:38,443
 and partitions can only be compared when the captured metadata contains
 
 52
-00:03:39,150 --> 00:03:41,200
+00:03:38,444 --> 00:03:41,013
 them. Unknown properties stay unknown.
 
 53
-00:03:42,600 --> 00:03:47,206
+00:03:42,600 --> 00:03:48,178
 Create a locked demonstration user, grant select, then revoke it. These
 
 54
-00:03:47,206 --> 00:03:51,812
+00:03:48,179 --> 00:03:52,851
 are account and privilege operations, not row updates. This application does
 
 55
-00:03:51,812 --> 00:03:56,418
+00:03:52,880 --> 00:03:56,815
 not yet collect them as a security history. Use the MySQL
 
 56
-00:03:56,418 --> 00:04:01,024
+00:03:56,825 --> 00:04:02,004
 Enterprise Audit plugin with reviewed filters and a separate collector. Retain
 
 57
-00:04:01,024 --> 00:04:05,630
+00:04:02,005 --> 00:04:06,191
 the actor, account, scope, action, outcome and timestamp. Do not infer
 
 58
-00:04:05,630 --> 00:04:08,561
+00:04:06,209 --> 00:04:08,755
 complete privilege history from row change capture.
 
 59
-00:04:10,600 --> 00:04:14,692
+00:04:10,600 --> 00:04:14,557
 The Audit Center opens with all databases. A pie chart compares
 
 60
-00:04:14,692 --> 00:04:18,784
+00:04:14,564 --> 00:04:18,665
 event counts. Choose a database slice or its legend entry to
 
 61
-00:04:18,784 --> 00:04:22,876
+00:04:18,699 --> 00:04:22,512
 see registered table bars, then select a table to drill into
 
 62
-00:04:22,876 --> 00:04:26,968
+00:04:22,525 --> 00:04:26,314
 changes over time. These overview counts are a separate sample dataset,
 
 63
-00:04:26,968 --> 00:04:29,200
+00:04:26,729 --> 00:04:28,948
 not the three earlier demonstration transactions.
 
 64
-00:04:30,600 --> 00:04:34,510
+00:04:30,600 --> 00:04:34,305
 Choose a custom date range and an interval of minute, hour,
 
 65
-00:04:34,510 --> 00:04:38,420
+00:04:34,440 --> 00:04:38,910
 day or week. Minute charts cover one hour. Switch between line,
 
 66
-00:04:38,420 --> 00:04:42,330
+00:04:38,920 --> 00:04:42,599
 bar and stacked bar, and use the operation legend. Counts include
 
 67
-00:04:42,330 --> 00:04:46,240
+00:04:42,600 --> 00:04:46,780
 snapshots unless you filter them out. Download a chart image or
 
 68
-00:04:46,240 --> 00:04:48,017
+00:04:46,880 --> 00:04:48,725
 export the loaded table data.
 
 69
-00:04:50,600 --> 00:04:55,105
+00:04:50,600 --> 00:04:55,336
 Capture row images, compare schemas, and explore history and charts. Security
 
 70
-00:04:55,105 --> 00:04:59,200
+00:04:55,337 --> 00:04:58,937
 auditing needs a separate collector. This was an illustrative replay.
