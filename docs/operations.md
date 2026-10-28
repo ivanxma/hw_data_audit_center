@@ -88,6 +88,20 @@ A stale dialog must be reloaded before saving. Rename preserves connector names,
 flow IDs, container registrations and row-fingerprint namespaces; it does not
 restart workloads. OCI service resources retain their existing lifecycle controls.
 
+## Find schema and row changes
+
+Open Audit Center, choose **Event timeline**, then select the registered flow.
+Set **Event type** to **All changes**, **Schema changes only**, or **Row changes
+only**. For a wildcard flow, use Source database and Source table to narrow the
+view. Choose **Oldest first** to follow table creation and subsequent row changes,
+or **Newest first** to inspect recent activity. All event timestamps use UTC.
+
+Schema and row evidence is combined by source timestamp, then binlog file,
+position and row. Events without a usable source timestamp show recorded time;
+a schema baseline is not the table's original creation. Schema details exposes
+the captured DDL, definitions and source metadata. Row INSERT is distinct from
+CREATE TABLE. CSV export includes schema fields as well as row images.
+
 ## Fixed container build contract
 
 The capture image builds an embedded Debezium Engine, MySQL driver, JDBC history

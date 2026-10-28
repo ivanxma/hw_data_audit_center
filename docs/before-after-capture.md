@@ -166,10 +166,21 @@ operation, and returns bounded pages of events. Choose one event to compare its
 stored images. Confirm the query plan and latency with production-scale data;
 an index does not establish a response-time guarantee.
 
-Audit Center presents **Change history** and **Changes over time** in separate
-tabs. Both use the filters and operation summary above them. Change history
-opens by default; filtering, pagination and page CSV export preserve the selected
-tab. Select a history row to compare its before and after images.
+Audit Center presents **Event timeline** and **Changes over time**. Select
+**Event type** to show **All changes**, **Schema changes only**, or **Row changes
+only**. The timeline combines the separately stored schema and row evidence in
+source-time order, with **Oldest first** or **Newest first** ordering. Binlog file,
+position and row break timestamp ties; arrival order across the data and schema
+streams does not determine display order. The overview, drill-down links, counts,
+charts and page CSV export preserve the event-type selection.
+
+Row `CREATE` events are labelled **INSERT** in the UI. DDL events are labelled
+**CREATE TABLE**, **ALTER TABLE** or **DROP TABLE**. **Schema details** shows the
+DDL, before/after definitions, available semantic differences and source position.
+**Row details** shows before/after row images. Baseline observations are identified
+separately from original DDL. If a source timestamp is unavailable, the event uses
+its recorded time and is labelled accordingly. A row-key filter narrows row events;
+matching table-level schema events remain visible in **All changes**.
 
 Fingerprints do not encrypt the stored JSON or establish tamper-proof history.
 Restrict target and export access. Preserve the HMAC key across restarts; key

@@ -670,3 +670,61 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(query(self.db, f'SELECT COUNT(*) AS n FROM `{self.schema}`.`{table}`', one=True)['n'], 0)
             route = query(self.db, f'SELECT target_table FROM `{self.schema}`.audit_target_routes WHERE flow_id=%s AND source_schema=%s AND source_table=%s', (flow['id'], 'sales', 'future_table'), one=True)
             self.assertEqual(route['target_table'], table)
+
+    def test_combined_timeline_uses_source_time_and_binlog_order_with_kind_filters(self):
+        from modules.audit_timeline import browse as timeline
+        moment = datetime(2026, 10, 27, 12, 0, 0, 123000, tzinfo=timezone.utc)
+        base = {'db': 'sales', 'table': 'orders', 'file': 'binlog.000001', 'row': 0,
+                'ts_ms': int(moment.timestamp() * 1000), 'gtid': 'transaction-fixture'}
+        rows = []
+        for pos, op in [(101, 'c'), (102, 'u'), (104, 'd')]:
+            envelope = {'op': op, 'source': {**base, 'pos': pos},
+                        'before': {'id': 1} if op != 'c' else None,
+                        'after': {'id': 1} if op != 'd' else None}
+            rows.append(decode(json.dumps(envelope), '{"id":1}', 'data', 0, pos, self.flow, b'test-hmac'))
+        # Delivery across the two streams need not be chronological. Persist rows
+        # before schema evidence to prove the UI sorts source coordinates instead.
+        write_batch(self.db, self.flow, rows)
+        for pos, kind in [(100, 'CREATE'), (103, 'ALTER'), (105, 'DROP')]:
+            envelope = {'databaseName': 'sales', 'source': {**base, 'pos': pos},
+                        'ddl': kind + ' TABLE sales.orders',
+                        'tableChanges': [{'id': '"sales"."orders"', 'type': kind,
+                                          'table': {'columns': [{'name': 'id', 'typeName': 'INT'}]} if kind != 'DROP' else None}]}
+            write_schema_event(self.db, self.flow, json.dumps(envelope), 'schema', 0, pos)
+        @contextmanager
+        def connection(*args):
+            yield self.db
+        flow = {**self.flow, 'target': {}, 'source': {'server_identity': 'integration-source'}}
+        filters = {'from': '2026-10-27T00:00:00', 'to': '2026-10-28T00:00:00', 'event_kind': 'all'}
+        with patch('modules.audit_timeline.connect', connection):
+            all_events = timeline(flow, None, filters)
+            self.assertEqual([r['operation_label'] for r in all_events['rows']],
+                             ['CREATE TABLE', 'INSERT', 'UPDATE', 'ALTER TABLE', 'DELETE', 'DROP TABLE'])
+            self.assertTrue(all(r['event_time'] == moment.replace(tzinfo=None) for r in all_events['rows']))
+            schema = timeline(flow, None, {**filters, 'event_kind': 'schema'})
+            self.assertEqual(schema['total'], 3)
+            self.assertTrue(all(r['event_kind'] == 'schema' for r in schema['rows']))
+            row = timeline(flow, None, {**filters, 'event_kind': 'row'})
+            self.assertEqual(row['total'], 3)
+            self.assertTrue(all(r['event_kind'] == 'row' for r in row['rows']))
+            reverse = timeline(flow, None, {**filters, 'direction': 'desc'})
+            self.assertEqual([r['event_id'] for r in reverse['rows']], list(reversed([r['event_id'] for r in all_events['rows']])))
+            specific = timeline(flow, None, {**filters, 'source_table_filter': 'orders', 'operation': 'DDL_CREATE'})
+            self.assertEqual(specific['total'], 1)
+            self.assertIn('CREATE TABLE', specific['rows'][0]['ddl'])
+
+    def test_schema_timeline_baseline_uses_recorded_time_without_inventing_creation_time(self):
+        from modules.audit_timeline import browse as timeline
+        envelope = {'databaseName': 'sales', 'ddl': 'CREATE TABLE orders (id INT PRIMARY KEY)',
+                    'source': {'file': 'binlog.1', 'pos': 100, 'ts_ms': 1000, 'snapshot': True},
+                    'tableChanges': [{'id': 'sales.orders', 'type': 'CREATE', 'table': {'columns': []}}]}
+        write_schema_event(self.db, self.flow, json.dumps(envelope), 'schema', 0, 1)
+        @contextmanager
+        def connection(*args):
+            yield self.db
+        with patch('modules.audit_timeline.connect', connection):
+            result = timeline({**self.flow, 'target': {}}, None, {'event_kind': 'schema'})
+        self.assertEqual(result['total'], 1)
+        self.assertEqual(result['rows'][0]['time_basis'], 'recorded')
+        self.assertEqual(result['rows'][0]['operation_label'], 'Schema baseline')
+        self.assertEqual(result['rows'][0]['event_time'], result['rows'][0]['observed_at'])

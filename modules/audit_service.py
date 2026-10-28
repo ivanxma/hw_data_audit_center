@@ -35,6 +35,8 @@ def chart_window(filters):
 
 def overview(flows, cloud, filters):
     """Count registered tables independently; unavailable history is never a zero."""
+    if filters.get("event_kind") not in {None, "all", "row", "schema"}:
+        raise ValueError("Choose all, schema or row changes.")
     selected = [
         f
         for f in flows
@@ -66,7 +68,12 @@ def overview(flows, cloud, filters):
             with connect(flow["target"], cloud) as db:
                 from .audit_relation import metadata_relation
 
-                table = metadata_relation(db, flow)
+                if filters.get("event_kind"):
+                    from .audit_timeline import relation
+
+                    table = relation(db, flow, filters["event_kind"])
+                else:
+                    table = metadata_relation(db, flow)
                 clause, params = (
                     "flow_id=%s AND event_time >= %s AND event_time <= %s",
                     [flow["id"], start, end],

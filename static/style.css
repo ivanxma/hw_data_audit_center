@@ -48,3 +48,6 @@ button:disabled{opacity:1;background:#e6e8eb!important;color:#717984!important;b
 
 [data-initial-gtid] > small{display:block;margin:8px 0;color:var(--muted);font-size:12px;line-height:1.6}
 [data-initial-gtid] [data-gtid-result]{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.65;max-height:180px;overflow:auto;margin:12px 0;color:var(--ink)}
+
+/* Keep timeline coordinates readable and event actions inside their cells. */
+#history-table.compact-table td{height:auto;max-height:none;white-space:normal;vertical-align:top}#history-table.compact-table td small{display:block;margin:3px 0 0;white-space:normal;overflow-wrap:anywhere}#history-table.compact-table td code{white-space:normal;overflow-wrap:anywhere}#history-table .table-cell-value{height:auto;white-space:normal;overflow-wrap:anywhere}#history-table .badge+strong{display:block;margin-top:3px}#history-table .event-details-cell>code{display:block;max-height:44px;overflow:hidden}#history-table .event-details-cell>[data-dialog]{display:block;max-width:100%;white-space:normal;margin-top:6px;padding:6px 9px;font-size:11px}

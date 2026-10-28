@@ -79,3 +79,27 @@ class DemoPlayerTests(unittest.TestCase):
             self.assertEqual(response.status_code, 206)
             self.assertEqual(response.mimetype, "application/pdf")
             response.close()
+
+    def test_private_presentation_download_and_legacy_link(self):
+        import tempfile
+        from pathlib import Path
+
+        name = 'HeatWave-Audit-Center-Native-OCI-Streaming.pptx'
+        url = '/internal_docs/presentations/' + name
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.auth()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / 'internal_docs/presentations'
+            folder.mkdir(parents=True)
+            (folder / name).write_bytes(b'presentation fixture' * 20)
+            with patch.object(self.mod, 'ROOT', root), patch.object(self.mod.CONNECTIONS, 'borrow', return_value=MagicMock()):
+                response = self.client.get(url, headers={'Range': 'bytes=0-63'})
+                self.assertEqual(response.status_code, 206)
+                self.assertEqual(len(response.data), 64)
+                response.close()
+                legacy = self.client.get('/docs/presentations/' + name)
+                self.assertEqual(legacy.status_code, 302)
+                self.assertEqual(legacy.location, url)
+                self.assertEqual(self.client.get('/internal_docs/presentations/../../app.py').status_code, 404)
+                self.assertEqual(self.client.get('/internal_docs/presentations/private.json').status_code, 404)

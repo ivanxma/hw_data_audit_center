@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
+{% set event_kind = result.get('event_kind',request.args.get('event_kind','all')) if result else request.args.get('event_kind','all') %}
+{% set operation_labels = {'CREATE':'INSERT','UPDATE':'UPDATE','DELETE':'DELETE','SNAPSHOT':'Row snapshot','TRUNCATE':'TRUNCATE rows','DDL_CREATE':'CREATE TABLE','DDL_ALTER':'ALTER TABLE','DDL_DROP':'DROP TABLE','DDL_RENAME':'RENAME TABLE','DDL_TRUNCATE':'TRUNCATE TABLE','DDL_SNAPSHOT':'Schema baseline','DDL_SNAPSHOT_RESET':'Schema baseline reset'} %}
 {% set selected_tab = 'audit-trends' if request.args.get('tab') == 'audit-trends' else 'audit-history' %}
 <div class="page-heading audit-heading">
-  <div><div class="eyebrow">EVERY CHANGE TELLS A STORY</div><h1>Audit Center</h1><p>Browse row history, compare images and understand your rate of change.</p></div>
+  <div><div class="eyebrow">EVERY CHANGE TELLS A STORY</div><h1>Audit Center</h1><p>Follow schema and row changes together in source-time order; inspect DDL, definitions and row images.</p></div>
   <div class="heading-actions">
     <a class="button" data-keep-range href="{{ url_for('audit',tab='audit-global') }}">All tables overview</a>
     {% if result %}<a class="button" data-preserve-tab href="{{ url_for('audit',**export_args) }}">{{ icon('download') }} Export page CSV</a>{% endif %}
@@ -12,9 +14,11 @@
   <form class="filter-bar" method="get" data-audit-filters>
     <input type="hidden" name="tab" data-tab-selection value="{{ selected_tab }}">
     <label>Server / table<select name="flow_id" required><option value="">Select a registered table</option>{% for f in flows %}<option value="{{ f.id }}" {{ 'selected' if request.args.get('flow_id')==f.id|string else '' }}>{{ f.source_name }} / {{ f.source_schema }}.{{ f.source_table }}</option>{% endfor %}</select></label>
-    <label>Operation<select name="operation"><option value="">All operations</option>{% for op in ['CREATE','UPDATE','DELETE','SNAPSHOT','TRUNCATE'] %}<option {{ 'selected' if request.args.get('operation')==op else '' }}>{{ op }}</option>{% endfor %}</select></label>
+    <label>Event type<select name="event_kind" data-event-kind>{% for value,label in [('all','All changes'),('schema','Schema changes only'),('row','Row changes only')] %}<option value="{{ value }}" {{ 'selected' if event_kind==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Operation<select name="operation"><option value="">All operations</option>{% for op,label in operation_labels.items() %}<option value="{{ op }}" data-event-operation="{{ 'schema' if op.startswith('DDL_') else 'row' }}" {{ 'selected' if request.args.get('operation')==op else '' }}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Time order<select name="direction"><option value="asc" {{ 'selected' if request.args.get('direction','asc')=='asc' else '' }}>Oldest first</option><option value="desc" {{ 'selected' if request.args.get('direction')=='desc' else '' }}>Newest first</option></select></label>
     {% if flow.source_table == '*' %}<label>Source database<input name="source_database" placeholder="{{ 'Database name' if flow.source_schema == '*' else flow.source_schema }}" value="{{ request.args.get('source_database','') }}"></label><label>Source table<input name="source_table_filter" placeholder="Table name" value="{{ request.args.get('source_table_filter','') }}"></label>{% endif %}
-    <label>Record key<input name="key" placeholder='{"id":1042}' title="Complete primary-key JSON object" value="{{ request.args.get('key','') }}"></label>
+    <label>Record key<input name="key" placeholder='{"id":1042}' title="Complete primary-key JSON object. Filters row events; table schema events remain visible in All changes." data-row-key value="{{ request.args.get('key','') }}"></label>
     <label>Interval<select name="interval">{% for value,label in [('hour','Hour'),('minute','Minute (one-hour view)'),('day','Day'),('week','Week (Monday UTC)')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('interval','hour')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
     <label>Chart type<select name="chart_type">{% for value,label in [('line','Line'),('bar','Bar'),('stacked','Stacked bar')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('chart_type','line')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
     <label>Quick range<select data-range-preset><option value="">Custom range</option><option value="1">Last hour</option><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="2160">Last 90 days</option></select></label>
@@ -24,40 +28,45 @@
   </form>
 </section>
 {% if result %}
-<div class="notice">Choose any retained date range using From and To (UTC). Minute charts cover one hour; Day and Week support longer ranges. {% if request.args.get('key') and not request.args.get('from') %}Keyed history searches all retained events; the chart uses the displayed window.{% endif %}</div>
+<div class="notice">Source timestamps determine the timeline; binlog file, position and row resolve ties. Queue arrival order is not used. Events without a source timestamp show their recorded time; schema baselines do not represent the original table creation. Choose any retained date range using From and To (UTC). Minute charts cover one hour; Day and Week support longer ranges. {% if request.args.get('key') and not request.args.get('from') %}Keyed history searches all retained events; the chart uses the displayed window.{% endif %}</div>
 <div class="audit-summary">
   <strong>{{ '{:,}'.format(result.total) }} <span>matching changes</span></strong>
-  <div class="legend">{% for count in result.counts %}<span><i class="legend-dot {{ count.operation|lower }}"></i>{{ count.operation|capitalize }} <b>{{ count.n }}</b></span>{% endfor %}</div>
+  <div class="legend">{% for count in result.counts %}<span><i class="legend-dot {{ count.operation|lower }}"></i>{{ operation_labels.get(count.operation,count.operation) }} <b>{{ count.n }}</b></span>{% endfor %}</div>
 </div>
 <div class="tabs" role="tablist" aria-label="Audit views" data-tabs-persist>
-  <button type="button" id="tab-audit-history" role="tab" data-tab="audit-history" aria-controls="audit-history" aria-selected="{{ 'true' if selected_tab == 'audit-history' else 'false' }}" tabindex="{{ 0 if selected_tab == 'audit-history' else -1 }}" class="{{ 'active' if selected_tab == 'audit-history' else '' }}">{{ icon('layers') }} Change history</button>
+  <button type="button" id="tab-audit-history" role="tab" data-tab="audit-history" aria-controls="audit-history" aria-selected="{{ 'true' if selected_tab == 'audit-history' else 'false' }}" tabindex="{{ 0 if selected_tab == 'audit-history' else -1 }}" class="{{ 'active' if selected_tab == 'audit-history' else '' }}">{{ icon('layers') }} Event timeline</button>
   <button type="button" id="tab-audit-trends" role="tab" data-tab="audit-trends" aria-controls="audit-trends" aria-selected="{{ 'true' if selected_tab == 'audit-trends' else 'false' }}" tabindex="{{ 0 if selected_tab == 'audit-trends' else -1 }}" class="{{ 'active' if selected_tab == 'audit-trends' else '' }}">{{ icon('chart') }} Changes over time</button>
 </div>
 <section class="tab-content panel" id="audit-history" role="tabpanel" aria-labelledby="tab-audit-history" tabindex="0" {{ 'hidden' if selected_tab != 'audit-history' else '' }}>
-  <div class="panel-heading"><h2>Change history</h2><div class="heading-actions"><span class="muted">Page {{ result.page }} · 50 rows per page</span><button class="icon-button" data-reset-table="history-table" title="Reset column layout" aria-label="Reset column layout">{{ icon('refresh') }}</button></div></div>
+  <div class="panel-heading"><h2>Event timeline</h2><div class="heading-actions"><span class="muted">Page {{ result.page }} · 50 rows per page</span><button class="icon-button" data-reset-table="history-table" title="Reset column layout" aria-label="Reset column layout">{{ icon('refresh') }}</button></div></div>
   <div class="table-scroll">
-    <table id="history-table" data-table data-selectable="true" data-selection-action="images">
-      <thead><tr><th data-sort="0">Event time (UTC) ↕</th><th data-sort="1">Operation ↕</th><th>Record key</th><th>Queue position</th></tr></thead>
+    <table id="history-table" data-table data-selectable="true" data-selection-action="events">
+      <thead><tr><th data-sort="0">Event time (UTC) ↕</th><th data-sort="1">Event / operation ↕</th><th>Details</th><th>Source / queue position</th></tr></thead>
       <tbody>
         {% for row in result.rows %}
         <tr data-row-id="{{ row.event_id }}" data-image-dialog="event-{{ loop.index }}">
-          <td data-full-value="{{ row.event_time }}&#10;{{ row.event_id }}"><strong>{{ row.event_time }}</strong><small>{{ row.source_schema }}.{{ row.source_table }}</small><small>{{ row.event_id[:16] }}…</small></td>
-          <td><span class="badge {{ row.operation|lower }}">{{ row.operation }}</span></td>
-          <td>
-            <code>{{ row.record_key|tojson }}</code>
+          <td data-full-value="{{ row.event_time }}&#10;{{ row.event_id }}"><strong>{{ row.event_time }}</strong><small>{{ row.source_schema }}.{{ row.source_table }}</small><small>{{ 'Source time' if row.get('time_basis','source')=='source' else 'Recorded time · source time unavailable' }}</small></td>
+          <td><span class="badge {{ 'neutral' if row.get('event_kind')=='schema' else row.operation|lower }}">{{ 'Schema' if row.get('event_kind')=='schema' else 'Row' }}</span><strong>{{ row.get('operation_label',operation_labels.get(row.operation,row.operation)) }}</strong></td>
+          <td class="event-details-cell">
+            {% if row.get('event_kind')=='schema' %}<code>{{ (row.ddl or '')[:160] }}{{ '…' if (row.ddl or '')|length>160 else '' }}</code>{% else %}<code>{{ row.record_key|tojson }}</code>{% endif %}
+            <button class="button" type="button" data-dialog="event-{{ loop.index }}">{{ 'Schema details' if row.get('event_kind')=='schema' else 'Row details' }}</button>
             <dialog id="event-{{ loop.index }}" class="wide-dialog">
-              <div class="dialog-heading"><div><span class="eyebrow">{{ row.operation }} · {{ row.event_time }}</span><h2>Row change details</h2></div><button class="icon-button" data-close aria-label="Close">×</button></div>
-              <code>{{ row.event_id }}</code>
-              <div class="image-pair">
-                <div><h3><span class="legend-dot delete"></span> Before image</h3><pre>{{ row.before_image|tojson(indent=2) }}</pre></div>
-                <div><h3><span class="legend-dot create"></span> After image</h3><pre>{{ row.after_image|tojson(indent=2) }}</pre></div>
-              </div>
-              <details><summary>Source metadata</summary><pre>{{ row.source_metadata|tojson(indent=2) }}</pre></details>
+              <div class="dialog-heading"><div><span class="eyebrow">{{ row.get('operation_label',row.operation) }} · {{ row.event_time }} UTC</span><h2>{{ 'Schema change details' if row.get('event_kind')=='schema' else 'Row change details' }}</h2></div><button class="icon-button" data-close aria-label="Close">×</button></div>
+              <p><strong>{{ row.source_schema }}.{{ row.source_table }}</strong> · {{ row.event_id }}</p>
+              {% if row.get('event_kind')=='schema' %}
+              <h3>DDL statement</h3><pre>{{ row.ddl or 'No DDL statement was included in this event.' }}</pre>
+              <p>Definition coverage: {{ row.fidelity }}. {% if row.operation in ['DDL_SNAPSHOT','DDL_SNAPSHOT_RESET'] %}This is a capture-initialization observation, not the original table creation.{% elif row.before_definition is none %}No earlier definition has been recorded for this object.{% endif %}</p>
+              <div class="image-pair"><div><h3>Before definition</h3><pre>{{ row.before_definition|tojson(indent=2) }}</pre></div><div><h3>After definition</h3><pre>{{ row.after_definition|tojson(indent=2) }}</pre></div></div>
+              <details><summary>Definition changes</summary><pre>{{ row.semantic_delta|tojson(indent=2) }}</pre></details>
+              {% else %}
+              <div class="image-pair"><div><h3><span class="legend-dot delete"></span> Before image</h3><pre>{{ row.before_image|tojson(indent=2) }}</pre></div><div><h3><span class="legend-dot create"></span> After image</h3><pre>{{ row.after_image|tojson(indent=2) }}</pre></div></div>
+              {% endif %}
+              <details><summary>Source metadata and transaction position</summary><pre>{{ row.source_metadata|tojson(indent=2) }}</pre></details>
             </dialog>
           </td>
-          <td><code>{{ row.topic }}</code><small>Partition {{ row.partition_id }} · Offset {{ row.queue_offset }}</small></td>
+          <td><code>{{ row.source_metadata.get('file','') }}:{{ row.source_metadata.get('pos','') }}:{{ row.source_metadata.get('row',0) }}</code><small>GTID: {{ row.source_metadata.get('gtid') or 'Unavailable' }}</small><small>{{ row.topic }} · Partition {{ row.partition_id }} · Offset {{ row.queue_offset }}</small></td>
         </tr>
-        {% else %}<tr><td colspan="4" class="table-empty">No changes match your filters.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="4" class="table-empty">No recorded events match your filters. CREATE TABLE and ALTER TABLE require Schema changes only or All changes.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -68,7 +77,7 @@
   <div class="chart-legend" id="audit-chart-legend" aria-label="Chart legend"></div><div class="chart-container"><canvas id="audit-chart" data-type="{{ request.args.get('chart_type','line') }}" data-start="{{ result.get('chart_start','') }}" data-end="{{ result.get('chart_end','') }}" data-chart="{{ result.chart|tojson|forceescape }}" data-interval="{{ result.interval }}" role="img" aria-label="Changes over time by operation"></canvas><p id="chart-empty" hidden>No changes in this chart window.</p></div>
 </section>
 {% else %}
-<section class="panel empty-state">{{ icon('search') }}<h3>Your data’s history, ready to explore</h3><p>Select a server and registered table to browse changes and compare complete row images.</p></section>
+<section class="panel empty-state">{{ icon('search') }}<h3>Your data’s history, ready to explore</h3><p>Select a server and registered table to browse schema and row events on one timeline.</p></section>
 {% endif %}
 <script src="{{ url_for('static',filename='audit-charts.js') }}" defer></script>
 {% endblock %}

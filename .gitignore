@@ -12,6 +12,7 @@ profiles.json
 etc/my.cnf
 tls/
 internal_doc/
+/internal_docs/
 generated/
 downloads/
 *.log

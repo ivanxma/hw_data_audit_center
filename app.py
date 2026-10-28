@@ -29,7 +29,8 @@ from flask import (
 from flask import flash as flask_flash
 
 from modules import repository as repo
-from modules.audit_service import browse, overview
+from modules.audit_service import overview
+from modules.audit_timeline import browse as browse_timeline
 from modules.config import ROOT, load_config, local_profile, write_private_json
 from modules.heatwave import connect, validate_source
 from modules.mysql_util import ConnectionCache
@@ -914,6 +915,8 @@ def create_app(test_config=None):
     @app.route("/docs/<path:name>")
     @protected()
     def documentation_asset(name):
+        if name == "presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx":
+            return redirect(url_for("presentation_asset", name=Path(name).name))
         allowed = {
             ".html": "text/html",
             ".css": "text/css",
@@ -922,13 +925,23 @@ def create_app(test_config=None):
             ".pdf": "application/pdf",
             ".png": "image/png",
             ".drawio": "application/xml",
-            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         }
         suffix = Path(name).suffix.lower()
         if suffix not in allowed:
             abort(404)
         return send_from_directory(
             ROOT / "docs", name, mimetype=allowed[suffix], as_attachment=False, conditional=True
+        )
+
+    @app.route("/internal_docs/presentations/<path:name>")
+    @protected()
+    def presentation_asset(name):
+        if Path(name).suffix.lower() != ".pptx":
+            abort(404)
+        return send_from_directory(
+            ROOT / "internal_docs" / "presentations", name,
+            mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            as_attachment=False, conditional=True,
         )
 
     @app.route("/demo/")
@@ -1123,7 +1136,7 @@ def create_app(test_config=None):
             jobs = []
             retention_plan = None
             with connect(flow["target"], cloud) as db:
-                from modules.target_routes import tables, grouping
+                from modules.target_routes import grouping, tables
 
                 target_tables = tables(db, flow) or [flow["target_table"]]
                 selected_target = request.args.get("target_table", target_tables[0])
@@ -1224,19 +1237,20 @@ def create_app(test_config=None):
             summary = overview(
                 [repo.get_flow(g.db, f["id"]) for f in chosen],
                 Cloud() if chosen else None,
-                request.args.to_dict(),
+                {**request.args.to_dict(), "event_kind": request.args.get("event_kind", "all")},
             )
             return render_template("audit_global.html", flows=flows, overview=summary)
         result = None
         flow = None
         if request.args.get("flow_id"):
             flow = repo.get_flow(g.db, bounded(request.args["flow_id"]))
-            result = browse(flow, Cloud(), request.args)
+            result = browse_timeline(flow, Cloud(), request.args)
             if request.args.get("export") == "csv":
                 out = io.StringIO()
                 writer = csv.writer(out)
                 columns = [
                     "event_id",
+                    "event_kind",
                     "source_schema",
                     "source_table",
                     "operation",
@@ -1244,12 +1258,18 @@ def create_app(test_config=None):
                     "record_key",
                     "before_image",
                     "after_image",
+                    "ddl",
+                    "before_definition",
+                    "after_definition",
+                    "semantic_delta",
+                    "source_metadata",
+                    "time_basis",
                 ]
                 writer.writerow(columns)
                 for row in result["rows"]:
                     cells = []
                     for column in columns:
-                        value = row[column]
+                        value = row.get(column)
                         value = (
                             json.dumps(value, default=str)
                             if isinstance(value, (dict, list))

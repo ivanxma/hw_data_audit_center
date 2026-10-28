@@ -20,4 +20,4 @@ The current guide covers native OCI Streaming, wildcard source scopes, all three
 target groupings, GTID/purged-history checks, durable staging, conditional
 fragmentation, size limits and request pacing. The signed-in Dashboard opens the
 deployed guide; its downloads include the PDF and
-[PowerPoint overview](../presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx).
+[PowerPoint overview](../../internal_docs/presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx).

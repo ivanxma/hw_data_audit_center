@@ -25,9 +25,9 @@ before acknowledging messages in memory. A target database lease permits one
 writer per flow. Replays are checked for identity conflicts rather than discarded
 without verification.
 
-[Deployment architecture](docs/user-manual/diagrams/deployment-architecture.png) ·
-[editable source](docs/user-manual/diagrams/deployment-architecture.drawio) ·
-[capture workflow](docs/user-manual/diagrams/capture-workflow.png).
+![Deployment architecture](docs/user-manual/diagrams/deployment-architecture.png)
+
+![Capture workflow](docs/user-manual/diagrams/capture-workflow.png)
 
 ## Source scope and target layout
 
@@ -37,6 +37,12 @@ inside the selected target schema. Source checks require stable primary keys and
 exclude system/audit-target schemas. Audit Center filters actual source names.
 Deployed wildcard historical repositioning and automatic grouped retention
 cleanup remain disabled. See [source scopes and target layouts](docs/table-scopes.md).
+
+Audit Center combines schema and row evidence in an **Event timeline**. Choose
+**All changes**, **Schema changes only**, or **Row changes only**. Source timestamps
+and binlog positions determine order; CREATE TABLE is distinct from a row INSERT.
+Schema details shows DDL and before/after definitions. See the
+[history and schema guide](docs/before-after-capture.md).
 
 ## Streaming capacity and larger events
 
@@ -110,8 +116,8 @@ configuration, registrations, backups and deployment runbooks out of source cont
 - [Resource boundary](docs/compartment-scope.md)
 - [Coverage and limitations](docs/limitations.md)
 - User manual: [HTML](docs/user-manual/html/index.html), [PDF](docs/user-manual/pdf/HeatWave-Audit-Center-User-Manual.pdf), [Markdown](docs/user-manual/md/README.md)
-- [Presentation](docs/presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx)
-- [Narrated demonstration](demo/index.html) · [MP4](demo/heatwave-audit-oci-streaming-demo.mp4)
+- [Presentation](internal_docs/presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx) (local, Git-ignored)
+- [Watch the narrated demonstration](https://ivanxma.github.io/hw_data_audit_center/demo/)
 
 Screenshots and video use isolated illustrative data. The implementation captures
 row changes and supported schema evidence; it does not implement a database
