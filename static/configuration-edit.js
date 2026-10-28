@@ -57,6 +57,7 @@ function applyLocks(){
 const nameOnly=entry.locked.length===Object.keys(entry.values).length-1;
 applyLocks();dialog.showModal();
 if(entry.kind==='connection')window.connectionSecrets?.load();
+if(nameOnly&&entry.kind==='flow')window.configurationForms.prefillPool(entry.values).catch(error=>{message.textContent=error.message;}).finally(applyLocks);
 if(!nameOnly&&(entry.kind==='flow'||entry.kind==='queue')){
  form.dataset.prefilling='true';submit.disabled=true;
  const load=entry.kind==='flow'?window.configurationForms.prefillMapping:window.configurationForms.prefillQueue;

@@ -5,6 +5,7 @@ import csv
 import io
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -492,32 +493,50 @@ def create_app(test_config=None):
         return redirect(url_for("configuration", tab="resources", service="queues"))
 
     @app.route("/queue-connections/<int:queue_id>/topics")
+    @app.route("/stream-pools/<pool_id>/topics")
     @protected(admin=True)
-    def queue_topics(queue_id):
+    def queue_topics(queue_id=None, pool_id=None):
         from modules.queue_connections import topics
 
-        row = repo.query(g.db, "SELECT * FROM queue_connections WHERE id=%s", (queue_id,), one=True)
+        row = (
+            {"kind": "oci_streaming", "resource_ocid": pool_id}
+            if pool_id else repo.query(
+                g.db, "SELECT * FROM queue_connections WHERE id=%s", (queue_id,), one=True
+            )
+        )
         if not row:
             abort(404)
-        return jsonify(topics=topics(Cloud(), row))
+        streams = topics(Cloud(), row)
+        owners = {
+            flow["topic"]: flow
+            for flow in repo.query(g.db, "SELECT id,name,topic FROM flows")
+        }
+        for stream in streams:
+            owner = owners.get(stream["name"])
+            if owner:
+                stream["assigned_flow"] = owner["name"]
+            stream["schema_stream"] = bool(re.fullmatch(r"audit_[0-9]+", stream["name"]))
+        return jsonify(topics=streams)
 
     @app.route("/queue-topics/create", methods=["POST"])
     @protected(admin=True)
     def create_queue_topic():
-        from modules.queue_connections import create_topic
+        from modules.queue_connections import create_topic, pool_reference
 
         with repo.named_lock(g.db, "mappings", "all"):
-            row = repo.query(
-                g.db,
-                "SELECT * FROM queue_connections WHERE id=%s",
-                (request.form.get("queue_connection_id"),),
-                one=True,
-            )
+            cloud = Cloud()
+            if request.form.get("stream_pool_id"):
+                row = pool_reference(g.db, cloud, request.form["stream_pool_id"])
+            else:
+                row = repo.query(
+                    g.db, "SELECT * FROM queue_connections WHERE id=%s",
+                    (request.form.get("queue_connection_id"),), one=True,
+                )
             if not row:
-                raise ValueError("Choose a queue connection.")
+                raise ValueError("Choose an ACTIVE OCI stream pool.")
             create_topic(
                 g.db,
-                Cloud(),
+                cloud,
                 row,
                 request.form.get("name", ""),
                 bounded(request.form.get("partitions"), 1, 1000),
@@ -528,25 +547,28 @@ def create_app(test_config=None):
             "success",
         )
         return redirect(
-            url_for("configuration", tab="resources", service="queues", queue_id=row["id"])
+            url_for("configuration", tab="resources", service="streaming", pool_id=row["resource_ocid"])
         )
 
     @app.route("/queue-topics/delete", methods=["POST"])
     @protected(admin=True)
     def delete_queue_topics():
-        from modules.queue_connections import delete_topics
+        from modules.queue_connections import delete_topics, pool_reference
 
-        row = repo.query(
-            g.db,
-            "SELECT * FROM queue_connections WHERE id=%s",
-            (request.args.get("queue_id"),),
-            one=True,
-        )
+        cloud = Cloud()
+        with repo.named_lock(g.db, "mappings", "all"):
+            if request.args.get("pool_id"):
+                row = pool_reference(g.db, cloud, request.args["pool_id"])
+            else:
+                row = repo.query(
+                    g.db, "SELECT * FROM queue_connections WHERE id=%s",
+                    (request.args.get("queue_id"),), one=True,
+                )
         if not row:
-            raise ValueError("Choose a queue connection.")
+            raise ValueError("Choose an ACTIVE OCI stream pool.")
         names = sorted(set(filter(None, request.form.get("ids", "").split(","))))
-        delete_topics(g.db, Cloud(), row, names, g.record["username"])
-        return redirect(url_for("configuration", tab="resources", service="queues"))
+        delete_topics(g.db, cloud, row, names, g.record["username"])
+        return redirect(url_for("configuration", tab="resources", service="streaming", pool_id=row["resource_ocid"]))
 
     @app.route("/flows/<int:flow_id>/prepare-topics", methods=["POST"])
     @protected(admin=True)

@@ -14,8 +14,9 @@ history writer → target HeatWave audit store.
 
 The capture image publishes with the OCI Java SDK. The writer consumes with the
 OCI Python SDK. Both use container resource principals over HTTPS. The VM manages
-resources with its instance principal. The queue connection needs a name and an
-OCI stream pool; database passwords and the row-fingerprint key remain in Vault.
+resources with its instance principal. Register table selects an OCI stream pool
+and its data stream directly; no Streaming connection registration is needed.
+Database passwords and the row-fingerprint key remain in Vault.
 
 Each flow keeps its complete source offset and private JDBC schema history in the
 target database. Native stream IDs bind delivery checkpoints to the actual streams.

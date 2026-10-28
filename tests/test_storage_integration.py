@@ -652,3 +652,21 @@ class StorageTests(unittest.TestCase):
         finally:
             query(self.db, "DROP DATABASE IF EXISTS audit_control")
             query(self.db, f"USE `{self.schema}`")
+
+    def test_create_ddl_prepares_empty_grouped_target_and_replay_is_idempotent(self):
+        from modules.target_routes import table_name
+        for index, mode in enumerate(['table', 'database']):
+            flow = {**self.flow, 'id': self.flow['id'] + index + 1, 'source_table': '*', 'target_grouping': mode,
+                    'target_table': self.flow['target_table'] + '_' + mode}
+            prepare_target(self.db, flow)
+            event = {'databaseName': 'sales', 'source': {'file': 'binlog.1', 'pos': 100 if mode == 'table' else 200},
+                'ddl': 'CREATE TABLE sales.future_table (id INT PRIMARY KEY)',
+                'tableChanges': [{'id': 'sales.future_table', 'type': 'CREATE',
+                    'table': {'columns': [{'name': 'id', 'typeName': 'INT'}]}}]}
+            raw = json.dumps(event)
+            write_schema_event(self.db, flow, raw, 'schema', 0, event['source']['pos'])
+            write_schema_event(self.db, flow, raw, 'schema', 0, event['source']['pos'] + 1)
+            table = table_name(flow, 'sales', 'future_table')
+            self.assertEqual(query(self.db, f'SELECT COUNT(*) AS n FROM `{self.schema}`.`{table}`', one=True)['n'], 0)
+            route = query(self.db, f'SELECT target_table FROM `{self.schema}`.audit_target_routes WHERE flow_id=%s AND source_schema=%s AND source_table=%s', (flow['id'], 'sales', 'future_table'), one=True)
+            self.assertEqual(route['target_table'], table)

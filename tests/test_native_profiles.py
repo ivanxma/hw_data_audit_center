@@ -35,3 +35,24 @@ class NativeProfileTests(unittest.TestCase):
         two = transport_profile(config, {"id": 2, "transport": "streaming"})
         self.assertEqual(one, two)
         self.assertNotIn("connect_topics", one)
+
+
+class DirectPoolTests(unittest.TestCase):
+    def test_existing_pool_reference_reuses_binding_without_registration(self):
+        from modules.queue_connections import pool_reference
+        existing = {'id': 3, 'name': 'original', 'kind': 'oci_streaming', 'resource_ocid': 'pool'}
+        with patch('modules.queue_connections.profile') as validate, patch('modules.queue_connections.repo.query', return_value=existing) as query:
+            self.assertEqual(pool_reference('db', 'cloud', 'pool'), existing)
+            validate.assert_called_once_with('cloud', {'kind': 'oci_streaming', 'resource_ocid': 'pool'})
+            self.assertEqual(query.call_count, 1)
+
+    def test_new_pool_reference_is_created_only_after_live_scope_validation(self):
+        from modules.queue_connections import pool_reference
+        with patch('modules.queue_connections.profile'), patch('modules.queue_connections.repo.query', side_effect=[None, 9]) as query:
+            row = pool_reference('db', 'cloud', 'new_pool')
+            self.assertEqual(row['id'], 9)
+            self.assertEqual(query.call_args.args[2][1:], ('oci_streaming', 'new_pool'))
+        with patch('modules.queue_connections.profile', side_effect=ValueError('outside compartment')), patch('modules.queue_connections.repo.query') as query:
+            with self.assertRaisesRegex(ValueError, 'outside compartment'):
+                pool_reference('db', 'cloud', 'foreign_pool')
+            query.assert_not_called()

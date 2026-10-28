@@ -104,6 +104,22 @@ def write_schema_event(db, flow, raw, topic, partition, offset, *, message_id=No
     changes = event.get("tableChanges", [])
     if not isinstance(changes, list):
         raise ValueError("Schema tableChanges must be a list.")
+    # Route creation uses MySQL DDL, which implicitly commits. Complete it before
+    # the schema-evidence transaction; a retry reuses the durable ownership claim.
+    # CREATE alone must prepare the audit destination even before the first row.
+    if (flow.get("target_grouping") or "flow") != "flow":
+        from .target_routes import ensure
+
+        for change in changes:
+            if not isinstance(change, dict):
+                raise ValueError("Invalid schema table change.")
+            if change.get("type") != "CREATE":
+                continue
+            name = change.get("id", "").replace("`", "").replace(chr(34), "")
+            if "." in name and "," not in name:
+                schema, table = name.split(".", 1)
+                if matches(flow, schema, table):
+                    ensure(db, flow, schema, table)
     namespace = quote(flow["target_schema"])
     with named_lock(db, "schema", flow["target_schema"], flow["id"]):
         old_autocommit = db.autocommit

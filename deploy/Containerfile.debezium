@@ -6,9 +6,9 @@ FROM docker.io/library/python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-headless && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir 'oci>=2.160,<3' 'requests>=2.32,<3' 'mysql-connector-python>=9.5,<10'
 WORKDIR /opt
-COPY --from=build /build/target/native-capture-1.0.jar /opt/native/native-capture.jar
-COPY modules /opt/modules
-COPY deploy/debezium_bootstrap.py /opt/debezium_bootstrap.py
+COPY --from=build --chown=10001:10001 /build/target/native-capture-1.0.jar /opt/native/native-capture.jar
+COPY --chown=10001:10001 modules /opt/modules
+COPY --chown=10001:10001 deploy/debezium_bootstrap.py /opt/debezium_bootstrap.py
 RUN useradd -u 10001 -m audit
 USER 10001
 ENTRYPOINT ["python", "/opt/debezium_bootstrap.py"]

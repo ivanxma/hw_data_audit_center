@@ -127,6 +127,10 @@ class ConnectionWebTests(unittest.TestCase):
         self.assertIn('<option value="end" selected>', text)
         self.assertIn("schema stream is prepared automatically", text)
         self.assertIn("Stream pool *", text)
+        self.assertNotIn('name="queue_connection_id"', text)
+        self.assertNotIn('id="queue-dialog"', text)
+        self.assertNotIn("OCI Streaming connections", text)
+        self.assertIn('name="stream_pool_id"', text)
 
 
 

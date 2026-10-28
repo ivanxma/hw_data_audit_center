@@ -129,7 +129,10 @@ def validate_source(connection, schema, table, cloud, *, scope=None):
             primary = (
                 []
                 if missing_keys
-                else ["All " + str(len(tables)) + " eligible tables have a primary key"]
+                else [
+                    "All " + str(len(tables)) + " eligible tables have a primary key"
+                    if tables else "No base tables yet; waiting for new matching tables"
+                ]
             )
         else:
             columns = query(

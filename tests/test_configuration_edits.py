@@ -174,6 +174,44 @@ class EditWebTests(unittest.TestCase):
     setUp = test_core.WebTests.setUp
     auth = test_core.WebTests.auth
 
+    def test_direct_pool_streams_do_not_require_a_connection_registration(self):
+        self.auth()
+        with (
+            patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()),
+            patch.object(self.mod, "ROOT") as root,
+            patch.object(self.mod, "Cloud"),
+            patch.object(entries.repo, "query", return_value=[]),
+            patch("modules.queue_connections.topics", return_value=[]) as topics,
+        ):
+            root.__truediv__.return_value.exists.return_value = True
+            root.__truediv__.return_value.read_text.return_value = '{"admin_users":["operator"]}'
+            response = self.client.get("/stream-pools/pool-example/topics")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(topics.call_args.args[1], {"kind": "oci_streaming", "resource_ocid": "pool-example"})
+
+    def test_stream_picker_reports_existing_ownership_and_schema_streams(self):
+        self.auth()
+        with (
+            patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()),
+            patch.object(self.mod, "ROOT") as root,
+            patch.object(self.mod, "Cloud"),
+            patch.object(entries.repo, "query", side_effect=[QUEUE, [FLOW]]),
+            patch("modules.queue_connections.topics", return_value=[
+                {"name": "orders", "state": "ACTIVE"},
+                {"name": "audit_7", "state": "ACTIVE"},
+                {"name": "new_data", "state": "ACTIVE"},
+            ]),
+        ):
+            root.__truediv__.return_value.exists.return_value = True
+            root.__truediv__.return_value.read_text.return_value = '{"admin_users":["operator"]}'
+            response = self.client.get("/queue-connections/3/topics")
+        self.assertEqual(response.status_code, 200)
+        streams = response.get_json()["topics"]
+        self.assertEqual(streams[0]["assigned_flow"], "orders")
+        self.assertTrue(streams[1]["schema_stream"])
+        self.assertFalse(streams[2]["schema_stream"])
+        self.assertNotIn("assigned_flow", streams[2])
+
     def test_edit_requires_login_admin_and_csrf(self):
         self.assertEqual(
             self.client.get("/configuration?edit=connection&entry_id=1").status_code, 302
@@ -206,3 +244,56 @@ class EditWebTests(unittest.TestCase):
         self.assertIn("service=queues", response.location)
         self.assertEqual(edit.call_args.args[2:4], ("queue", 3))
         self.assertNotIn(b"never-render-this-password", response.data)
+
+
+class MappingIdentityTests(unittest.TestCase):
+    def test_new_mapping_selects_pool_directly_and_preserves_internal_binding(self):
+        cloud = MagicMock()
+        source = {**CONNECTION, "server_identity": "source"}
+        target = {**CONNECTION, "id": 2, "role": "target", "server_identity": "target"}
+        def query(_db, sql, params=(), **kwargs):
+            if "FROM connections" in sql:
+                return source if params[1] == "source" else target
+            if "SELECT DISTINCT" in sql:
+                return []
+            return None
+        def discover(_connection, _cloud, schema=None):
+            return {"tables": []} if schema else {"schemas": ["history"]}
+        with (
+            patch.object(entries.repo, "query", side_effect=query),
+            patch("modules.queue_connections.pool_reference", return_value=QUEUE) as pool,
+            patch("modules.queue_connections.profile"),
+            patch("modules.queue_connections.topics", return_value=[{"name": "orders", "state": "ACTIVE"}]),
+            patch("modules.database_objects.discover", side_effect=discover),
+            patch("modules.mappings.validate_mapping"),
+        ):
+            result = entries.mapping_values("db", cloud, {**FLOW, "stream_pool_id": "pool",
+                "source_table": "*", "target_table": "__new__"})
+        pool.assert_called_once_with("db", cloud, "pool")
+        self.assertEqual(result["queue_connection_id"], QUEUE["id"])
+        self.assertEqual(result["source_table"], "*")
+        self.assertNotIn("stream_pool_id", result)
+
+    def test_conflicts_identify_owner_before_any_remote_checks(self):
+        for field, label in [('name', 'Flow name'), ('topic', 'Data stream')]:
+            with self.subTest(field=field), patch.object(entries.repo, 'query') as query:
+                query.side_effect = ([{'id': 7, 'name': 'existing'}] if field == 'name'
+                                     else [None, {'id': 7, 'name': 'existing'}])
+                form = {**FLOW, 'name': 'new_flow', 'source_schema': 'mydb2',
+                        'source_table': '*', 'target_table': '__new__'}
+                cloud = MagicMock()
+                with self.assertRaisesRegex(ValueError, label + ".*existing.*ID 7"):
+                    entries.mapping_values(MagicMock(), cloud, form)
+                self.assertEqual(cloud.mock_calls, [])
+
+    def test_available_wildcard_identity_and_same_registration_edit(self):
+        with patch.object(entries.repo, 'query', return_value=None) as query:
+            entries.validate_flow_identity(MagicMock(),
+                {'name': 'new_flow', 'topic': 'new_data', 'source_schema': 'mydb2', 'source_table': '*'},
+                entry_id=7)
+            self.assertTrue(all(call.args[2][1:] == (7, 7) for call in query.call_args_list))
+
+    def test_schema_stream_is_not_a_row_data_stream(self):
+        with patch.object(entries.repo, 'query', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'reserved for schema history'):
+                entries.validate_flow_identity(MagicMock(), {'name': 'new_flow', 'topic': 'audit_123'})

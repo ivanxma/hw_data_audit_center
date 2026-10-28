@@ -92,5 +92,15 @@ def inventory(db, flow, maximum=1000):
             "Capture scope exceeds 1000 tables. Split it into smaller database scopes."
         )
     if not rows:
-        raise ValueError("Capture scope has no accessible eligible base tables.")
+        if not wildcard(flow):
+            raise ValueError("Capture scope has no accessible eligible base tables.")
+        if flow["source_schema"] != "*":
+            schema = query(
+                db,
+                "SELECT SCHEMA_NAME AS name FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=%s",
+                (flow["source_schema"],),
+                one=True,
+            )
+            if not schema or not matches_schema(flow, schema["name"]):
+                raise ValueError("Capture database does not exist, is excluded or is not accessible to the source account.")
     return rows

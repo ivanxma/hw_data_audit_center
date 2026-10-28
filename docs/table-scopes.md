@@ -12,6 +12,11 @@ it does not recreate each source table's columns.
 | `sales.*` | Eligible base tables in one database |
 | `*.*` | Eligible base tables across source databases |
 
+In **Register table**, select an OCI **Stream pool**, then an ACTIVE **Data stream**
+from that pool. Existing flow bindings remain unchanged; no separate Streaming
+connection registration is required. Assigned and schema-history streams cannot
+be selected for another flow.
+
 Use the database and table selectors in **Register table**. The wildcard is a
 whole-name choice; partial patterns such as `sales.order*` are not supported.
 Literal names are escaped when constructing Debezium's anchored regular-expression
@@ -25,6 +30,13 @@ A new table or database that matches the saved scope can be discovered while
 capture runs. A newly created keyless table is not silently ignored: unsupported
 row events stop the writer for review. Review filters and exclusions when adding
 new databases, audit destinations or broad source registrations.
+
+A wildcard mapping can start with no eligible base tables. For `sales.*`, the
+database must already exist and be visible to the source account. Source checks
+report that capture is waiting for new matching tables. Create each new table
+with a stable primary key; its subsequent row changes enter the same running
+flow without registering it separately. Debezium reads the new table's DDL from
+the binlog to learn its structure. See the [MySQL connector documentation](https://debezium.io/documentation/reference/3.4/connectors/mysql.html).
 
 Broad capture increases schema/change volume and may include sensitive application
 data. Choose the narrowest scope that meets the audit requirement. Source account
@@ -53,6 +65,20 @@ The writer creates a destination only after claiming ownership. It refuses an
 unowned existing physical table rather than treating it as an empty audit store.
 Interrupted creation can resume from its saved claim. The root table retains the
 flow's retention anchor even when generated destinations hold the row events.
+
+For database/table grouping, the writer prepares a destination when it receives
+an in-scope `CREATE TABLE` schema event, even if the source table has no rows.
+Row delivery also prepares a missing destination, so independently arriving data
+and schema records can recover safely. Replayed schema events reuse the same
+owned destination. These destinations use the standard audit-history layout;
+they do not mirror the source table's physical columns. Choose **By source table**
+to create a separate audit table for every new source table; **By flow** continues
+to share one audit table.
+
+Use a separate data stream with a verifiable retained origin for a new flow.
+A stream older than its retention period with no delivery checkpoint cannot
+prove complete coverage; the writer stops for review. Prepare a fresh stream
+before deployment rather than clearing checkpoints or seeking past evidence.
 
 Each event retains its actual source database and table. Row-key hashes include
 that namespace, so identical primary keys in different tables remain distinct.

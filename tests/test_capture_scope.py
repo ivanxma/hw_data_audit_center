@@ -148,3 +148,33 @@ class ScopeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "1000"):
                 inventory(MagicMock(), BASE, maximum=2)
             self.assertNotIn("SELECT *", q.call_args.args[1])
+
+    def test_empty_wildcard_waits_for_future_tables_but_checks_database_visibility(self):
+        with patch('modules.repository.query', side_effect=[[], {'name': 'sales'}]):
+            self.assertEqual(inventory(MagicMock(), BASE), [])
+        with patch('modules.repository.query', return_value=[]):
+            self.assertEqual(inventory(MagicMock(), {**BASE, 'source_schema': '*'}), [])
+        with patch('modules.repository.query', side_effect=[[], None]):
+            with self.assertRaisesRegex(ValueError, 'does not exist.*not accessible'):
+                inventory(MagicMock(), BASE)
+        with patch('modules.repository.query', return_value=[]):
+            with self.assertRaisesRegex(ValueError, 'no accessible'):
+                inventory(MagicMock(), {**BASE, 'source_table': 'orders'})
+
+    def test_create_schema_event_prepares_empty_destination_before_evidence_transaction(self):
+        from modules.schema_history import write_schema_event
+        for grouping in ['table', 'database', 'flow']:
+            with self.subTest(grouping=grouping):
+                db = MagicMock(); db.autocommit = True
+                flow = {**BASE, 'target_grouping': grouping}
+                envelope = {'databaseName': 'sales', 'ddl': 'CREATE TABLE sales.orders (id INT PRIMARY KEY)',
+                    'source': {'file': 'binlog.1', 'pos': 100},
+                    'tableChanges': [{'type': 'CREATE', 'id': 'sales.orders', 'table': {'columns': []}}]}
+                def prepare(*args):
+                    self.assertTrue(db.autocommit)
+                    db.commit.assert_not_called()
+                with patch('modules.target_routes.ensure', side_effect=prepare) as ensure, patch('modules.schema_history.query', return_value=None), patch('modules.schema_history.named_lock'):
+                    write_schema_event(db, flow, json.dumps(envelope), 'schema', 0, 1)
+                    write_schema_event(db, flow, json.dumps({**envelope, 'tableChanges': [{'type': 'DROP', 'id': 'sales.orders'}]}), 'schema', 0, 2)
+                    write_schema_event(db, flow, json.dumps({**envelope, 'tableChanges': [{'type': 'CREATE', 'id': 'other.orders'}]}), 'schema', 0, 3)
+                self.assertEqual(ensure.call_count, 0 if grouping == 'flow' else 1)

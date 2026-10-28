@@ -22,6 +22,7 @@ FIELDS = {
         "target_schema",
         "target_table",
         "queue_connection_id",
+        "stream_pool_id",
         "topic",
         "target_grouping",
         "capture_mode",
@@ -109,6 +110,10 @@ def get_entry(db, kind, entry_id):
     row = repo.query(db, "SELECT * FROM " + TABLES[kind] + " WHERE id=%s", (entry_id,), one=True)
     if not row:
         raise ValueError("This registration no longer exists. Refresh Configuration & setup.")
+    if kind == "flow" and row.get("queue_connection_id"):
+        pool = repo.query(db, "SELECT resource_ocid FROM queue_connections WHERE id=%s",
+                          (row["queue_connection_id"],), one=True)
+        row["stream_pool_id"] = pool["resource_ocid"] if pool else ""
     return row
 
 
@@ -216,7 +221,7 @@ def mapping_values(db, cloud, form, *, entry_id=None):
     """Shared live validation for both a new mapping and an undeployed mapping edit."""
     from .database_objects import discover, new_audit_name
     from .mappings import validate_mapping
-    from .queue_connections import profile, topics
+    from .queue_connections import pool_reference, profile, topics
     from .validation import identifier
 
     data = {
@@ -245,14 +250,17 @@ def mapping_values(db, cloud, form, *, entry_id=None):
         raise ValueError("Use letters, numbers, underscore or hyphen for the flow name.")
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,249}", data["topic"]) or data["topic"] in {".", ".."}:
         raise ValueError("Enter a valid topic name.")
-    queue = repo.query(
-        db,
-        "SELECT * FROM queue_connections WHERE id=%s",
-        (form.get("queue_connection_id"),),
-        one=True,
-    )
+    validate_flow_identity(db, data, entry_id=entry_id)
+    if form.get("stream_pool_id"):
+        queue = pool_reference(db, cloud, form["stream_pool_id"].strip())
+    else:
+        # Preserve existing saved mappings and older clients during the UI transition.
+        queue = repo.query(
+            db, "SELECT * FROM queue_connections WHERE id=%s",
+            (form.get("queue_connection_id"),), one=True,
+        )
     if not queue:
-        raise ValueError("Choose a registered queue connection from OCI resources.")
+        raise ValueError("Choose an ACTIVE OCI stream pool.")
     profile(cloud, queue)
     data["queue_connection_id"] = queue["id"]
     data["transport"] = "streaming"
@@ -305,3 +313,30 @@ def mapping_values(db, cloud, form, *, entry_id=None):
         with connect(candidate["source"], cloud) as source:
             locate_gtid(source, capture["value"], check_schema=True)
     return data
+
+
+def validate_flow_identity(db, data, *, entry_id=None):
+    """Report registration conflicts before remote discovery or the unique insert."""
+    for field, label in (("name", "Flow name"), ("topic", "Data stream")):
+        existing = repo.query(
+            db,
+            "SELECT id,name FROM flows WHERE " + field + "=%s "
+            "AND (%s IS NULL OR id<>%s) LIMIT 1",
+            (data[field], entry_id, entry_id),
+            one=True,
+        )
+        if existing:
+            detail = (
+                "Choose a different flow name or edit the existing mapping."
+                if field == "name"
+                else "Choose or create a separate data stream for this mapping; each flow owns its stream."
+            )
+            raise ValueError(
+                f"{label} '{data[field]}' is already registered to flow '{existing['name']}' "
+                f"(ID {existing['id']}). {detail}"
+            )
+    if re.fullmatch(r"audit_[0-9]+", data["topic"]):
+        raise ValueError(
+            "Stream names audit_<flow ID> are reserved for schema history. "
+            "Choose or create a separate data stream for row changes."
+        )

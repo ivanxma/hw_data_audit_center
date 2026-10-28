@@ -47,8 +47,10 @@ run with an already rotated password.
    optional global verified trust is a Runtime Settings concern.
 2. Generate/configure the dedicated fingerprint secret once. Retain the same key
    for existing history. It is independent of every database password.
-3. Create/select an OCI Streaming pool and data stream. Add a queue connection
-   with its name and pool; authentication uses OCI principals.
+3. Create/select an OCI Streaming pool and data stream. Register table selects
+   the pool directly and lists its ACTIVE streams; authentication uses OCI principals.
+   There is no separate Streaming connection registration. OCI resources manages
+   pools and streams from the same pool selector.
 4. Register the source table and audit destination. End is the default; Start
    scans existing rows, while Specific GTID uses a validated executed set without
    copying rows. Inspect executed/purged bounds before using GTID.
@@ -64,15 +66,15 @@ run with an already rotated password.
 
 In Configuration & setup, select one row and choose **Edit** in the left table
 toolbar. Edit is disabled with no selection or multiple selected rows. HeatWave
-connections, registered table mappings and queue connections open a prefilled
+connections and registered table mappings open a prefilled
 dialog; Cancel leaves the registration unchanged.
 
 - Unused connections can change their endpoint and credentials. Database settings
   must pass a fresh MySQL connection test on Save; the Test connection button is
   also available. Password values remain in Vault.
 - Connections used only by undeployed drafts can change their name and credentials.
-  Their endpoint and role remain fixed. Queue connections with app-managed topics
-  also retain their selected messaging service so topic ownership cannot be reassigned.
+  Their endpoint and role remain fixed. Stream pools are selected directly in
+  table mappings; existing deployed stream bindings remain fixed.
 - Undeployed mappings can change their source, target, topic and initial capture
   choice. Object dropdowns reload from the selected connections. Mapping validation
   checks accessible objects, audit-table compatibility and capture feedback loops.

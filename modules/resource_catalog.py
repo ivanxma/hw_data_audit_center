@@ -306,8 +306,10 @@ def in_use(db, cloud, kind, resource_id, resource):
         return True
     if repo.query(
         db,
-        "SELECT id FROM queue_connections WHERE resource_ocid=%s LIMIT 1",
-        (resource_id, resource_id),
+        "SELECT q.id FROM queue_connections q WHERE q.resource_ocid=%s AND "
+        "(EXISTS(SELECT 1 FROM flows f WHERE f.queue_connection_id=q.id) OR "
+        "EXISTS(SELECT 1 FROM managed_topics m WHERE m.queue_connection_id=q.id)) LIMIT 1",
+        (resource_id,),
         one=True,
     ):
         return True

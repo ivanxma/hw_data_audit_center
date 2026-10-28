@@ -18,6 +18,29 @@ def profile(cloud, row):
             "stream_pool_id": pool.id, "incarnation": pool.id}
 
 
+def pool_reference(db, cloud, pool_id):
+    """Resolve a directly selected pool, retaining legacy flow foreign keys internally.
+
+    Call under the mappings lock. No separate user registration is required.
+    """
+    import hashlib
+
+    row = {"kind": "oci_streaming", "resource_ocid": pool_id}
+    profile(cloud, row)  # Validate the live pool and VM compartment before saving anything.
+    existing = repo.query(
+        db, "SELECT * FROM queue_connections WHERE kind='oci_streaming' AND resource_ocid=%s ORDER BY id LIMIT 1",
+        (pool_id,), one=True,
+    )
+    if existing:
+        return existing
+    row["name"] = "pool-" + hashlib.sha256(pool_id.encode()).hexdigest()
+    row["id"] = repo.query(
+        db, "INSERT INTO queue_connections(name,kind,resource_ocid) VALUES (%s,%s,%s)",
+        (row["name"], row["kind"], pool_id),
+    )
+    return row
+
+
 def topics(cloud, row):
     selected = profile(cloud, row)
     items = oci.pagination.list_call_get_all_results(
