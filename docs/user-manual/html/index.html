@@ -1,133 +1,139 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HeatWave Audit Center — Prototype user manual</title><style>[hidden]{display:none!important}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:26px}body{margin:0;font:16px/1.65 Arial,Helvetica,sans-serif;color:#312d2a;background:#f4f1ec}a{color:#9e3b2b;text-underline-offset:3px}nav{position:fixed;inset:0 auto 0 0;width:290px;padding:30px 20px;background:#173438;color:#e6eeeb;overflow-y:auto}nav .brand{font-weight:700;font-size:21px;line-height:1.3;margin-bottom:18px}nav input{width:100%;padding:10px;border-radius:5px;border:1px solid #547072;background:#fff;font-size:14px}nav h3{color:#a4c1bc;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin:22px 0 8px}nav a{display:block;color:#e7ece7;text-decoration:none;font-size:13px;line-height:1.5;padding:6px 8px;border-radius:5px}nav a:hover{background:#2e5052}main{margin-left:290px;padding:38px 55px 90px;max-width:1460px}.cover{padding:55px 45px;background:#fff;border-top:8px solid #b63f2e;border-radius:9px;box-shadow:0 4px 20px #30271c0a}.kicker{font-size:12px;letter-spacing:3px;color:#a8402e;font-weight:700}h1{font-size:48px;line-height:1.1;letter-spacing:-1.5px;margin:18px 0}h1 span{display:block;font-size:30px;color:#807569;margin-top:18px;letter-spacing:0}.standfirst{font-size:21px;color:#6f655b;max-width:800px}.prototype{padding:17px 20px;background:#f6e9df;border-left:4px solid #b54130;border-radius:4px;margin:22px 0}.downloads{display:flex;gap:12px;flex-wrap:wrap;margin-top:25px}.downloads a,.downloads button{padding:11px 17px;border:1px solid #c8bfb1;border-radius:6px;color:#953d2d;background:#fff;font:inherit;font-size:14px;text-decoration:none;cursor:pointer}.downloads .primary{background:#b54130;color:#fff;border-color:#b54130}.meta{font-size:13px;color:#82766b}.section{background:#fff;margin:28px 0;padding:35px 38px;border:1px solid #ddd7cc;border-radius:9px;box-shadow:0 3px 8px #32281c04}.section h2{margin:5px 0 22px;font-size:28px;line-height:1.2;color:#913d2e}.section h3{font-size:19px;margin:26px 0 10px;color:#325a5c}p{margin:12px 0}li{margin:8px 0}table{border-collapse:collapse;width:100%;font-size:14px;margin:22px 0}th,td{padding:11px 12px;border:1px solid #d9d1c5;text-align:left;vertical-align:top}th{background:#eee8df;font-weight:700}tbody tr:nth-child(even){background:#faf9f6}pre{padding:20px;background:#173438;color:#edf1e9;border-radius:7px;overflow:auto;font:13px/1.65 Menlo,Consolas,monospace}code{font-family:Menlo,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,td code,li code{background:#eee9e1;padding:2px 4px;border-radius:4px}.section img{max-width:100%;height:auto;display:block;border:1px solid #d8d1c7;border-radius:6px;margin:20px auto 10px;background:#fff}.section p:has(img){margin:0}.section p:has(img)+p{font-size:12px;color:#7f7163;line-height:1.5}.section>p:first-of-type:has(strong){line-height:1.6}.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.gallery figure{margin:0}.gallery figcaption{font-size:12px;color:#70665b}.gallery img{width:100%;height:190px;object-fit:contain;object-position:top;background:#f8f6f1}summary{cursor:pointer;font-weight:700;font-size:18px}footer{color:#82776b;font-size:13px;margin-top:40px}details[open] summary{margin-bottom:25px}@media(max-width:1100px){nav{width:240px}main{margin-left:240px;padding:26px}.section{padding:26px}}@media(max-width:760px){nav{position:static;width:auto;max-height:340px}main{margin:0;padding:18px}.cover{padding:28px}.section{padding:22px;overflow-x:auto}h1{font-size:35px}.section h2{font-size:24px}table{min-width:530px}.gallery{grid-template-columns:1fr}}@media print{nav,.downloads,.gallery-section{display:none}body{background:#fff;color:#000;font-size:11pt}main{margin:0;padding:0;max-width:none}.cover,.section{box-shadow:none;border:0;border-radius:0;margin:0;padding:0}.cover{page-break-after:always}.section{page-break-before:always;overflow:visible}table{font-size:9pt;min-width:0}tr,img,pre{break-inside:avoid}a{color:inherit}h2,h3{break-after:avoid}}</style></head><body><nav aria-label="Manual contents"><div class="brand">HeatWave<br>AUDIT CENTER<br><small>User manual</small></div><input id="nav-search" type="search" placeholder="Find a section…" aria-label="Filter contents"><h3>Overview and design</h3><a href="#overview">1. Background and prototype status</a><a href="#challenges">2. Challenges and the implemented approach</a><a href="#architecture">3. Deployment architecture</a><a href="#network">4. Network access and security boundaries</a><a href="#data-flow">5. Data flow, fingerprints and evidence</a><h3>Setup and installation</h3><a href="#prerequisites">6. Installation prerequisites</a><a href="#installation">7. Install and verify the OL9 services</a><a href="#iam">8. IAM and database access checklist</a><a href="#first-flow">9. First working flow: setup order</a><h3>Using the application</h3><a href="#login">10. Sign in and password rotation</a><a href="#shell">11. Navigation, tables and notifications</a><a href="#dashboard">12. Dashboard</a><a href="#connections">13. Configuration: HeatWave connections</a><a href="#edits">14. Edit registrations without breaking continuity</a><a href="#mappings">15. Configuration: register a table mapping</a><a href="#runtime">16. Runtime settings and fingerprint-key setup</a><a href="#source-checks">17. Source validation and full row images</a><a href="#services">18. OCI resources: common controls</a><a href="#streaming">19. OCI Streaming: pools, streams and harnesses</a><a href="#queues">20. Queue registrations and topic management</a><a href="#kafka">21. Apache Kafka alternative</a><a href="#registry">22. Container Registry and image builds</a><a href="#containers">23. Container Instances and workload settings</a><a href="#vault">24. Vault and password references</a><a href="#heatwave">25. HeatWave DB resource controls</a><a href="#repository">26. Embedded repository page</a><a href="#control">27. Control Center: flow row and status</a><a href="#control-actions">28. Control Center: action conditions</a><a href="#capture">29. Choose where Debezium begins reading</a><a href="#capture-apply">30. Apply a reviewed capture position</a><a href="#messages">31. Message Explorer</a><a href="#audit-overview">32. Audit Center: all databases overview</a><a href="#history">33. Audit Center: table history and lookup</a><a href="#images">34. Before/after images and operation meanings</a><a href="#charts">35. Charts, intervals and downloads</a><a href="#ddl-dcl">36. Schema changes and security auditing</a><h3>Operation and maintenance</h3><a href="#daily-operations">37. Daily operations and a controlled verification</a><a href="#summary">38. Summary and handover checklist</a><h3>Appendices</h3><a href="#scale">Appendix A. Scaling and massive change volume</a><a href="#change">Appendix B. Changing configuration safely</a><a href="#update">Appendix C. Update the application and workloads</a><a href="#cleanup">Appendix D. One-action eligible payload cleanup</a><a href="#storage">Appendix E. Target data layout and retrieval</a><a href="#troubleshoot">Appendix F. Troubleshooting by observed stage</a><a href="#recovery">Appendix G. Security, backup and recovery boundaries</a><a href="#reference">Appendix H. Glossary and further reading</a><a href="#ddl-data-limitations">Appendix I. DDL-driven row changes and audit coverage</a><a href="#heatwave-etag-errors">Appendix J. HeatWave ETag issue and process errors</a><a href="#compartment-limits">Appendix K. Same-compartment resource limitation</a><h3>Screen reference</h3><a href="#screen-reference">All screenshots</a></nav><main><header class="cover"><div class="kicker">INDEPENDENT PROTOTYPE · ORACLE LINUX 9</div><h1>HeatWave Audit Center<span>User manual</span></h1><p class="standfirst">From a source-table change to traceable BEFORE and AFTER history.</p><div class="prototype"><strong>A prototype for evaluation, demonstration and rehearsal.</strong><br>This is not an Oracle product and is not supported or endorsed by Oracle.</div><p>Overview, architecture and network design; setup and installation; every app page and its fields/actions; operational procedures; scaling, updates and cleanup.</p><p class="meta">24 October 2026 · Implementation review: 24 October 2026 · Screenshots use illustrative isolated data.</p><div class="downloads"><a class="primary" href="../pdf/HeatWave-Audit-Center-User-Manual.pdf" download>Download printable PDF</a><a href="../md/README.md" download>Download Markdown</a><a href="https://ivanxma.github.io/hw_data_audit_center/demo/">Five-minute demo</a><button onclick="window.print()">Print this guide</button></div></header><section class="section" id="overview"><div class="kicker">Overview and design</div><h2>1. Background and prototype status</h2><p>HeatWave Audit Center is an independent prototype for exploring row-change auditing with OCI MySQL HeatWave. It brings connection setup, table registration, capture controls and audit-history exploration into one web application on an Oracle Linux 9 Compute VM.</p>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HeatWave Audit Center — Prototype user manual</title><link rel="stylesheet" href="manual.css"><script src="manual.js" defer></script></head><body><nav aria-label="Manual contents"><div class="brand">HeatWave<br>AUDIT CENTER<br><small>User manual</small></div><input id="nav-search" type="search" placeholder="Find a section…" aria-label="Filter contents"><h3>Overview and design</h3><a href="#overview">1. Background and prototype status</a><a href="#challenges">2. Challenges and the implemented approach</a><a href="#architecture">3. Deployment architecture</a><a href="#network">4. Network access and security boundaries</a><a href="#data-flow">5. Data flow, fingerprints and evidence</a><h3>Setup and installation</h3><a href="#prerequisites">6. Installation prerequisites</a><a href="#installation">7. Install and verify the OL9 services</a><a href="#iam">8. IAM and database access checklist</a><a href="#first-flow">9. First working flow: setup order</a><h3>Using the application</h3><a href="#login">10. Sign in and password rotation</a><a href="#shell">11. Navigation, tables and notifications</a><a href="#dashboard">12. Dashboard</a><a href="#connections">13. Configuration: HeatWave connections</a><a href="#edits">14. Edit registrations without breaking continuity</a><a href="#mappings">15. Configuration: register a table mapping</a><h3>Configuration and capture design</h3><a href="#source-layouts">16. Source scopes and target layouts</a><a href="#stream-capacity">17. Streaming buffers, size limits and request control</a><h3>Using the application</h3><a href="#runtime">18. Runtime settings and fingerprint-key setup</a><a href="#source-checks">19. Source validation and full row images</a><a href="#services">20. OCI resources: common controls</a><a href="#streaming">21. Native OCI Streaming: pools and streams</a><a href="#queues">22. Queue registrations and topic management</a><a href="#registry">23. Container Registry and image builds</a><a href="#containers">24. Container Instances and workload settings</a><a href="#vault">25. Vault and password references</a><a href="#heatwave">26. HeatWave DB resource controls</a><a href="#repository">27. Embedded repository page</a><a href="#control">28. Control Center: flow row and status</a><a href="#control-actions">29. Control Center: action conditions</a><a href="#capture">30. Capture start, GTID sets and purged history</a><a href="#capture-apply">31. Apply a reviewed capture position</a><a href="#messages">32. Message Explorer</a><a href="#audit-overview">33. Audit Center: all databases overview</a><a href="#history">34. Audit Center: table history and lookup</a><a href="#images">35. Before/after images and operation meanings</a><a href="#charts">36. Charts, intervals and downloads</a><a href="#ddl-dcl">37. Schema changes and security auditing</a><h3>Operation and maintenance</h3><a href="#daily-operations">38. Daily operations and a controlled verification</a><a href="#summary">39. Summary and handover checklist</a><h3>Appendices</h3><a href="#scale">Appendix A. Scaling and massive change volume</a><a href="#change">Appendix B. Changing configuration safely</a><a href="#update">Appendix C. Update the application and workloads</a><a href="#cleanup">Appendix D. One-action eligible payload cleanup</a><a href="#storage">Appendix E. Target data layout and retrieval</a><a href="#troubleshoot">Appendix F. Troubleshooting by observed stage</a><a href="#recovery">Appendix G. Security, backup and recovery boundaries</a><a href="#reference">Appendix H. Glossary and further reading</a><a href="#ddl-data-limitations">Appendix I. DDL-driven row changes and audit coverage</a><a href="#heatwave-etag-errors">Appendix J. HeatWave ETag issue and process errors</a><a href="#compartment-limits">Appendix K. Same-compartment resource limitation</a><h3>Screen reference</h3><a href="#screen-reference">All screenshots</a></nav><main><header class="cover"><div class="kicker">INDEPENDENT PROTOTYPE · ORACLE LINUX 9</div><h1>HeatWave Audit Center<span>User manual</span></h1><p class="standfirst">From a source-table change to traceable BEFORE and AFTER history.</p><div class="prototype"><strong>A prototype for evaluation, demonstration and rehearsal.</strong><br>This is not an Oracle product and is not supported or endorsed by Oracle.</div><p>Overview, architecture and network design; setup and installation; every app page and its fields/actions; operational procedures; scaling, updates and cleanup.</p><p class="meta">28 October 2026 · Implementation review: 28 October 2026 · Screenshots use illustrative isolated data.</p><div class="downloads"><a class="primary" href="../pdf/HeatWave-Audit-Center-User-Manual.pdf" download>Download printable PDF</a><a href="../md/README.md" download>Download Markdown</a><a href="../../presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx">PowerPoint overview</a><a href="../../../demo/">Narrated demonstration</a><button data-print-manual>Print this guide</button></div></header><section class="section" id="overview"><div class="kicker">Overview and design</div><h2>1. Background and prototype status</h2><p>HeatWave Audit Center is an independent prototype for exploring row-change auditing with OCI MySQL HeatWave. It brings connection setup, table registration, capture controls and audit-history exploration into one web application on an Oracle Linux 9 Compute VM.</p>
 <p><strong>This is a prototype for evaluation, demonstration and rehearsal. It is not an Oracle product and is not supported or endorsed by Oracle.</strong> Oracle service names and architecture symbols describe the integration; they do not imply Oracle authorship, certification or a production guarantee.</p>
 <p>The aim is to retain evidence of changes to registered tables: what a row contained before and after an INSERT, UPDATE or DELETE; which source position and queue delivery produced it; and how activity changes over time. The target stores audit history rather than maintaining a current-row replica.</p>
 <h3>Audience and scope</h3>
 <p>Operators use the Dashboard, Control Center, Message Explorer and Audit Center. Application administrators also manage configuration, resources, capture positions and retention. An OCI administrator prepares IAM and networking; a database administrator prepares schemas, users and supported source settings.</p>
-<p>This manual describes the repository implementation as reviewed on 24 October 2026, including the lifecycle, diagnostic and coverage clarifications. Screenshots show representative sample records, not a live OCI acceptance test. Endpoint names, resource identifiers and CIDRs are examples. Never copy the example identifiers into a real deployment.</p>
+<p>This manual describes the repository implementation as reviewed on 28 October 2026, including the lifecycle, diagnostic and coverage clarifications. Screenshots show representative sample records, not a live OCI acceptance test. Endpoint names, resource identifiers and CIDRs are examples. Never copy the example identifiers into a real deployment.</p>
 <h3>What is available</h3>
 <ul>
-<li>Registered table DML capture, complete row images when the source records them, replay checks, typed-key lookup and operation charts.</li>
+<li>Native OCI Streaming capture for one table, database wildcards or all-database wildcards; grouped audit targets; complete images when recorded; GTID initialization, replay checks, typed-key lookup and charts.</li>
+<li>Conditional large-event fragmentation, durable reassembly, PUT batching/byte pacing and adaptive GET polling.</li>
 <li>Public schema evidence with available before/after definitions and semantic differences; SQL inspection is used for DDL evidence.</li>
 <li>OCI Container Instances lifecycle and image replacement, same-compartment resource management and explicit partition cleanup.</li>
 </ul>
 <h3>Important boundaries</h3>
-<p>User/privilege auditing needs a separately configured database-audit collector; it is not implemented here. DML binlogs do not establish a complete actor or privilege history. Automatic fleet scaling, shared multi-table source connectors, verified archive export/restore, fingerprint-key rotation and a dedicated schema-comparison browser are not implemented. Validate the chosen deployment, recovery and capacity before relying on it.</p>
+<p>User/privilege auditing needs a separately configured database-audit collector; it is not implemented here. DML binlogs do not establish a complete actor or privilege history. Automatic fleet scaling, verified archive export/restore, fingerprint-key rotation and a dedicated schema-comparison browser are not implemented. Validate the chosen deployment, recovery and capacity before relying on it.</p>
 <p><strong>Row-audit coverage:</strong> partition exchange, partition drop/truncate and other DDL can change many rows without individual row-image events, even with ROW/FULL. Schema evidence, fingerprints and event charts cannot establish complete data-change coverage. See Appendix I and <a href="../../limitations.md">audit limitations</a>.</p></section><section class="section" id="challenges"><div class="kicker">Overview and design</div><h2>2. Challenges and the implemented approach</h2><table>
 <thead>
 <tr>
 <th>Challenge</th>
-<th>Approach in this prototype</th>
-<th>Operator responsibility</th>
+<th>Implemented approach</th>
+<th>Operational boundary</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Incomplete old/new row values</td>
-<td>Require ROW/FULL, disable PARTIAL_JSON, validate envelope images</td>
-<td>Reconnect source writers after session-related setting changes; old incomplete logs cannot be repaired</td>
+<td>Large source tables</td>
+<td>End or Specific GTID avoids copying current rows</td>
+<td>Existing unchanged rows have no snapshot baseline</td>
 </tr>
 <tr>
-<td>Binlogs expire during an outage</td>
-<td>Require retention above three days; recommend an initial seven-day review point</td>
-<td>Size for outage, snapshot and catch-up time; monitor disk and age</td>
+<td>Multiple source tables</td>
+<td>One table, database wildcard or all-database wildcard per flow</td>
+<td>Stable keys, metadata inventory and scope checks still required</td>
 </tr>
 <tr>
-<td>Repeated delivery after failure</td>
-<td>Source-event identity ledger and payload consistency checks</td>
-<td>Preserve lineage and checkpoints; investigate conflicting evidence</td>
+<td>Target organization</td>
+<td>Audit tables grouped by flow, source database or source table</td>
+<td>Generated tables stay in one selected target schema</td>
 </tr>
 <tr>
-<td>Fast row lookup in growing history</td>
-<td>Typed-key HMAC, row-key/time index and monthly partitions</td>
-<td>Supply the full key and useful UTC range; preserve its Vault key</td>
+<td>Target apply temporarily delayed</td>
+<td>Native OCI Streaming retains pending changes</td>
+<td>Capture offsets/JDBC history still depend on the target database</td>
 </tr>
 <tr>
-<td>Container ACTIVE but no data arrives</td>
-<td>Separate process/task status from queue and target checks</td>
-<td>Verify all stages with a controlled transaction</td>
+<td>Large full-image events</td>
+<td>Conditional fragmentation and durable reassembly</td>
+<td>Logical/custody, target packet and memory limits still apply</td>
 </tr>
 <tr>
-<td>OCI Streaming differs from a Kafka cluster</td>
-<td>Kafka-compatible data path, Connect harness state and JDBC private schema history</td>
-<td>Prepare both public streams and isolated Connect state</td>
+<td>Request throttling</td>
+<td>PUT batching/byte pacing and adaptive GET polling</td>
+<td>Retries are bounded fallback handling</td>
 </tr>
 <tr>
-<td>Schema changes are more than SQL text</td>
-<td>Store available definitions, semantic delta and fidelity</td>
-<td>Treat missing default/index/partition metadata as unknown</td>
-</tr>
-<tr>
-<td>Retention can be undone by replay</td>
-<td>Durable expiry cutoff, guarded partition manifest and retained deduplication state</td>
-<td>Stop both workloads and review the policy before cleanup</td>
-</tr>
-<tr>
-<td>Multiple flows grow cost and load</td>
-<td>One connector and writer per table flow; bounded target batches</td>
-<td>Measure per-source extraction, queue and target capacity; autoscaling is future work</td>
-</tr>
-<tr>
-<td>Resource deletion affects shared systems</td>
-<td>Compartment and installation ownership checks; reject in-use dependencies</td>
-<td>Keep IAM and network administration outside the app</td>
+<td>Recovery and replay</td>
+<td>Full offsets, stream identities, deduplication and target delivery state</td>
+<td>No global distributed exactly-once transaction</td>
 </tr>
 </tbody>
 </table>
-<p>The controls fail closed when coverage, ownership or supported state cannot be established. A denied list operation is not an empty inventory. A failed source check is an instruction to review the source, not permission for the app to change database settings.</p></section><section class="section" id="architecture"><div class="kicker">Overview and design</div><h2>3. Deployment architecture</h2><p><a href="../diagrams/deployment-architecture.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI Streaming deployment architecture" src="../diagrams/deployment-architecture.png" / loading="lazy"></a></p>
-<p><em>Reference deployment with example CIDRs. Official OCI symbols are used; generic official compute symbols represent the OCI Container Instances workloads.</em></p>
-<p>The OL9 VM runs Flask/Gunicorn, HTTPS, a socket-only embedded MySQL control repository and a rootless image-builder service. Embedded MySQL authenticates local accounts and retains registrations, revisions and operations; it is separate from both HeatWave databases.</p>
-<p>Debezium and the history writer run as separate OCI Container Instances in a private worker subnet. Debezium connects to the source MySQL endpoint, reads the binlog and publishes row/schema events. The writer consumes those events and commits audit evidence to the target HeatWave schema.</p>
-<p>OCI Streaming, Vault and Container Registry are regional services outside customer subnets. HeatWave customer subnet endpoints connect to service-managed DB systems. The region/VCN/subnet boundaries in the diagram are actual draw.io containers, not decorative rectangles.</p>
-<p>Resource instances and attachments managed or selected by the application must remain in the VM compartment. IAM groups/policies and shared network provisioning are administrator prerequisites; the app does not modify them. Source/target database connections use the supplied endpoint and a real MySQL login test; the app does not discover a DB system from its IP.</p>
-<p><a href="../diagrams/deployment-architecture.drawio">Editable deployment diagram</a></p></section><section class="section" id="network"><div class="kicker">Overview and design</div><h2>4. Network access and security boundaries</h2><p><a href="../diagrams/network-access.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI network access and trust boundaries" src="../diagrams/network-access.png" / loading="lazy"></a></p>
-<p><em>Example network. Blue arrows show client-initiated data connections; brown dashed links show HeatWave endpoint/service associations. Data can flow back over an established connection.</em></p>
+<p>This prototype makes observed changes traceable. It does not establish complete
+security auditing, reconstruct unavailable pre-capture history, or expand DDL into
+missing row images. Review the coverage and storage limitations before adoption.</p></section><section class="section" id="architecture"><div class="kicker">Overview and design</div><h2>3. Deployment architecture</h2><p><a href="../diagrams/deployment-architecture.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Native OCI deployment architecture" src="../diagrams/deployment-architecture.png" / loading="lazy"></a></p>
+<p>The OL9 application VM manages registered resources with its instance principal.
+A private Container Instance runs embedded Debezium Engine and the OCI Java SDK;
+another runs the Python history writer and OCI Python SDK. Both use resource
+principals for workload access. Private registry images are digest pinned.</p>
+<p>Source and target database endpoints attach to the database subnet. Regional
+Streaming, Vault, Registry and HeatWave services sit outside the VCN boundary;
+private attachments are shown separately. CIDRs are illustrative examples.</p>
+<p>The target contains audit payloads, deduplication evidence, routes, fragment custody,
+delivery checkpoints, complete source offsets and private JDBC schema history.
+Source and writer restarts preserve those namespaces. A full target outage can
+therefore pause capture as well as apply; source binlog retention remains essential.</p>
+<p><a href="../diagrams/deployment-architecture.drawio">Editable deployment architecture</a></p></section><section class="section" id="network"><div class="kicker">Overview and design</div><h2>4. Network access and security boundaries</h2><p><a href="../diagrams/network-access.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Network access and principal boundaries" src="../diagrams/network-access.png" / loading="lazy"></a></p>
 <table>
 <thead>
 <tr>
-<th>Path</th>
-<th>Purpose and restriction</th>
+<th>Connection</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Approved browser networks → OL9 VM TCP 443</td>
-<td>Web application HTTPS; use the VM DNS name or routable address</td>
+<td>Approved browser → application HTTPS 443</td>
+<td>Authenticated UI; CSRF protects actions</td>
 </tr>
 <tr>
-<td>App / Debezium → source TCP 3306</td>
-<td>Login checks, metadata, binlog reading; TLS policy is global</td>
+<td>Application / Debezium → source TLS 3306</td>
+<td>Metadata checks, optional row snapshot and replication reads</td>
 </tr>
 <tr>
-<td>App / writer / Debezium → target TCP 3306</td>
-<td>History browsing, target commits, private JDBC schema history and capture requests</td>
+<td>Application / workloads → target TLS 3306</td>
+<td>Audit queries/commits, offsets, JDBC history and recovery state</td>
 </tr>
 <tr>
-<td>Workers → Streaming TCP 9092</td>
-<td>Kafka-compatible TLS producer/consumer connections</td>
+<td>Workers → native Streaming HTTPS 443</td>
+<td>OCI SDK PutMessages and GetMessages</td>
 </tr>
 <tr>
-<td>VM / workloads → OCI TCP 443</td>
-<td>Permitted APIs, Vault secret reads and private registry access</td>
+<td>VM / workloads → permitted OCI HTTPS 443</td>
+<td>Secret retrieval, registry and scoped service operations</td>
 </tr>
 <tr>
-<td>Kafka Connect REST TCP 8083</td>
-<td>Container loopback only; do not expose publicly</td>
+<td>Native capture control on container loopback</td>
+<td>Internal engine control; no public ingress</td>
 </tr>
 </tbody>
 </table>
-<p>Public app-subnet default routing uses an internet gateway. Private subnet routes use the service gateway for supported regional OCI service destinations and approved NAT egress when required. Local VCN routes carry worker-to-DB traffic. Check the selected service endpoint, DNS, NSGs and route tables together; IAM permission does not open a network path.</p>
-<p>Private Streaming endpoints, if selected, need their own attachment/DNS/routing review. The reference diagram depicts regional service access, not an assertion that every endpoint is automatically reachable through a service gateway. The app does not create shared gateways, routes or NSG rules.</p>
-<p><a href="../diagrams/network-access.drawio">Editable network diagram</a></p></section><section class="section" id="data-flow"><div class="kicker">Overview and design</div><h2>5. Data flow, fingerprints and evidence</h2><p><a href="../diagrams/capture-workflow.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Capture and fingerprint lookup workflow" src="../diagrams/capture-workflow.png" / loading="lazy"></a></p>
-<p>A row change passes through source binlog, Debezium, the data stream and the history writer. Public schema events use a separate single-partition stream. Private Debezium schema recovery history is separate again: for OCI Streaming it resides in the target through JDBC. Connect configuration/offset/status state belongs to the selected harness.</p>
-<p>The writer validates each envelope, computes identities, commits fresh payload and ledger evidence, saves durable target delivery checkpoints and then acknowledges queue offsets. These are recoverable stages, not one distributed transaction. A crash can replay messages; supported duplicates are checked against existing evidence.</p>
-<h3>Three different identities</h3>
+<p>Debezium initiates the source MySQL connection; binlog data flows back on that
+connection. A snapshot queries source rows directly. The writer connects separately
+to the target. IAM permits an operation but does not create a network route.</p>
+<p>The reference public subnet uses an internet gateway. Private subnet access uses
+approved regional service-gateway destinations and any separately approved NAT
+egress. Check endpoint DNS, routes and NSGs together. Private service endpoints
+need their own attachment/routing review. The app does not alter shared networking.</p>
+<p><a href="../diagrams/network-access.drawio">Editable network reference</a></p></section><section class="section" id="data-flow"><div class="kicker">Overview and design</div><h2>5. Data flow, fingerprints and evidence</h2><p><a href="../diagrams/capture-workflow.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Capture, delivery and fingerprint lookup" src="../diagrams/capture-workflow.png" / loading="lazy"></a></p>
+<p>A row change passes through source binlog, embedded Debezium Engine, the data
+stream and the history writer. Schema events use a separate single-partition
+stream. Source recovery uses target-backed full offsets and JDBC schema history.
+Small events remain single messages. Large events are framed and reassembled
+before normal audit writes; partial fragments are never audit rows.</p>
+<p>The writer validates events, computes identities, writes fresh payload/deduplication
+evidence, and saves target delivery checkpoints before acknowledging in memory.
+These are recoverable stages, not a single distributed transaction. Durable
+fragment custody can permit delivery progress before the whole event arrives.</p>
 <ul>
-<li><strong>Row-key fingerprint:</strong> HMAC-SHA256 of canonical typed JSON containing source identity, source schema, source table and complete primary key. It locates versions of that key.</li>
-<li><strong>Before/after fingerprints:</strong> keyed hashes of row content. They describe content equality/change and are not a replacement for row identity.</li>
-<li><strong>Event/delivery identity:</strong> source lineage and binlog coordinates identify supported DML replays; queue coordinates identify deliveries and snapshot observations.</li>
+<li><strong>Row-key fingerprint:</strong> keyed hash of canonical typed source identity, actual database/table and complete primary key.</li>
+<li><strong>Before/after fingerprints:</strong> keyed hashes of observed row content.</li>
+<li><strong>Event/delivery identity:</strong> immutable source coordinates identify supported DML replays; stream coordinates describe deliveries. A GTID alone does not identify each row event.</li>
 </ul>
-<p>Canonical JSON sorts object keys and preserves types. <code>{"id":1042}</code> differs from <code>{"id":"1042"}</code>. Composite keys must include every key field. Preserve the fingerprint secret and source identity for the lifetime of retained history. A primary-key change can create separate histories; automatic key-alias stitching is not implemented.</p>
-<p><a href="../diagrams/capture-workflow.drawio">Editable workflow diagram</a></p></section><section class="section" id="prerequisites"><div class="kicker">Setup and installation</div><h2>6. Installation prerequisites</h2><p>Deployment is supported on <strong>Oracle Linux 9 only</strong>. Use the non-root application owner with sudo and an architecture-compatible Python 3.12+ environment. The installer uses app-managed MySQL 9.x, Gunicorn/systemd, rootless Podman, Java and Maven dependencies.</p>
+<p>Canonical JSON preserves types and sorts object keys. <code>{"id":1042}</code> differs from
+<code>{"id":"1042"}</code>. Preserve the fingerprint secret and source identity with retained
+history. Automatic stitching of histories across a primary-key change is not implemented.</p>
+<p><a href="../diagrams/capture-workflow.drawio">Editable workflow</a></p></section><section class="section" id="prerequisites"><div class="kicker">Setup and installation</div><h2>6. Installation prerequisites</h2><p>Deployment is supported on <strong>Oracle Linux 9 only</strong>. Use the non-root application owner with sudo and an architecture-compatible Python 3.12+ environment. The installer uses app-managed MySQL 9.x, Gunicorn/systemd, rootless Podman, Java and Maven dependencies.</p>
 <h3>Prepare before installation</h3>
 <ol>
 <li>Choose an OL9 Compute VM and the one compartment that will contain this deployment's resources and network attachments. Confirm region, capacity and service availability.</li>
@@ -182,7 +188,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 <p>Before a setup rerun, back up the repository/configuration and ensure no image build is active. Do not replace a working embedded MySQL binary as an incidental application update.</p></section><section class="section" id="iam"><div class="kicker">Setup and installation</div><h2>8. IAM and database access checklist</h2><p>The VM uses its <strong>instance principal</strong> for OCI management. Container Instances use their own <strong>resource principals</strong> for private images, secrets and Streaming data access. The container does not inherit VM permissions. The application does not switch to user API keys when access is denied.</p>
 <h3>OCI administrator tasks</h3>
 <p>Use the full <a href="../../iam-policy.md">IAM policy guide</a>, replacing placeholders with the actual identity-domain/group subjects and VM compartment. Grants depend on enabled features. Typical capabilities include container lifecycle, private repositories, permitted secret metadata/bundles and use of existing network attachments.</p>
-<p><code>manage stream-family</code> in the VM compartment covers OCI streams, stream pools and Connect configurations. It does not grant managed Kafka cluster administration. Container principals need permitted produce/consume/read access and secret/repository access separately. A list success proves that read operation only.</p>
+<p><code>manage stream-family</code> in the VM compartment covers OCI streams and stream pools. Native produce/consume permissions are needed for the relevant principal. Container principals need permitted produce/consume/read access and secret/repository access separately. A list success proves that read operation only.</p>
 <p>App ownership tags guard app actions but are not an IAM isolation boundary. Review dynamic-group membership, especially rules that match every Container Instance in a compartment. The application cannot authorize changes outside its compartment merely because a broader IAM policy exists.</p>
 <h3>MySQL account responsibilities</h3>
 <table>
@@ -212,21 +218,19 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p>Have the DBA review scoped grants and role activation. The source validation fails closed when it cannot establish required access. Database/schema creation and grants are prerequisites; validation does not apply them. Production account separation and removing preparation rights require a tested migration/runtime design; a separate migrator account is not currently exposed.</p>
-<p>Keep safe OCI request IDs for troubleshooting. A 403/404 may indicate membership, policy, wrong resource scope, readiness or regional availability. Retry the same intended principal after correction; do not substitute tenancy-wide grants.</p></section><section class="section" id="first-flow"><div class="kicker">Setup and installation</div><h2>9. First working flow: setup order</h2><p>Use this sequence after installation. Each stage has a corresponding screen described later.</p>
-<ol>
-<li>Sign in, rotate the bootstrap password and sign in again.</li>
-<li>Open Configuration &amp; setup. Test and register source/target connections using Vault references. Optionally create dedicated Debezium/history-writer users in Add connection; the setup administrator is replaced before registration.</li>
-<li>Open Runtime settings. Generate and configure the dedicated fingerprint secret using a same-compartment vault and existing encryption key.</li>
-<li>In OCI resources → OCI Streaming, create/select an active stream pool, data stream and a dedicated Connect configuration for the independent connector.</li>
-<li>In Queue connections, register the pool. OCI Streaming uses principal authentication; no queue username/token is needed.</li>
-<li>In Table mappings, load source and target objects through connection dropdowns. Choose a new audit table or a compatible existing one. Choose initial <strong>End</strong> for future changes only, or <strong>Start</strong> for a current-row snapshot.</li>
-<li>Select the mapping, run <strong>Validate source</strong> and resolve every Action required result. Prepare the schema topic <code>audit_&lt;flow-id&gt;</code> and verify both public topics are active.</li>
-<li>In Container Registry, build and publish Debezium and history-writer releases. In OCI Container Instances → Workload settings, select their completed releases, network/shape settings and save both roles.</li>
-<li>In Control Center select the flow and Deploy. Inspect Debezium process/task state and writer process state; then check actual queue messages and target evidence.</li>
-<li>On an authorized test table, perform INSERT, UPDATE and DELETE for one known primary key. Confirm the three operations and their correct before/after images in Audit Center.</li>
+<p>Keep safe OCI request IDs for troubleshooting. A 403/404 may indicate membership, policy, wrong resource scope, readiness or regional availability. Retry the same intended principal after correction; do not substitute tenancy-wide grants.</p></section><section class="section" id="first-flow"><div class="kicker">Setup and installation</div><h2>9. First working flow: setup order</h2><ol>
+<li>Verify the OL9 application and embedded repository login. Run setup/access checks.</li>
+<li>Register source and target connections using Vault password references; test both.</li>
+<li>Review source ROW/FULL binlogging, GTIDs, retention, stable keys and grants.</li>
+<li>In OCI resources, select/create the active Streaming pool and data stream. Register the pool connection without a username or messaging token.</li>
+<li>Build/publish the native Debezium and writer images in the private registry. Select compatible digest-pinned releases and private workload networking.</li>
+<li>Register a mapping: one table, <code>database.*</code> or <code>*.*</code>; choose target grouping and End, Start or Specific GTID. End is the default and avoids a row-copy snapshot.</li>
+<li>Run source checks. Prepare/select the data stream; prepare the single-partition schema stream <code>audit_&lt;flow-id&gt;</code>. Deployment also prepares the schema stream automatically.</li>
+<li>Deploy. Confirm the source task and writer are running, then verify queue arrival and newest target events/checkpoints.</li>
+<li>Use approved isolated CREATE/UPDATE/DELETE operations to verify typed keys, full images, actual source table labels and replay behavior.</li>
 </ol>
-<p><strong>Completion means verified evidence, not just an Active badge.</strong> Compare source commit time, queue partition/offset, target event and target checkpoint progress. Keep the same registration identities and fingerprint key when continuity is intended.</p>
-<p>The provided <a href="https://ivanxma.github.io/hw_data_audit_center/demo/">five-minute demonstration</a> illustrates these concepts with sample data. It is not proof that a particular deployment meets its operational or recovery requirements.</p></section><section class="section" id="login"><div class="kicker">Using the application</div><h2>10. Sign in and password rotation</h2><p><a href="../assets/screenshots/login.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Sign-in page" src="../assets/screenshots/login.png" / loading="lazy"></a></p>
+<p>Keep a reviewed record of stream IDs, source lineage, offsets, JDBC history,
+fingerprint secret and delivery state. Container ACTIVE alone does not prove capture.</p></section><section class="section" id="login"><div class="kicker">Using the application</div><h2>10. Sign in and password rotation</h2><p><a href="../assets/screenshots/login.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Sign-in page" src="../assets/screenshots/login.png" / loading="lazy"></a></p>
 <p><em>Sign-in page. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <table>
 <thead>
@@ -320,7 +324,8 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p>Use this page for a first health overview. If a flow needs attention, open Control Center and inspect both workload tips. A green process state does not establish that data has arrived. Use Message Explorer and Audit Center for evidence, and workload logs/checkpoints for diagnosis.</p>
-<p><strong>Watch demo</strong> opens the signed-in <code>/demo/</code> playback page. Play or pause the narrated video in the browser, use native seek/full-screen controls, enable English captions or select a chapter. The page does not require an MP4 download.</p></section><section class="section" id="connections"><div class="kicker">Using the application</div><h2>13. Configuration: HeatWave connections</h2><p><a href="../assets/screenshots/connection-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Add connection dialog" src="../assets/screenshots/connection-dialog.png" / loading="lazy"></a></p>
+<p><strong>Watch demo</strong> opens the signed-in <code>/demo/</code> playback page. Play or pause the narrated video in the browser, use native seek/full-screen controls, enable English captions or select a chapter. The page does not require an MP4 download.</p>
+<p><strong>User manual</strong> opens the deployed HTML guide. Its downloads include the PDF and PowerPoint overview. Watch demo opens the signed-in video player with narration, captions and chapters.</p></section><section class="section" id="connections"><div class="kicker">Using the application</div><h2>13. Configuration: HeatWave connections</h2><p><a href="../assets/screenshots/connection-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Add connection dialog" src="../assets/screenshots/connection-dialog.png" / loading="lazy"></a></p>
 <p><em>Add connection dialog. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Open <strong>Configuration &amp; setup → Connections → Add connection</strong>.</p>
 <table>
@@ -459,60 +464,385 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p>Stopping a deployed flow does not make its identity disposable. Use a new registration for a different source/target path; use <strong>Capture start</strong> for a supported explicit position change. Renaming preserves flow IDs, connector names, groups, history and fingerprints, and does not restart workloads.</p>
 <p><strong>Save</strong> revalidates permissions and state under server locks. A changed database connection is retested; live mapping/object validation is repeated. If another operator changed the entry after the dialog opened, refresh and reopen it. <strong>Cancel</strong> leaves the saved entry unchanged.</p>
-<p>For password rotation on a referenced deployed connection, preserve the secret reference and coordinate rotation of its Vault value and affected workloads. Do not assume a name-only Edit can replace deployed credential references.</p></section><section class="section" id="mappings"><div class="kicker">Using the application</div><h2>15. Configuration: register a table mapping</h2><p><a href="../assets/screenshots/table-mappings.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Registered table mappings" src="../assets/screenshots/table-mappings.png" / loading="lazy"></a></p>
-<p><em>Registered table mappings. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p><a href="../assets/screenshots/mapping-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Source/target object dropdowns and initial capture choice" src="../assets/screenshots/mapping-dialog.png" / loading="lazy"></a></p>
-<p><em>Source/target object dropdowns and initial capture choice. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Open <strong>Table mappings → Register table</strong> after registering source and target connections. Object lists are fetched from the selected database connections; the UI does not require typing table names.</p>
+<p>For password rotation on a referenced deployed connection, preserve the secret reference and coordinate rotation of its Vault value and affected workloads. Do not assume a name-only Edit can replace deployed credential references.</p></section><section class="section" id="mappings"><div class="kicker">Using the application</div><h2>15. Configuration: register a table mapping</h2><p><a href="../assets/screenshots/table-mappings.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Registered mappings" src="../assets/screenshots/table-mappings.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p><a href="../assets/screenshots/mapping-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Wildcard source and target grouping" src="../assets/screenshots/mapping-dialog.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p>Open <strong>Table mappings → Register table</strong> after source/target connections and the Streaming pool connection exist.</p>
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Meaning / condition</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Flow name</td>
-<td>Unique operational label using letters, digits, underscore or hyphen</td>
+<td>Unique operational label</td>
 </tr>
 <tr>
-<td>Source connection / Target connection</td>
-<td>Select the appropriate registered roles</td>
+<td>Source / target connection</td>
+<td>Registered connections with the required role and Vault reference</td>
 </tr>
 <tr>
-<td>Source schema / Source table</td>
-<td>Select a visible source object; needs a stable primary key and approved grants</td>
+<td>Source database / table</td>
+<td>One table, one database with <code>*</code>, or <code>*.*</code>; stable primary keys required</td>
 </tr>
 <tr>
 <td>Target schema</td>
-<td>Existing writable schema on the target</td>
+<td>Existing writable target schema</td>
 </tr>
 <tr>
 <td>Target audit table</td>
-<td>Select a compatible audit table or Create new audit table; a business table is not automatically compatible</td>
+<td>Compatible audit table or new root/prefix for generated destinations</td>
 </tr>
 <tr>
-<td>Messaging connection</td>
-<td>Registered OCI Streaming pool or supported managed Kafka connection</td>
+<td>Target grouping</td>
+<td>By flow, by source database, or by source table</td>
 </tr>
 <tr>
-<td>Stream / topic</td>
-<td>Existing data stream/topic in that connection; loaded after connection selection</td>
+<td>OCI Streaming connection</td>
+<td>Active registered stream pool</td>
 </tr>
 <tr>
-<td>Connect harness</td>
-<td>OCI Streaming only; active dedicated Connect configuration for this independent connector</td>
+<td>Data stream</td>
+<td>Existing prepared stream in the selected pool</td>
 </tr>
 <tr>
 <td>Initial capture</td>
-<td>Start snapshots current rows; End captures schema then future changes only</td>
+<td>End by default; Start snapshots current rows; Specific GTID starts after the validated processed set</td>
+</tr>
+<tr>
+<td>GTID set and Check</td>
+<td>Visible for Specific GTID; supports multiple UUID groups and intervals; shows executed/purged bounds</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Save mapping</strong> creates a draft, not running containers. <strong>Cancel / ×</strong> closes the dialog. Register table is unavailable until sufficient source/target registrations exist. Connection/object and queue dropdowns remain disabled while their prerequisites are missing or inaccessible.</p>
-<p>Select one mapping and choose <strong>Validate source</strong> to check the live source. <strong>Prepare schema topic</strong> prepares <code>audit_&lt;flow-id&gt;</code> with one partition alongside the selected data topic. Wait for readiness before deployment. <strong>Edit</strong> follows the draft/deployed restrictions in section 14.</p>
-<p>The app rejects duplicate physical source aliases, incompatible target layouts, source/target feedback paths and reserved recovery-table mappings. Retain one source table, one data topic and one audit payload table per flow in this prototype.</p></section><section class="section" id="runtime"><div class="kicker">Using the application</div><h2>16. Runtime settings and fingerprint-key setup</h2><p><a href="../assets/screenshots/runtime-key.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Runtime settings with dedicated row-history key setup" src="../assets/screenshots/runtime-key.png" / loading="lazy"></a></p>
+<p><strong>Save mapping</strong> creates a draft. Select the mapping for source checks and schema
+stream preparation. Deployment prepares missing schema infrastructure, not a missing
+selected data stream. Wait for the data stream to become active before deploying.</p>
+<p>Overlapping source aliases, incompatible audit targets, reserved state tables and
+feedback paths are rejected. Deployed scope and grouping are locked to preserve
+history; register a new mapping for a different data path. See the source-scope
+and target-layout reference below.</p></section><section class="section" id="source-layouts"><div class="kicker">Configuration and capture design</div><h2>16. Source scopes and target layouts</h2><p>A mapping selects which source row changes belong to a flow and how the writer
+organizes their audit history. The target uses fixed audit-event JSON columns;
+it does not recreate each source table's columns.</p>
+<h2>Source selection</h2>
+<table>
+<thead>
+<tr>
+<th>Source selection</th>
+<th>Captured scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sales.orders</code></td>
+<td>One named base table</td>
+</tr>
+<tr>
+<td><code>sales.*</code></td>
+<td>Eligible base tables in one database</td>
+</tr>
+<tr>
+<td><code>*.*</code></td>
+<td>Eligible base tables across source databases</td>
+</tr>
+</tbody>
+</table>
+<p>Use the database and table selectors in <strong>Register table</strong>. The wildcard is a
+whole-name choice; partial patterns such as <code>sales.order*</code> are not supported.
+Literal names are escaped when constructing Debezium's anchored regular-expression
+filters. Internal/system databases are excluded. Registered audit-target schemas
+on the same source server are excluded to prevent capture feedback.</p>
+<p>Source checks inspect metadata and primary keys, not table contents. Current
+inventory is limited to 1,000 tables; a larger result is rejected rather than
+silently truncated. Every included table needs a complete stable primary key.
+A new table or database that matches the saved scope can be discovered while
+capture runs. A newly created keyless table is not silently ignored: unsupported
+row events stop the writer for review. Review filters and exclusions when adding
+new databases, audit destinations or broad source registrations.</p>
+<p>Broad capture increases schema/change volume and may include sensitive application
+data. Choose the narrowest scope that meets the audit requirement. Source account
+permissions and metadata visibility must cover the intended databases; a wildcard
+does not grant MySQL privileges. Overlapping registrations on the same source and
+unsafe source-to-target feedback paths are rejected.</p>
+<h2>Target grouping</h2>
+<p>All three choices use the selected target connection and schema.</p>
+<table>
+<thead>
+<tr>
+<th>Grouping</th>
+<th>Physical audit destination</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>By flow</strong></td>
+<td>One audit table for every source table in the flow</td>
+</tr>
+<tr>
+<td><strong>By source database</strong></td>
+<td>One generated audit table per actual source database</td>
+</tr>
+<tr>
+<td><strong>By source table</strong></td>
+<td>One generated audit table per actual source database/table pair</td>
+</tr>
+</tbody>
+</table>
+<p>For example, <code>sales.orders</code>, <code>sales.customers</code> and <code>billing.orders</code> produce one,
+two or three physical audit tables respectively. By database does <strong>not</strong> create
+one target schema per source database. The registered target-table name acts as
+the root/prefix for generated destinations. Names include a deterministic hash
+of the complete source namespace and flow identity, remain within MySQL's name
+limit, and are recorded in durable route/ownership tables.</p>
+<p>The writer creates a destination only after claiming ownership. It refuses an
+unowned existing physical table rather than treating it as an empty audit store.
+Interrupted creation can resume from its saved claim. The root table retains the
+flow's retention anchor even when generated destinations hold the row events.</p>
+<p>Each event retains its actual source database and table. Row-key hashes include
+that namespace, so identical primary keys in different tables remain distinct.
+The flow has one writer lease, one source offset namespace, and its prepared data
+and schema streams. Grouping does not create a connector or stream per table.
+Writes to several physical destinations are recoverable commits, not one atomic
+cross-table/source transaction. Replay checks prevent supported duplicate events
+when a later grouped write or checkpoint fails.</p>
+<h2>Browsing and operating boundaries</h2>
+<p>Audit Center combines the flow's owned destinations for history and charts. Filter
+by source database/table; a primary-key lookup must identify one actual table
+(and a database for <code>*.*</code>). Audit partitions lets you choose a generated physical
+table. Large JSON pages sort event coordinates before loading selected payloads.</p>
+<p>End and initial Specific GTID are supported for wildcard mappings without copying
+existing rows. Start requests an initial row snapshot across the included scope
+and can be expensive. Normal restarts and image replacements retain full offsets.
+<strong>Historical repositioning of an already deployed wildcard flow is disabled</strong>
+until complete schema-baseline coverage across all included tables can be proven.
+The single-table historical preview does not imply that capability for a wildcard.</p>
+<p><strong>Automatic retention cleanup for grouped targets is disabled.</strong> Use a separately
+reviewed, coordinated maintenance procedure that preserves the flow's payload,
+deduplication, delivery, schema, routing and fragment evidence together. A row
+count or an old root table alone is not sufficient cleanup evidence.</p>
+<p>Once deployment history exists, source scope and target grouping are locked.
+Register a new flow for a changed data path; do not edit identifiers under saved
+checkpoints. See <a href="../../capture-start.md">capture position</a>,
+<a href="../../streaming-and-size-limits.md">Streaming and size limits</a> and
+<a href="../../limitations.md">coverage limitations</a>.</p></section><section class="section" id="stream-capacity"><div class="kicker">Configuration and capture design</div><h2>17. Streaming buffers, size limits and request control</h2><p>The deployed path is source MySQL binlog → embedded Debezium Engine → native
+OCI Streaming → history writer → target audit store. The capture and writer use
+OCI SDKs over HTTPS with resource principals. No Object Storage overflow path is
+used. Ordinary events keep their original key and full Debezium envelope.</p>
+<h2>Why stage changes in a stream?</h2>
+<p>A durable stream lets capture publish while a writer is stopped, slow or being
+replaced. The writer later resumes from its target delivery checkpoint. Source
+capture and target apply can progress at different speeds, and short apply-side
+interruptions need not force an immediate source replay. Stream retention bounds
+this buffer: it is not an unlimited archive or a substitute for source binlogs.</p>
+<p>There is a significant dependency in this implementation: the <strong>source offset and
+Debezium JDBC schema history are stored in the target database too</strong>. If the entire
+target database is unavailable, capture can also pause when it needs that state.
+Streaming decouples publishing from row apply, but does not make capture fully
+independent of the target database. Preserve enough source binlog retention for
+that outage and enough stream retention for the writer's recovery. An independent
+capture-state database would be an additional design change.</p>
+<h2>Which limits can change?</h2>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Current behavior</th>
+<th>Operator control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OCI message and PUT request</td>
+<td>Service maximum remains 1 MiB; batching must fit the request too</td>
+<td>Application configuration cannot raise the service maximum</td>
+</tr>
+<tr>
+<td>Publisher request budget</td>
+<td>At most 900,000 estimated encoded bytes, including keys and overhead</td>
+<td>Fixed conservative application budget</td>
+</tr>
+<tr>
+<td>Normal event</td>
+<td>Original key/value in one message if it fits the publisher budget</td>
+<td>No fragmentation for events that fit</td>
+</tr>
+<tr>
+<td>Oversized event</td>
+<td>Lossless framing, with chunks of at most 400,000 packed bytes</td>
+<td>Automatic within the logical event limit</td>
+</tr>
+<tr>
+<td>Logical event</td>
+<td>Default 16 MiB for packed key, value and framing header</td>
+<td><code>streaming.max_event_bytes</code>: 1–64 MiB</td>
+</tr>
+<tr>
+<td>Incomplete fragment custody</td>
+<td>Default 128 MiB reserved per flow</td>
+<td><code>streaming.max_pending_fragment_bytes</code>: at least one maximum event, at most 1 GiB</td>
+</tr>
+<tr>
+<td>Target database</td>
+<td>JSON/document, packet, connection and storage limits still apply</td>
+<td>DBA settings and supported service configuration; application limits do not override them</td>
+</tr>
+</tbody>
+</table>
+<p>The publisher budget is deliberately below the service ceiling. An event smaller
+than 1 MiB in raw JSON may still need fragments because the key, UTF-8, base64
+encoding, full envelope and request structure consume space. Inspect serialized
+bytes rather than character count. Oracle describes chunking and external payload
+storage as large-message designs; this application implements chunking.
+<a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/publishing.htm">OCI publishing and large messages</a>,
+<a href="https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/streaming/stream/message/put.html">PutMessages request limit</a>.</p>
+<h2>Debezium envelope overhead</h2>
+<p>The <code>payload</code> contains the operation, before/after values and source coordinates.
+The outer <code>schema</code> describes the serialized fields and their types. A two-column
+update can therefore carry far more metadata than changed business values. Source
+metadata describes the event's origin and replication position; database passwords
+and connection secrets are not part of the row message.</p>
+<p>This release retains the complete schema and both images for supported updates.
+It does not silently remove fields or change typed fingerprint semantics. Debezium
+JSON serialization can omit repeated schema descriptions, but a compact mode needs
+an explicit schema recovery/versioning contract and compatibility validation.
+Such a mode is <strong>not implemented here</strong>. Removing unchanged columns or the BEFORE
+image would also change what audit history can establish. Fragmentation preserves
+information; it is not compression and adds some bytes and processing work.
+<a href="https://debezium.io/documentation/reference/development/engine.html">Debezium Engine serialization</a>.</p>
+<p>Snapshots read current source rows directly. End and Specific GTID establish
+schema and follow binlog events without a row-copy snapshot. A broad wildcard
+scope still increases metadata and change volume; skipping the snapshot does not
+remove the cost of reading and serializing large row changes.
+<a href="https://debezium.io/documentation/reference/3.4/connectors/mysql.html">Debezium MySQL connector</a>.</p>
+<h2>Fragment delivery and recovery</h2>
+<ol>
+<li>The publisher measures the complete key/value. A normal event stays one message.</li>
+<li>An oversized event is packed with the original key and split. Each part includes
+   its index/count, declared size, message identity and part/full SHA-256 checksums.
+   A stable routing key keeps the parts of that event in one stream partition.</li>
+<li>The source checkpoint advances only after every required part was accepted.
+   A partially accepted request cannot acknowledge an unpublished source event.</li>
+<li>The writer commits fragment custody before advancing the delivery checkpoint
+   past an incomplete part. A restart can resume from those saved parts.</li>
+<li>Only complete, validated events enter the normal audit writer. The original
+   before/after data, schema and key are reconstructed; partial events never become
+   audit rows. Completed payload blobs are released after durable delivery state
+   proves completion. Compact receipts remain for replay checks.</li>
+</ol>
+<p>A source restart can regenerate processing timestamps in an envelope. That can
+produce a different fragment generation for the same underlying source event.
+An older incomplete generation is retained even when a later complete generation
+arrives. Source-coordinate deduplication protects supported row events, but does
+not automatically reconcile every abandoned fragment set. Review retained custody
+and source/delivery evidence before explicit cleanup. The pending limit stops
+further custody instead of silently discarding incomplete data.</p>
+<p>Complete receipts, the event deduplication ledger and audit payloads have different
+lifetimes. This release does not automatically prune every receipt. Grouped target
+retention also requires coordinated maintenance. Neither source transactions nor
+writes across multiple target tables form one distributed atomic transaction.</p>
+<h2>Fewer requests before retries</h2>
+<p>Several small events share one <code>PutMessages</code> request while remaining separate OCI
+messages. A request is flushed when its byte budget, record count or destination
+requires it. Data and schema streams require separate requests. No custom aggregate
+wrapper is added around normal events.</p>
+<table>
+<thead>
+<tr>
+<th>Runtime JSON setting under <code>streaming</code></th>
+<th style="text-align: right;">Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>put_max_records</code></td>
+<td style="text-align: right;">500</td>
+<td>Maximum records per engine/publish batch, bounded by bytes</td>
+</tr>
+<tr>
+<td><code>put_requests_per_second</code></td>
+<td style="text-align: right;">4</td>
+<td>Request ceiling per stream</td>
+</tr>
+<tr>
+<td><code>put_bytes_per_second</code></td>
+<td style="text-align: right;">850000</td>
+<td>Smooth estimated encoded PUT bytes per stream</td>
+</tr>
+<tr>
+<td><code>get_max_records</code></td>
+<td style="text-align: right;">1000</td>
+<td>Fetch more queued records in one GET</td>
+</tr>
+<tr>
+<td><code>get_idle_max_ms</code></td>
+<td style="text-align: right;">2000</td>
+<td>Back off empty partition polls up to this delay</td>
+</tr>
+<tr>
+<td><code>get_bytes_per_second</code></td>
+<td style="text-align: right;">1500000</td>
+<td>Pace reads by estimated response bytes per partition</td>
+</tr>
+</tbody>
+</table>
+<p>Publishing uses the lower of the configured byte rate and 850,000 times the stream's
+partition count. A hot key can concentrate traffic in one partition, so increasing
+the rate or partition count does not guarantee higher usable throughput. Reading
+waits at least 250 ms between requests for the same partition and slows further
+for byte volume or idle queues. Backoff adds some latency when a quiet queue
+becomes active. Each source engine also has a bounded 64 MiB change queue.</p>
+<p>Retries remain bounded fallback handling. HTTP success does not prove every PUT
+entry succeeded: the publisher checks individual results, including numeric <code>429</code>,
+and retries only rejected entries. A failed batch retains the source checkpoint.
+GET retries retain the same cursor; target checkpoints move only after durable
+custody or audit commits. Partition throughput, API management quotas and workload
+lifecycle quotas are distinct constraints; identify the service and operation from
+the actual error rather than assuming PUT and GET share one global quota.
+<a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Reference/troubleshootingstreaming.htm">OCI Streaming throttling</a>.</p>
+<p>The Control Center page polls every 15 seconds, but shared status samples limit OCI
+reads across tabs and web workers: up to 45 seconds for settled states, 10 seconds
+during transitions. A throttled status read is shared too; the page does not
+immediately duplicate it. <strong>Checked</strong> displays the actual sample time.</p>
+<p>Save Runtime settings, then choose <strong>Control Center → More actions → Apply stream
+settings</strong>. This uses the selected workload images and replaces the writer before
+the source while retaining history and checkpoints. An interrupted operation can
+be resumed with the same action. Unchanged effective policy/image pairs are kept.
+The action permits unchanged or increased message/custody limits; reducing them
+requires a separately reviewed drain and retained-fragment reconciliation.</p>
+<p>Publisher health counters include PUT requests, accepted physical messages, wire
+bytes, throttled entries and logical events. Writer logs report GET requests,
+records, bytes, empty responses, retries and throttles. Compare deltas for a known
+workload instead of relying on retry counts alone.</p>
+<h2>Target size and browse limits</h2>
+<p>The target stores keys, images and schema as JSON in a fixed audit structure. It
+is not a column-for-column replica of the source's wide row. InnoDB page/row rules
+therefore differ from the total JSON payload size, and large values can use
+out-of-page storage. This does not make JSON or network packets unlimited.
+A JSON value is constrained by <code>max_allowed_packet</code>; client/server packet settings,
+writer memory, serialization expansion and batch size must also be adequate.
+<a href="https://dev.mysql.com/doc/refman/8.4/en/json.html">MySQL JSON limits</a>,
+<a href="https://dev.mysql.com/doc/refman/8.4/en/packet-too-large.html">packet limits</a>,
+<a href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">storage requirements</a>.</p>
+<p>Raising the application event limit cannot raise the database's limits. Test the
+largest full update, including both images and schema, under representative load.
+The writer bounds batch bytes; one assembled event can exceed that ordinary batch
+budget while remaining subject to the logical event ceiling. Audit Center pages
+sort lightweight event coordinates before retrieving selected JSON payloads,
+avoiding a large JSON sort. Selected payloads are still loaded for the page: many
+very large events can produce a heavy browser response.</p>
+<h2>Validation scope</h2>
+<p>Live validation on 28 October 2026 delivered large Unicode CREATE, UPDATE and
+DELETE events exactly once in each of the three target layouts, verified partial
+writer reassembly recovery, and restarted source and writer without changing
+retained history. A separate burst of 100 row events plus one schema event used
+<strong>2 PUT requests, 101 physical messages, zero throttled entries</strong>. Normal events
+remained single messages. This is a functional batching result for that fixture,
+not a general throughput or latency benchmark.</p></section><section class="section" id="runtime"><div class="kicker">Using the application</div><h2>18. Runtime settings and fingerprint-key setup</h2><p><a href="../assets/screenshots/runtime-key.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Runtime settings with dedicated row-history key setup" src="../assets/screenshots/runtime-key.png" / loading="lazy"></a></p>
 <p><em>Runtime settings with dedicated row-history key setup. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Open <strong>Configuration &amp; setup → Runtime settings &amp; access checks</strong>. Only administrators can save settings. The compartment and region remain fixed to the VM.</p>
 <table>
@@ -555,9 +885,10 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p>Once configured, the app prevents removal or replacement of the fingerprint-secret reference. Preserve its value in Vault; key rotation/version routing for existing history is not implemented.</p>
 <h3>Settings that operators commonly review</h3>
-<p><code>streaming</code> selects principal mode, pool, harness and Connect-state profiles. <code>debezium</code> and <code>processor</code> select workload network, shape, image and secret references. <code>processor.batch</code> and offset commit interval bound writer work. <code>mysql_tls</code> is global transport policy. <code>retention</code> contains explicit per-flow cleanup policies.</p>
-<p>Saving a revision does not update effective settings inside existing containers. Select/build the required image and use the matching controlled Update action to replace a workload. Review continuity before changing queue incarnation, source identity, group or target; a configuration edit must not silently reset them.</p>
-<p>The configuration contains sensitive deployment references even without passwords. Keep its real file on the VM and out of Git. Examples in this manual are placeholders.</p></section><section class="section" id="source-checks"><div class="kicker">Using the application</div><h2>17. Source validation and full row images</h2><p><a href="../assets/screenshots/source-validation.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Live source validation results and recommended settings" src="../assets/screenshots/source-validation.png" / loading="lazy"></a></p>
+<p><code>streaming</code> selects the native pool, logical/custody limits, PUT batching/pacing and GET polling policy. <code>debezium</code> and <code>processor</code> select workload network, shape, image and secret references. <code>processor.batch</code> and offset commit interval bound writer work. <code>mysql_tls</code> is global transport policy. <code>retention</code> contains explicit per-flow cleanup policies.</p>
+<p>Saving a revision does not update effective settings inside existing containers. Use Control Center → More actions → Apply stream settings with compatible selected images. It replaces the writer first and retains checkpoints; limit reductions require a separately reviewed drain. Review continuity before changing queue incarnation, source identity, group or target; a configuration edit must not silently reset them.</p>
+<p>The configuration contains sensitive deployment references even without passwords. Keep its real file on the VM and out of Git. Examples in this manual are placeholders.</p>
+<p>Defaults: logical event 16 MiB, incomplete custody 128 MiB; PUT batch 500, request ceiling 4/sec and estimated bytes 850,000/sec per stream; GET batch 1,000, idle maximum 2 seconds and estimated bytes 1,500,000/sec per partition. See the complete Streaming reference below.</p></section><section class="section" id="source-checks"><div class="kicker">Using the application</div><h2>19. Source validation and full row images</h2><p><a href="../assets/screenshots/source-validation.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Live source validation results and recommended settings" src="../assets/screenshots/source-validation.png" / loading="lazy"></a></p>
 <p><em>Live source validation results and recommended settings. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Open a selected mapping's <strong>Validate source</strong>, or Control Center → <strong>More actions → Source checks → Run</strong>. <strong>Run live checks</strong> reads the current source variables, table metadata and effective grants. It does not modify the source. Deployment runs readiness checks again.</p>
 <table>
@@ -604,9 +935,9 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p><strong>Observed</strong> reports the value read, <strong>Recommended</strong> states the requirement and <strong>Advice</strong> explains a correction. Any Action required result blocks deployment. A failed grant check can reflect role/scope ambiguity; have the DBA review it rather than broadening blindly.</p>
 <p>Use supported HeatWave configuration parameters; some changes require a DB restart. Reconnect source application writers after changing session-sensitive row settings, then verify a controlled update. FULL can increase log volume significantly for wide rows/large values. Size source binlog storage, queue messages and target storage accordingly. No setting can reconstruct missing images in old logs.</p>
-<p>Prepare the public schema topic before Deploy. It is distinct from the data topic and private recovery history.</p></section><section class="section" id="services"><div class="kicker">Using the application</div><h2>18. OCI resources: common controls</h2><p><a href="../assets/screenshots/streaming.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI resources with service tabs, compartment scope and inventory" src="../assets/screenshots/streaming.png" / loading="lazy"></a></p>
+<p>Prepare the public schema topic before Deploy. It is distinct from the data topic and private recovery history.</p></section><section class="section" id="services"><div class="kicker">Using the application</div><h2>20. OCI resources: common controls</h2><p><a href="../assets/screenshots/streaming.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI resources with service tabs, compartment scope and inventory" src="../assets/screenshots/streaming.png" / loading="lazy"></a></p>
 <p><em>OCI resources with service tabs, compartment scope and inventory. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Open <strong>Configuration &amp; setup → OCI resources</strong>. The service tabs are OCI Streaming, Apache Kafka, OCI Container Instances, Container Registry, Vault, HeatWave and Queue connections. Existing resources with lifecycle state DELETED are filtered from inventories.</p>
+<p>Open <strong>Configuration &amp; setup → OCI resources</strong>. The service tabs are OCI Streaming, OCI Container Instances, Container Registry, Vault, HeatWave and Queue connections. Existing resources with lifecycle state DELETED are filtered from inventories.</p>
 <table>
 <thead>
 <tr>
@@ -647,144 +978,93 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p>An app can select compatible existing resources without owning them. <strong>Deletion stays disabled for resources not managed by this installation.</strong> Creating with the same name does not transfer ownership. App ownership tags are not a substitute for IAM.</p>
 <p>Resource creation is asynchronous and may incur charges. Review the notification/result, refresh and wait for the required lifecycle state. Ambiguous create results must be reconciled against inventory before retrying; do not repeatedly submit to force a duplicate. An authorization error shows the service issue rather than pretending the list is empty.</p>
-<p>The app provisions resources and attaches existing networking inside scope; it does not edit IAM policies or shared network rules. OCI service lifecycle actions are separate from removing local connection registrations.</p></section><section class="section" id="streaming"><div class="kicker">Using the application</div><h2>19. OCI Streaming: pools, streams and harnesses</h2><p><a href="../assets/screenshots/stream-create.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Create stream dialog" src="../assets/screenshots/stream-create.png" / loading="lazy"></a></p>
-<p><em>Create stream dialog. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Create/select the pool first. Use a data stream for row envelopes and a separate public schema stream named <code>audit_&lt;flow-id&gt;</code>. Each independent connector needs isolated Connect configuration/offset/status state; select a dedicated Connect harness/profile.</p>
+<p>The app provisions resources and attaches existing networking inside scope; it does not edit IAM policies or shared network rules. OCI service lifecycle actions are separate from removing local connection registrations.</p></section><section class="section" id="streaming"><div class="kicker">Using the application</div><h2>21. Native OCI Streaming: pools and streams</h2><p><a href="../assets/screenshots/streaming.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Native OCI Streaming resources" src="../assets/screenshots/streaming.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p>OCI Streaming uses its native HTTPS APIs. Select or create an active same-compartment stream pool and prepare the data stream plus the separate single-partition schema stream. Each flow binds delivery state to the actual stream IDs.</p>
 <table>
 <thead>
 <tr>
-<th>Form</th>
-<th>Field</th>
-<th>Purpose / condition</th>
+<th>Resource / action</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Stream pool</td>
-<td>Name</td>
-<td>Operational display name</td>
+<td>Service grouping selected by the queue connection</td>
 </tr>
 <tr>
-<td>Stream pool</td>
-<td>Private endpoint subnet (optional)</td>
-<td>Existing same-compartment subnet; requires private access/DNS/network review</td>
+<td>Data stream</td>
+<td>Row events; choose partitions and retention for measured load</td>
 </tr>
 <tr>
-<td>Stream</td>
-<td>Name</td>
-<td>Unique usable name within the chosen pool</td>
+<td>Schema stream</td>
+<td><code>audit_&lt;flow-id&gt;</code>, exactly one partition</td>
 </tr>
 <tr>
-<td>Stream</td>
-<td>Stream pool</td>
-<td>Existing active pool</td>
+<td>Refresh</td>
+<td>Reload permitted service inventory</td>
 </tr>
 <tr>
-<td>Stream</td>
-<td>Partitions</td>
-<td>Choose for anticipated load at creation; public schema stream must have one</td>
+<td>Create</td>
+<td>Submit the supported typed resource form with reviewed scope</td>
 </tr>
 <tr>
-<td>Stream</td>
-<td>Retention (hours)</td>
-<td>Form allows 24–168; default 168 (seven days)</td>
-</tr>
-<tr>
-<td>Connect harness</td>
-<td>Name</td>
-<td>Dedicated Connect configuration for connector state</td>
+<td>Delete</td>
+<td>Guarded by compartment, ownership, lifecycle and in-use checks</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Create</strong> submits the specific resource; <strong>Cancel / ×</strong> abandons the form. <strong>Refresh</strong> observes lifecycle progress. Do not deploy until data, public schema stream and harness are ready and accessible to the relevant principals.</p>
-<p>OCI Streaming is accessed through its Kafka-compatible endpoint; this does not require running a separate Kafka cluster. This app uses principal authentication and JDBC private schema history for this transport. Oracle documents differences including unavailable compaction, Kafka transactions, idempotent production and dynamic partition addition; do not assume Kafka configuration examples apply unchanged. See <a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm">Streaming compatibility</a>.</p>
-<p>Public schema history is not the Connect harness state and is not Debezium's private schema recovery store. Keep all three purposes distinct during provisioning and cleanup.</p></section><section class="section" id="queues"><div class="kicker">Using the application</div><h2>20. Queue registrations and topic management</h2><p><a href="../assets/screenshots/queues.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Queue registrations and topic management" src="../assets/screenshots/queues.png" / loading="lazy"></a></p>
-<p><em>Queue registrations and topic management. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p><a href="../assets/screenshots/queue-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI Streaming queue connection without username or token" src="../assets/screenshots/queue-dialog.png" / loading="lazy"></a></p>
-<p><em>OCI Streaming queue connection without username or token. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Open <strong>OCI resources → Queue connections → Add queue connection</strong>.</p>
+<p>The pool connection needs no Kafka/SASL credentials. The VM uses its instance
+principal; capture/writer use container resource principals. Source offsets and
+private schema history are in the target database. Public schema events remain
+in their own stream for the writer.</p>
+<p>Retention is a bounded delivery buffer. Recreating a stream changes its identity
+and cannot silently reuse old checkpoints. A missing required data stream is a
+readiness error: prepare it in the selected pool. See the buffering and size limits
+reference for fragmentation and request pacing.</p></section><section class="section" id="queues"><div class="kicker">Using the application</div><h2>22. Queue registrations and topic management</h2><p><a href="../assets/screenshots/queues.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI Streaming connections" src="../assets/screenshots/queues.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p><a href="../assets/screenshots/queue-dialog.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Register a native Streaming pool" src="../assets/screenshots/queue-dialog.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p>Open <strong>OCI resources → Queue connections → Add OCI Streaming connection</strong>.</p>
 <table>
 <thead>
 <tr>
 <th>Field / action</th>
-<th>Meaning and condition</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Name</td>
-<td>Human-readable queue registration</td>
+<td>Human-readable registration label</td>
 </tr>
 <tr>
-<td>Service</td>
-<td>OCI Streaming or supported managed Apache Kafka</td>
+<td>Stream pool</td>
+<td>Existing active pool in the selected compartment</td>
 </tr>
 <tr>
-<td>Stream pool / Kafka cluster</td>
-<td>Select an existing active same-compartment service resource</td>
+<td>Register connection</td>
+<td>Validate the pool and save the registration</td>
 </tr>
 <tr>
-<td>Kafka/SASL username</td>
-<td>Kafka only; hidden and disabled for new OCI Streaming principal-mode connections</td>
+<td>Edit</td>
+<td>Change permitted registration fields; in-use resource identity stays fixed</td>
 </tr>
 <tr>
-<td>Kafka password secret</td>
-<td>Kafka only; same-compartment Vault credential reference</td>
-</tr>
-<tr>
-<td>Register queue connection</td>
-<td>Verify the selected service and save its registration</td>
+<td>Delete registration</td>
+<td>Remove an eligible local registration; does not delete the pool</td>
 </tr>
 </tbody>
 </table>
-<p>OCI Streaming uses the VM instance principal for app access and container resource principals for Debezium/writer access. No queue username/token secret is required for this mode. Legacy SASL settings are not a reason to add credentials to a new principal-mode registration.</p>
-<h3>Streams / Kafka topics panel</h3>
-<p>Choose <strong>Messaging connection</strong> to load its topics. <strong>Create topic</strong> asks for Messaging connection, Topic name and Partitions. Topic names use letters, digits, dot, underscore or hyphen; the form bounds partitions to 1–1000, while actual service limits can be lower. This action requests seven-day retention and does not silently change an existing topic.</p>
-<p><strong>Refresh</strong> reloads topic state. Use <strong>Prepare schema topic</strong> on the selected mapping for its required single-partition schema stream. Existing matching app-owned topic requests are reconciled; foreign or incompatible topics are not silently adopted. Topic deletion remains guarded by ownership/in-use checks and retention implications.</p>
-<p>Select exactly one queue registration for <strong>Edit</strong>. Referenced/app-topic-backed registrations keep their service resource fixed. A queue registration Delete removes the allowed local registration; it does not by itself delete the pool.</p></section><section class="section" id="kafka"><div class="kicker">Using the application</div><h2>21. Apache Kafka alternative</h2><p><a href="../assets/screenshots/kafka.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Managed Apache Kafka cluster and configuration inventories" src="../assets/screenshots/kafka.png" / loading="lazy"></a></p>
-<p><em>Managed Apache Kafka cluster and configuration inventories. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>OCI Streaming is sufficient for the primary workflow. The application also exposes managed Apache Kafka resources; this tab is optional and uses different OCI and broker permissions.</p>
-<table>
-<thead>
-<tr>
-<th>Form / fields</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Kafka configuration: Name, Kafka properties (JSON)</td>
-<td>Create the cluster configuration; JSON must be valid</td>
-</tr>
-<tr>
-<td>Cluster: Name, Kafka configuration, Configuration version</td>
-<td>Select the configuration/revision for the cluster</td>
-</tr>
-<tr>
-<td>Subnet</td>
-<td>Existing permitted same-compartment network attachment</td>
-</tr>
-<tr>
-<td>Supported Kafka version / Coordination type</td>
-<td>Supply values supported by the selected regional service/API</td>
-</tr>
-<tr>
-<td>Cluster type</td>
-<td>PRODUCTION or DEVELOPMENT</td>
-</tr>
-<tr>
-<td>Broker node shape / Broker nodes</td>
-<td>Service-supported shape and node count</td>
-</tr>
-<tr>
-<td>OCPUs per broker / Storage per broker (GB)</td>
-<td>Capacity requests within service limits</td>
-</tr>
-</tbody>
-</table>
-<p>These cluster-version/shape fields are typed fields in the current prototype, unlike the HeatWave shape/version dropdowns. Review service-supported values before submission. <strong>Create</strong> is asynchronous; <strong>Refresh</strong> observes completion. Configuration resources may be blocked from deletion while referenced by a cluster.</p>
-<p>Register the active cluster in Queue connections with broker username and Vault password secret. The implementation uses SCRAM-SHA-512 over TLS on 9092; mTLS is not implemented. Configure broker/topic ACLs in addition to OCI management IAM. Independent connectors need isolated state topics; Kafka private schema history is different from the OCI Streaming JDBC history path.</p>
-<p>An unavailable/denied Kafka inventory does not mean an OCI Streaming flow requires Kafka permissions. Correct the selected service permissions or continue with the intended Streaming configuration; do not change identity or broaden to tenancy-wide access.</p></section><section class="section" id="registry"><div class="kicker">Using the application</div><h2>22. Container Registry and image builds</h2><p><a href="../assets/screenshots/registry.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Container Registry and image release inventory" src="../assets/screenshots/registry.png" / loading="lazy"></a></p>
+<p>No messaging username, password/token or external connector harness is requested.
+Source/target passwords remain separate Vault references.</p>
+<p>The streams panel loads streams for the selected connection. <strong>Create topic</strong> asks
+for name and partition count; actual OCI limits/capacity still apply. The action
+requests seven-day retention without changing an existing stream's policy.
+<strong>Prepare schema topic</strong> on a mapping prepares its one-partition <code>audit_&lt;flow-id&gt;</code>
+stream. Ownership/in-use checks guard deletion; deleting an unconsumed stream
+removes its retained delivery buffer.</p></section><section class="section" id="registry"><div class="kicker">Using the application</div><h2>23. Container Registry and image builds</h2><p><a href="../assets/screenshots/registry.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Container Registry and image release inventory" src="../assets/screenshots/registry.png" / loading="lazy"></a></p>
 <p><em>Container Registry and image release inventory. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p><a href="../assets/screenshots/image-build.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Build and publish a component image" src="../assets/screenshots/image-build.png" / loading="lazy"></a></p>
 <p><em>Build and publish a component image. Illustrative screenshot using the current templates and isolated sample data.</em></p>
@@ -821,7 +1101,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p>Releases are named <code>historywriter-&lt;UTC timestamp&gt;-&lt;revision&gt;</code> and <code>debezium-&lt;UTC timestamp&gt;-&lt;revision&gt;</code>. The image is uploaded during this build/publish operation. Workload settings select the completed release; deployment pins its registry digest internally. You do not type a new digest to initiate a build.</p>
 <p>A failed build is not deployable. Review its safe log, dependencies, registry permissions and runtime configuration. A missing <code>AUDIT_CONFIG_FILE</code> means the builder/runtime environment needs correction; resubmitting without it will repeat the failure. Do not rerun setup while a build is active.</p>
-<p>A newly completed build does not replace running containers. In Control Center select one flow, choose the appropriate <strong>Update image</strong> action, then choose the exact published release in its dialog. Workload settings retain initial-deployment defaults. Resource-principal image pulls need repository permissions for the container principal, independently of successful VM image publication. A static pull secret is optional only when that alternate mode is explicitly selected.</p></section><section class="section" id="containers"><div class="kicker">Using the application</div><h2>23. Container Instances and workload settings</h2><p><a href="../assets/screenshots/containers.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI Container Instances inventory" src="../assets/screenshots/containers.png" / loading="lazy"></a></p>
+<p>A newly completed build does not replace running containers. In Control Center select one flow, choose the appropriate <strong>Update image</strong> action, then choose the exact published release in its dialog. Workload settings retain initial-deployment defaults. Resource-principal image pulls need repository permissions for the container principal, independently of successful VM image publication. A static pull secret is optional only when that alternate mode is explicitly selected.</p></section><section class="section" id="containers"><div class="kicker">Using the application</div><h2>24. Container Instances and workload settings</h2><p><a href="../assets/screenshots/containers.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="OCI Container Instances inventory" src="../assets/screenshots/containers.png" / loading="lazy"></a></p>
 <p><em>OCI Container Instances inventory. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p><a href="../assets/screenshots/workload-settings.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Workload settings for separate Debezium and history-writer roles" src="../assets/screenshots/workload-settings.png" / loading="lazy"></a></p>
 <p><em>Workload settings for separate Debezium and history-writer roles. Illustrative screenshot using the current templates and isolated sample data.</em></p>
@@ -871,7 +1151,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p><strong>Save Debezium settings / Save History writer settings</strong> records the selection and configuration. Existing containers keep their deployed image and effective revision. <strong>Start</strong> resumes their existing deployment; <strong>Update image</strong> opens a per-flow release picker and performs the controlled replacement. Choosing a release there does not change these defaults or other flows.</p>
 <p>Give Debezium sufficient memory for connector/schema state and expected event sizes. Give the writer sufficient memory for bounded batches and target connections. Shape changes do not create automatic scaling; review replacement behavior and capacity with an acceptance test. The current lifecycle model tracks one connector and one writer per flow.</p>
-<p>Use flow controls for app-owned workloads. Resource inventory deletion and retired-container termination are guarded and should not be used as an offset-reset mechanism.</p></section><section class="section" id="vault"><div class="kicker">Using the application</div><h2>24. Vault and password references</h2><p><a href="../assets/screenshots/vault.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Vault and secret inventories" src="../assets/screenshots/vault.png" / loading="lazy"></a></p>
+<p>Use flow controls for app-owned workloads. Resource inventory deletion and retired-container termination are guarded and should not be used as an offset-reset mechanism.</p></section><section class="section" id="vault"><div class="kicker">Using the application</div><h2>25. Vault and password references</h2><p><a href="../assets/screenshots/vault.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Vault and secret inventories" src="../assets/screenshots/vault.png" / loading="lazy"></a></p>
 <p><em>Vault and secret inventories. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p><a href="../assets/screenshots/secret-create.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Create a secret using an existing vault and encryption key" src="../assets/screenshots/secret-create.png" / loading="lazy"></a></p>
 <p><em>Create a secret using an existing vault and encryption key. Illustrative screenshot using the current templates and isolated sample data.</em></p>
@@ -903,9 +1183,9 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p><strong>Create</strong> submits the chosen resource; <strong>Cancel / ×</strong> discards the form. <strong>Refresh</strong> checks readiness. Selecting the resource later uses its identifier, not its plaintext value. Secret creation needs Vault/key encryption rights; reading existing secret metadata and retrieving secret bundles are different permissions.</p>
-<p>Use separate purpose-specific secrets: source DB password, target DB password and the dedicated row-history fingerprint key. Kafka credentials or an optional registry pull secret are additional only for their configured modes. The key-generation screen creates the fingerprint secret; it should not contain a database password.</p>
+<p>Use separate purpose-specific secrets: source DB password, target DB password and the dedicated row-history fingerprint key. An optional registry pull secret is used only for its configured authentication mode. The key-generation screen creates the fingerprint secret; it should not contain a database password.</p>
 <p>Delete controls are app-ownership/in-use guarded. Vault/secret deletion is scheduled according to the OCI operation; it is not always immediate. Do not schedule deletion of the fingerprint secret or a credential needed by retained history/recovery. Review actual OCI state after submission.</p>
-<p>Workloads resolve permitted secrets through their own resource principals. Successful VM Test connection does not prove that a container can read the same secret. Secret rotation and effective workload refresh need an explicit controlled procedure.</p></section><section class="section" id="heatwave"><div class="kicker">Using the application</div><h2>25. HeatWave DB resource controls</h2><p><a href="../assets/screenshots/heatwave.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="HeatWave DB system inventory" src="../assets/screenshots/heatwave.png" / loading="lazy"></a></p>
+<p>Workloads resolve permitted secrets through their own resource principals. Successful VM Test connection does not prove that a container can read the same secret. Secret rotation and effective workload refresh need an explicit controlled procedure.</p></section><section class="section" id="heatwave"><div class="kicker">Using the application</div><h2>26. HeatWave DB resource controls</h2><p><a href="../assets/screenshots/heatwave.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="HeatWave DB system inventory" src="../assets/screenshots/heatwave.png" / loading="lazy"></a></p>
 <p><em>HeatWave DB system inventory. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p><a href="../assets/screenshots/heatwave-create.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="HeatWave creation with dependent shape, configuration and version dropdowns" src="../assets/screenshots/heatwave-create.png" / loading="lazy"></a></p>
 <p><em>HeatWave creation with dependent shape, configuration and version dropdowns. Illustrative screenshot using the current templates and isolated sample data.</em></p>
@@ -956,13 +1236,13 @@ sudo systemctl status heatwave-audit-image-builder.service
 <p>Select 1–25 distinct same-compartment DB systems. <strong>Start selected</strong> requires every selected DB system to be INACTIVE; <strong>Stop selected</strong> requires every selected system to be ACTIVE. These actions do not require app ownership, whereas deletion does. Stopping interrupts database connections and capture/writes. Operations can be asynchronous and conditional. HTTP 412 can reflect a lifecycle/precondition conflict; refresh state and review the request details instead of repeating blindly.</p>
 <p><strong>Delete selected</strong> is disabled for resources not managed by this installation and rejected when referenced/in use. Deleting a DB system is separate from deleting a connection or flow registration and can destroy data. Preserve needed audit evidence and recovery state before any resource cleanup.</p>
 <h3>HeatWave operations omit ETag / If-Match</h3>
-<p>The app does not send ETag/If-Match for HeatWave OCI operations. Fresh compartment/state checks, deletion ownership/dependency checks and request IDs remain. Start/Stop uses an idempotency token. HTTP 412 was observed even after refreshing GET responses; compression could alter a representation ETag, and resource-version mismatches also occurred without it. The app does not modify an opaque ETag or rely on a refresh to solve every failure. See Appendix J.</p></section><section class="section" id="repository"><div class="kicker">Using the application</div><h2>26. Embedded repository page</h2><p><a href="../assets/screenshots/repository.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Embedded MySQL repository information" src="../assets/screenshots/repository.png" / loading="lazy"></a></p>
+<p>The app does not send ETag/If-Match for HeatWave OCI operations. Fresh compartment/state checks, deletion ownership/dependency checks and request IDs remain. Start/Stop uses an idempotency token. HTTP 412 was observed even after refreshing GET responses; compression could alter a representation ETag, and resource-version mismatches also occurred without it. The app does not modify an opaque ETag or rely on a refresh to solve every failure. See Appendix J.</p></section><section class="section" id="repository"><div class="kicker">Using the application</div><h2>27. Embedded repository page</h2><p><a href="../assets/screenshots/repository.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Embedded MySQL repository information" src="../assets/screenshots/repository.png" / loading="lazy"></a></p>
 <p><em>Embedded MySQL repository information. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Open <strong>Configuration &amp; setup → Repository</strong> to view the local control-repository information and initialization SQL. The installer initializes the repository tables idempotently.</p>
 <p>The local socket-only MySQL stores application accounts, connection references, table mappings, configuration revisions, operation records, resource provenance and build registrations. It is not the source binlog database and not the target audit payload store.</p>
 <p>The <strong>Connected</strong> badge describes the local repository context; it does not prove source or target connectivity. Source data is read through Debezium from the registered source; row images are written to the selected target HeatWave schema.</p>
 <p>There is no arbitrary SQL execution or full database-backup action on this information page. Use approved database backup tooling for consistent local-repository backups, together with the private runtime configuration and app installation identity. Restoring only the application source without its private identities/state does not establish capture continuity.</p>
-<p>Do not copy local repository files, <code>.runtime.env</code>, sessions, TLS keys or an app-instance identity into a new independent deployment. Refer to the backup/recovery appendix when recovering the same installation.</p></section><section class="section" id="control"><div class="kicker">Using the application</div><h2>27. Control Center: flow row and status</h2><p><a href="../assets/screenshots/control.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Control Center with one selected flow and component status blocks" src="../assets/screenshots/control.png" / loading="lazy"></a></p>
+<p>Do not copy local repository files, <code>.runtime.env</code>, sessions, TLS keys or an app-instance identity into a new independent deployment. Refer to the backup/recovery appendix when recovering the same installation.</p></section><section class="section" id="control"><div class="kicker">Using the application</div><h2>28. Control Center: flow row and status</h2><p><a href="../assets/screenshots/control.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Control Center with one selected flow and component status blocks" src="../assets/screenshots/control.png" / loading="lazy"></a></p>
 <p><em>Control Center with one selected flow and component status blocks. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>One row shows Flow, Source, Debezium, Messaging, History writer and Target audit store. Tick exactly one flow checkbox to enable its eligible actions. Multi-selection can help table exports but does not enable multi-flow lifecycle actions.</p>
 <p>The Debezium block reports container/process and connector-task state, whether the deployed image differs from Workload settings defaults and a next-step tip. The writer block reports process state and a tip. Source, messaging and target labels describe configured endpoints; they are not delivery measurements. Status checks refresh approximately every 15 seconds while visible.</p>
@@ -1016,7 +1296,8 @@ sudo systemctl status heatwave-audit-image-builder.service
 <h3>Latest error belongs to the process</h3>
 <p>Each process block shows a compact latest-error summary and report time alongside state/exit code. Click the process field to open its full value, including the failed step and recovery guidance. For example, target-connect MySQL 2003 means the configured database is unreachable; verify DB availability before resuming the writer. Current images emit structured diagnostics. Older images may have logged only a database exception class; the app does not invent a missing numeric code. Log access can also be unavailable. A timestamped latest error can be historical after recovery.</p>
 <p><a href="../assets/screenshots/process-error.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Latest safe error in the process block" src="../assets/screenshots/process-error.png" / loading="lazy"></a></p>
-<p><em>Illustrative failed-writer example: MySQL code and report time; click the field for the failed step and next action. No live credentials or row images are shown.</em></p></section><section class="section" id="control-actions"><div class="kicker">Using the application</div><h2>28. Control Center: action conditions</h2><p>All lifecycle actions require an administrator, exactly one selected flow and fresh supported state. The backend repeats readiness, scope, ownership and flow-lock checks.</p>
+<p><em>Illustrative failed-writer example: MySQL code and report time; click the field for the failed step and next action. No live credentials or row images are shown.</em></p>
+<p>The page polls every 15 seconds. Shared OCI samples can be 45 seconds old for settled workloads or 10 seconds during transitions. Checked shows the actual cloud sample time. An image difference from the saved default is informational, not a source-database failure.</p></section><section class="section" id="control-actions"><div class="kicker">Using the application</div><h2>29. Control Center: action conditions</h2><p>All lifecycle actions require an administrator, exactly one selected flow and fresh supported state. The backend repeats readiness, scope, ownership and flow-lock checks.</p>
 <table>
 <thead>
 <tr>
@@ -1048,6 +1329,10 @@ sudo systemctl status heatwave-audit-image-builder.service
 <tr>
 <td>Update history writer image</td>
 <td>Deployed writer ACTIVE/INACTIVE; open the release picker and select a different published release; replace writer only; capture may keep adding messages</td>
+</tr>
+<tr>
+<td>Apply stream settings</td>
+<td>Both workloads in ACTIVE/INACTIVE states; apply saved message/pacing policy and selected images, writer first; same image digest is allowed; reductions require separate drain/review</td>
 </tr>
 <tr>
 <td>Restart</td>
@@ -1116,56 +1401,49 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p>The release ID and the instance shown in the dialog are checked again under the flow lock. A stale dialog is rejected if another update has replaced that instance. The selection is local to this flow and does not overwrite Workload settings defaults. An earlier published release can be chosen after compatibility review; rolling back an image does not reverse schema changes or source transactions.</p>
-<p><strong>Workload default differs</strong> means the deployed digest differs from the saved default; it is not a claim that the default is newer or that an update is mandatory. The old stopped instance remains for investigation or explicit removal after replacement health and checkpoint progress are verified.</p></section><section class="section" id="capture"><div class="kicker">Using the application</div><h2>29. Choose where Debezium begins reading</h2><p><a href="../assets/screenshots/capture-start.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Capture start choices for an existing flow" src="../assets/screenshots/capture-start.png" / loading="lazy"></a></p>
-<p><em>Capture start choices for an existing flow. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Open <strong>Control Center → select one flow → More actions → Capture start → Run</strong>. A new mapping's initial Start/End is also set during registration or an allowed draft Edit.</p>
-<table>
-<thead>
-<tr>
-<th>Choice</th>
-<th>New flow</th>
-<th>Existing compatible flow</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Start</td>
-<td>Snapshot current rows, then stream changes</td>
-<td>Replay after earliest retained schema baseline, without recreating the initial row snapshot</td>
-</tr>
-<tr>
-<td>End</td>
-<td>Schema-only baseline, then future changes</td>
-<td>Boundary fixed at preview time, subject to confirmed schema coverage</td>
-</tr>
-<tr>
-<td>Specific GTID</td>
-<td>Unavailable until schema history exists</td>
-<td>Supply the complete executed GTID set; read transactions after it</td>
-</tr>
-<tr>
-<td>Datetime</td>
-<td>Unavailable until schema history exists</td>
-<td>Resolve UTC time to first retained transaction at/after its commit timestamp</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Preview position</strong> checks retained binlogs, executed/purged GTIDs and schema evidence, then shows the resolved source offset. It does not move the connector. A compatible capture-control image is required. The preview is actor/flow-bound and expires after five minutes.</p>
-<p>The supplied GTID set means already processed transactions, not a UUID include filter or instruction to include its final transaction. Non-cumulative holes and unsupported tagged sets are rejected. A source clock change can make timestamps non-monotonic; datetime is a boundary lookup, not a later per-event timestamp filter.</p>
-<p>For an existing lagging connector, End/forward positioning can be rejected if it would skip uncaptured schema changes. Resume its checkpoint, let it catch up and preview again. Purged logs and positions older than the schema baseline cannot be replayed safely.</p>
-<p>Normal Start, Resume and Restart retain the saved position; they do not reapply this choice on every launch.</p></section><section class="section" id="capture-apply"><div class="kicker">Using the application</div><h2>30. Apply a reviewed capture position</h2><p><a href="../assets/screenshots/capture-preview.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Resolved boundary and explicit one-time apply acknowledgement" src="../assets/screenshots/capture-preview.png" / loading="lazy"></a></p>
-<p><em>Resolved boundary and explicit one-time apply acknowledgement. Illustrative screenshot using the current templates and isolated sample data.</em></p>
-<p>Review the binlog file, position and GTID set together with the earliest schema baseline. Moving backward can replay messages; moving forward can skip uncaptured changes. Existing history and writer checkpoints are retained, so this is not a target reset.</p>
+<p><strong>Workload default differs</strong> means the deployed digest differs from the saved default; it is not a claim that the default is newer or that an update is mandatory. The old stopped instance remains for investigation or explicit removal after replacement health and checkpoint progress are verified.</p></section><section class="section" id="capture"><div class="kicker">Using the application</div><h2>30. Capture start, GTID sets and purged history</h2><p><a href="../assets/screenshots/capture-start.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="GTID source bounds and capture positions" src="../assets/screenshots/capture-start.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p>A new mapping supports End (default), Start, and Specific GTID. End and GTID
+establish schema without scanning current rows. Start reads current source rows
+directly and then follows the binlog. Large snapshots require source capacity,
+locking and retention planning. The target's fixed JSON audit structure does not
+require a row-copy baseline to record later changes.</p>
+<p>For a deployed <strong>single-table</strong> flow, Capture start can preview supported retained
+Start/End/GTID or UTC datetime boundaries with proven schema coverage. Historical
+repositioning is disabled for deployed wildcard flows. Normal Start/Resume/Restart
+preserves full offsets and does not repeat initialization.</p>
+<p>A GTID set means transactions <strong>already processed</strong>. For example:</p>
+<pre><code class="language-text">11111111-1111-1111-1111-111111111111:1-32:40-45,
+22222222-2222-2222-2222-222222222222:1-18
+</code></pre>
+<p>Each UUID can have multiple intervals. Inspect executed, purged and selected sets.
+Required containment is <code>purged ⊆ selected ⊆ executed</code>: no transaction still needed
+for capture may have been purged. Already-processed purged transactions belong in
+the selected set. A complete supported transaction-order prefix and compatible
+schema boundary are also required; interval membership alone is insufficient.
+Unsupported holes and unavailable schema/binlog evidence are rejected.</p>
+<p>A row event's <code>source.gtid</code> identifies its transaction, not the whole processed
+set or a unique row event. Keep file/position/event/row coordinates in the durable
+source offset too. See <a href="../../capture-start.md">capture position and recovery</a>.</p></section><section class="section" id="capture-apply"><div class="kicker">Using the application</div><h2>31. Apply a reviewed capture position</h2><p><a href="../assets/screenshots/capture-preview.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Reviewed single-table capture boundary" src="../assets/screenshots/capture-preview.png" / loading="lazy"></a></p>
+<p><em>Illustrative screenshot from current templates with isolated sample data.</em></p>
+<p>For an eligible deployed single-table flow, Preview position resolves and checks
+the proposed boundary without moving capture. Review source identity, full offset,
+retained schema evidence and the operational reason. Preview is actor/flow bound,
+expires after five minutes and must be regenerated if stale.</p>
 <ol>
-<li>Generate a fresh Preview position on the intended flow.</li>
-<li>Check its source identity, UTC boundary, retained-history coverage and operational reason.</li>
-<li>Tick the acknowledgement only after reviewing replay/skip effects.</li>
-<li>Choose <strong>Apply this position once</strong>. The source/schema checks run again.</li>
-<li>Refresh the page and review Latest position request until its result is known. Verify the connector task, queue and target after it resumes.</li>
+<li>Generate a fresh preview on the intended flow.</li>
+<li>Review replay or skipped-history effects and tick the acknowledgement.</li>
+<li>Choose <strong>Apply this position once</strong>. Source/schema checks run again.</li>
+<li>Inspect the latest request result, source task, stream and target progress.</li>
 </ol>
-<p>The runtime stops the connector task through loopback Kafka Connect REST, saves its prior offset, patches/read-checks the reviewed offset and resumes. The OCI Container Instance itself remains running. Applied requests are not reapplied on a normal restart.</p>
-<p>An ambiguous/failed request can leave the task stopped for review. <strong>Resume existing checkpoint</strong> resumes the currently stored offset without requesting a different boundary; it does not promise the previous pre-request position. Do not repeatedly apply a new reset to resolve an unrelated writer/permission failure.</p>
-<p>A retired flow cannot change its position. Old images without the supported capture-control protocol cannot accept historical-position requests. Follow <a href="../../capture-start.md">capture positioning</a> for detailed recovery semantics.</p></section><section class="section" id="messages"><div class="kicker">Using the application</div><h2>31. Message Explorer</h2><p><a href="../assets/screenshots/messages.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Read-only sample with an expanded Debezium envelope" src="../assets/screenshots/messages.png" / loading="lazy"></a></p>
+<p>The runtime controls the embedded engine through its loopback native capture API,
+saves/read-checks full offsets and resumes from the reviewed position. The OCI
+instance remains running. Applied requests are not repeated on ordinary restart.
+Writer checkpoints and existing target history are retained.</p>
+<p>An ambiguous failure can leave capture stopped for review. <strong>Resume existing
+checkpoint</strong> resumes the stored offset; it does not promise the former position.
+A retired flow cannot reposition. Wildcard historical repositioning remains
+disabled. Do not reset position to fix an unrelated writer or permission failure.</p></section><section class="section" id="messages"><div class="kicker">Using the application</div><h2>32. Message Explorer</h2><p><a href="../assets/screenshots/messages.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Read-only sample with an expanded Debezium envelope" src="../assets/screenshots/messages.png" / loading="lazy"></a></p>
 <p><em>Read-only sample with an expanded Debezium envelope. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Choose <strong>Registered flow</strong>, then <strong>Explore messages</strong>. The page reads a bounded recent sample of up to 25 messages across the data topic's partitions. It does not advance or commit the history writer's consumer offsets.</p>
 <table>
@@ -1192,7 +1470,8 @@ sudo systemctl status heatwave-audit-image-builder.service
 </table>
 <p>Use the page to establish whether the data topic contains a recent event for a controlled source change. An empty sample does not prove the entire queue is empty or that no earlier retained events exist. Sampling is not a full message search, lag dashboard or replay action.</p>
 <p>For DML, Debezium uses <code>c</code> (create), <code>u</code> (update), <code>d</code> (delete) and <code>r</code> (snapshot read). The target translates these to CREATE, UPDATE, DELETE and SNAPSHOT. Delete tombstones with null value are transport records, not a second business-row deletion.</p>
-<p>This screen samples row data. Public schema events are archived separately and do not become ordinary row-image history entries. If the queue has the event but Audit Center does not, inspect writer health, target access, schema decoding, target checkpoint and any retention/conflict error. Do not move the source capture position to mask a downstream failure.</p></section><section class="section" id="audit-overview"><div class="kicker">Using the application</div><h2>32. Audit Center: all databases overview</h2><p><a href="../assets/screenshots/global.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="All databases pie chart and table availability" src="../assets/screenshots/global.png" / loading="lazy"></a></p>
+<p>This screen samples row data. Public schema events are archived separately and do not become ordinary row-image history entries. If the queue has the event but Audit Center does not, inspect writer health, target access, schema decoding, target checkpoint and any retention/conflict error. Do not move the source capture position to mask a downstream failure.</p>
+<p>Oversized-event parts are labelled with their fragment index/count in Message Explorer. They are transport pieces; the audit writer creates an event only after complete validated reassembly.</p></section><section class="section" id="audit-overview"><div class="kicker">Using the application</div><h2>33. Audit Center: all databases overview</h2><p><a href="../assets/screenshots/global.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="All databases pie chart and table availability" src="../assets/screenshots/global.png" / loading="lazy"></a></p>
 <p><em>All databases pie chart and table availability. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Audit Center opens at the global overview. It counts retained target audit events across registered tables, not current business-row counts. Global views are limited to 100 tables with a 15-second counting budget; narrow the source selection for larger estates.</p>
 <table>
@@ -1246,7 +1525,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p>The companion table shows database, registered table, count and availability. An unavailable or unprepared table is excluded rather than counted as zero. If the notice reports exclusions or a count-budget limit, the displayed total is incomplete.</p>
-<p>Use the same range/operation when comparing overview and drill-down counts. Count changes can reflect additional delivered events, retained-history expiry or changed filters. Snapshot initialization of one million rows can contribute one million SNAPSHOT records; it is not one summary event.</p></section><section class="section" id="history"><div class="kicker">Using the application</div><h2>33. Audit Center: table history and lookup</h2><p><a href="../assets/screenshots/history.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Table-specific history with a typed record-key lookup" src="../assets/screenshots/history.png" / loading="lazy"></a></p>
+<p>Use the same range/operation when comparing overview and drill-down counts. Count changes can reflect additional delivered events, retained-history expiry or changed filters. Snapshot initialization of one million rows can contribute one million SNAPSHOT records; it is not one summary event.</p></section><section class="section" id="history"><div class="kicker">Using the application</div><h2>34. Audit Center: table history and lookup</h2><p><a href="../assets/screenshots/history.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Table-specific history with a typed record-key lookup" src="../assets/screenshots/history.png" / loading="lazy"></a></p>
 <p><em>Table-specific history with a typed record-key lookup. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Choose a registered <strong>Server / table</strong>. Use <strong>Change history</strong> for individual events and <strong>Changes over time</strong> for charts. Tabs retain their selected view while applying filters.</p>
 <table>
@@ -1300,7 +1579,8 @@ sudo systemctl status heatwave-audit-image-builder.service
 </tbody>
 </table>
 <p>Unkeyed browsing defaults to a bounded 24-hour window. Keyed lookup without an explicit start can search retained history for that key; the chart still uses its displayed chart window. Supply a sensible range for predictable query cost and comparable counts. Shared toolbar search/sort acts on loaded rows only.</p>
-<p>Each row shows event time/identity, operation, record key and queue topic/partition/offset. Select exactly one row and choose <strong>Compare images</strong>. Click a field value for its full text. A key typo, wrong JSON type, wrong table/source or expired range can produce an empty result without implying capture failed.</p></section><section class="section" id="images"><div class="kicker">Using the application</div><h2>34. Before/after images and operation meanings</h2><p><a href="../assets/screenshots/images.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Selected UPDATE showing its before and after images" src="../assets/screenshots/images.png" / loading="lazy"></a></p>
+<p>Each row shows event time/identity, operation, record key and queue topic/partition/offset. Select exactly one row and choose <strong>Compare images</strong>. Click a field value for its full text. A key typo, wrong JSON type, wrong table/source or expired range can produce an empty result without implying capture failed.</p>
+<p>For wildcard flows, select the actual source database/table. Primary-key lookup needs one actual table; <code>*.*</code> also needs a database. Grouped destinations are combined for the selected flow.</p></section><section class="section" id="images"><div class="kicker">Using the application</div><h2>35. Before/after images and operation meanings</h2><p><a href="../assets/screenshots/images.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Selected UPDATE showing its before and after images" src="../assets/screenshots/images.png" / loading="lazy"></a></p>
 <p><em>Selected UPDATE showing its before and after images. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <table>
 <thead>
@@ -1342,7 +1622,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 <p>SNAPSHOT is not an original INSERT history. With initial Start, an existing million-row table can produce a million snapshot records; its earlier changes are not reconstructed. With a genuinely new End flow there is no existing-row snapshot, but schema metadata is still captured. Existing offsets take precedence on normal restarts.</p>
 <p>Full update/delete images depend on what the source recorded. FULL row images and complete JSON settings must be correct before the relevant transaction is logged. Decimal, date/time, binary and other MySQL values follow the connector's converter representation; review the stored schema/source metadata rather than assuming every JSON string is a source VARCHAR.</p>
 <p>The target retains a deleted row's earlier evidence until an explicit eligible retention cleanup removes payload history. Source deletion does not delete target history. Row images alone do not identify every actor or original SQL statement.</p>
-<p><strong>DDL exception:</strong> bulk partition/table operations can remove or exchange source rows without individual CREATE/DELETE images. An old event is the last observed row version, not proof that the row still exists. No DELETE event does not mean no deletion; see Appendix I.</p></section><section class="section" id="charts"><div class="kicker">Using the application</div><h2>35. Charts, intervals and downloads</h2><p><a href="../assets/screenshots/trends.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Operation legend and custom-range stacked-bar chart" src="../assets/screenshots/trends.png" / loading="lazy"></a></p>
+<p><strong>DDL exception:</strong> bulk partition/table operations can remove or exchange source rows without individual CREATE/DELETE images. An old event is the last observed row version, not proof that the row still exists. No DELETE event does not mean no deletion; see Appendix I.</p></section><section class="section" id="charts"><div class="kicker">Using the application</div><h2>36. Charts, intervals and downloads</h2><p><a href="../assets/screenshots/trends.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Operation legend and custom-range stacked-bar chart" src="../assets/screenshots/trends.png" / loading="lazy"></a></p>
 <p><em>Operation legend and custom-range stacked-bar chart. Illustrative screenshot using the current templates and isolated sample data.</em></p>
 <p>Use <strong>Changes over time</strong> after selecting a table. The operation legend explains the series; do not interpret two lines without their labels.</p>
 <table>
@@ -1386,7 +1666,7 @@ sudo systemctl status heatwave-audit-image-builder.service
 <p>The chart shows event counts per selected interval, not a guaranteed records-per-second capacity measurement. Change Interval and From/To together when expanding the range; the app bounds the chart to 1,000 buckets and query size. Minute mode is intentionally a one-hour view.</p>
 <p>Use <strong>Quick range</strong> for last hour/24 hours/7 days/30 days/90 days, or enter custom UTC dates. <strong>Apply filters</strong> reruns the query. Empty buckets and no-data notices must be distinguished from unavailable target queries. Counts include SNAPSHOT unless the operation filter excludes it.</p>
 <p>The chart download icon saves the displayed PNG. <strong>Export page CSV</strong> exports history rows on the loaded page. The global overview offers pie/bar comparisons and drill-down to this time view. Keep range, table and operation consistent when sharing screenshots or comparing charts.</p>
-<p>DDL-driven row-set changes are not counted as individual DML unless row events were actually emitted. A large partition exchange/drop can have no row-volume spike. These charts measure captured audit events, not every source data change.</p></section><section class="section" id="ddl-dcl"><div class="kicker">Using the application</div><h2>36. Schema changes and security auditing</h2><h3>DDL: structural evidence</h3>
+<p>DDL-driven row-set changes are not counted as individual DML unless row events were actually emitted. A large partition exchange/drop can have no row-volume spike. These charts measure captured audit events, not every source data change.</p></section><section class="section" id="ddl-dcl"><div class="kicker">Using the application</div><h2>37. Schema changes and security auditing</h2><h3>DDL: structural evidence</h3>
 <p>The public schema stream carries available CREATE/ALTER/DROP and snapshot schema observations. The writer stores <code>audit_schema_changes</code> separately from row payloads: prior definition, new definition, semantic delta, DDL text, source position and fidelity. A schema baseline records what was known at initialization; it is not proof that an earlier CREATE was captured.</p>
 <p>For example, adding <code>region VARCHAR(16) DEFAULT 'EMEA'</code> and widening <code>amount DECIMAL(10,2)</code> to <code>DECIMAL(14,2)</code> can produce column-addition and precision-change differences. Compare properties actually present in the definitions. Defaults, indexes and partitioning can remain unknown/partial. An ALTER does not imply a new UPDATE audit event for every existing row.</p>
 <p>There is no dedicated DDL comparison page in the current app. Use an authorized SQL client for schema evidence:</p>
@@ -1401,7 +1681,7 @@ ORDER BY observed_at, event_id;
 <p>CREATE USER, GRANT and REVOKE are security/account-management operations. This prototype does not collect them as a complete security history or expose a DCL browser. Do not infer a privilege timeline by auditing changes to an incidental MySQL audit-configuration table.</p>
 <p>An extension requires MySQL Enterprise Audit filters/user assignments and a separate collector that retains actor, account, privilege/scope, action, outcome and time. Oracle documents that audit logging is disabled by default until filters are configured. This collector, its target model and completeness validation remain future work. <a href="https://docs.oracle.com/en-us/iaas/mysql-database/doc/mysql-enterprise-audit-plugin.html">MySQL Enterprise Audit guidance</a>.</p>
 <h3>DDL can change the row set without row images</h3>
-<p>EXCHANGE PARTITION can swap millions of rows without changing the column structure; DROP/TRUNCATE PARTITION can remove rows without individual DELETE images. ROW/FULL does not create the missing events. An empty semantic delta is not proof of unchanged data. The current schema writer requires matching decoded tableChanges entries and is not a raw-DDL catch-all. See Appendix I for coverage and mitigations.</p></section><section class="section" id="daily-operations"><div class="kicker">Operation and maintenance</div><h2>37. Daily operations and a controlled verification</h2><h3>Start-of-shift checks</h3>
+<p>EXCHANGE PARTITION can swap millions of rows without changing the column structure; DROP/TRUNCATE PARTITION can remove rows without individual DELETE images. ROW/FULL does not create the missing events. An empty semantic delta is not proof of unchanged data. The current schema writer requires matching decoded tableChanges entries and is not a raw-DDL catch-all. See Appendix I for coverage and mitigations.</p></section><section class="section" id="daily-operations"><div class="kicker">Operation and maintenance</div><h2>38. Daily operations and a controlled verification</h2><h3>Start-of-shift checks</h3>
 <ol>
 <li>Review Dashboard attention counts, then each affected Control Center process/task tip.</li>
 <li>Confirm latest source-to-queue-to-target progress with a known event or authorized monitoring/checkpoint queries. Running status alone is insufficient.</li>
@@ -1418,60 +1698,69 @@ DELETE FROM demo_sales.orders WHERE id=1042;
 </code></pre>
 <p>In Message Explorer, look for row envelopes/coordinates. In Audit Center select the table and key <code>{"id":1042}</code> with the correct UTC range. Expect CREATE (after only), UPDATE (both images) and DELETE (before only). Compare values and target checkpoint progress. Reuse a key only if its previous history is understood.</p>
 <p>For a planned pause, use Stop to pause capture while draining the queue. For target maintenance/cleanup use Stop both workloads and wait for INACTIVE. Resume within retention, then verify evidence and backlog recovery. Do not silently reset an expired queue offset or erase a conflicting record to make a process run.</p>
-<p>Retiring a flow stops workloads and retains audit evidence. Terminate retired containers and delete the registration only after reviewing dependencies/recovery. OCI resource deletion is a separate guarded lifecycle operation.</p></section><section class="section" id="summary"><div class="kicker">Operation and maintenance</div><h2>38. Summary and handover checklist</h2><p>The application coordinates a registered table's journey from HeatWave binlog through Debezium and OCI messaging to retained audit evidence. Its useful result is a traceable before/after history that can be retrieved by typed row key and explored over time.</p>
+<p>Retiring a flow stops workloads and retains audit evidence. Terminate retired containers and delete the registration only after reviewing dependencies/recovery. OCI resource deletion is a separate guarded lifecycle operation.</p></section><section class="section" id="summary"><div class="kicker">Operation and maintenance</div><h2>39. Summary and handover checklist</h2><p>The application coordinates a registered table's journey from HeatWave binlog through Debezium and OCI messaging to retained audit evidence. Its useful result is a traceable before/after history that can be retrieved by typed row key and explored over time.</p>
 <p>Before handing over an evaluation deployment, record:</p>
 <ul>
 <li>Its prototype status, intended evaluation scope and accepted capability limits.</li>
 <li>The app owner, OCI/database administrators, VM compartment, region and approved network access.</li>
-<li>Source/target registrations, dedicated Connect state, both public streams and image release/digest selections.</li>
+<li>Source/target registrations, complete source offsets and private JDBC history, both public streams and image release/digest selections.</li>
 <li>The stable fingerprint-secret reference and the private state that must be preserved for recovery.</li>
 <li>Evidence of full-image capture, process/task health, target-before-ack behavior and row-key lookup.</li>
 <li>Tested source/queue outage windows, expected peak rates, target capacity and monitoring responsibilities.</li>
 <li>Explicit retention/hold decisions, backup/restore plans, cleanup approval ownership and rollback boundaries.</li>
 </ul>
 <p>Keep real deployment inventories/runbooks under private, Git-ignored <code>internal_doc/</code>; the shareable guide uses examples only. Refer to the appendices for scaling, controlled configuration changes, updates and retention cleanup.</p>
-<p><strong>This remains an independent prototype for evaluation and rehearsal, not an Oracle-supported product.</strong> A successful demo or unit-test run does not establish production readiness, complete security auditing or a throughput/service guarantee.</p></section><section class="section" id="scale"><div class="kicker">Appendices</div><h2>Appendix A. Scaling and massive change volume</h2><h3>What the current implementation can do</h3>
-<p>Each table flow has one Debezium connector and one history-writer container. Multiple source databases are separate registrations/flows. Connector <code>tasks.max=1</code> means adding Connect task count does not parallelize one MySQL binlog reader. More table flows can reread the same source binlog, increasing source/network/state overhead.</p>
-<p>The writer preserves ordered lanes per assigned partition and uses bounded batches. Default <code>processor.batch</code> is 250 records, 4194304 bytes and 500 ms; offset commits are paced at 500 ms. The configured record limit is capped at 1000. Increase only from measured message size, target latency, memory and queue throttling. There is no promised throughput at these defaults.</p>
-<h3>Find the bottleneck before changing capacity</h3>
+<p><strong>This remains an independent prototype for evaluation and rehearsal, not an Oracle-supported product.</strong> A successful demo or unit-test run does not establish production readiness, complete security auditing or a throughput/service guarantee.</p></section><section class="section" id="scale"><div class="kicker">Appendices</div><h2>Appendix A. Scaling and massive change volume</h2><p>One flow has one embedded Debezium reader and one history writer. A flow can
+capture one table, a database wildcard or an all-database wildcard. Grouping audit
+targets by flow/database/table does not add a reader or writer per table.</p>
+<p>One MySQL binlog reader is not parallelized by increasing connector task count.
+Independent overlapping readers can multiply source/network work; scope overlap
+checks prevent unsupported duplicate mappings. The target writer lease enforces
+one active writer per flow. Arbitrary horizontal replicas are not supported.</p>
 <table>
 <thead>
 <tr>
-<th>Evidence</th>
-<th>Likely focus</th>
+<th>Observed bottleneck</th>
+<th>Review</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Source commit ahead of Debezium position</td>
-<td>Source/binlog extraction, connector CPU/memory/network and event size</td>
+<td>Source ahead of capture</td>
+<td>Source/binlog retention, reader CPU/memory and serialization size</td>
 </tr>
 <tr>
-<td>Queue arrival ahead of target checkpoint</td>
-<td>Writer capacity, target commit/index contention, throttling or poison/conflict records</td>
+<td>Stream ahead of target</td>
+<td>Writer batches, target commits/indexes, conflicts and fragment custody</td>
 </tr>
 <tr>
-<td>Source and queue retention windows shrinking</td>
-<td>Reduce pause/catch-up time; increase supported retention/capacity before expiry</td>
+<td>Streaming 429 or per-entry rejection</td>
+<td>Bytes per partition, hot keys, batch size and PUT/GET pacing</td>
 </tr>
 <tr>
-<td>Large JSON/BLOB/full-row envelopes</td>
-<td>Message/byte budgets, supported queue size limits and target payload/storage cost</td>
+<td>Container lifecycle/log API 429</td>
+<td>Management polling/operation rate; separate from Streaming traffic</td>
 </tr>
 <tr>
-<td>Hot row/key or one busy partition</td>
-<td>Serial ordering lane; additional unrelated consumers cannot split that key's order</td>
+<td>Large full-row updates</td>
+<td>Both images plus full schema, logical limit, target packets and memory</td>
 </tr>
 <tr>
-<td>Slow broad charts/searches</td>
-<td>Narrow key/time range, partition/index use and target query budget</td>
+<td>Slow broad browsing</td>
+<td>Narrow source/key/time filters; selected JSON page volume still matters</td>
 </tr>
 </tbody>
 </table>
-<h3>Changes that need engineering, not just a button</h3>
-<p>Horizontal writer replicas can only add useful parallelism up to assigned data partitions and require stable group/partition ownership and target connection budgets. The app currently tracks one writer per flow; it has no replica-count control, lag-driven autoscaler or fleet reconciler. Do not launch unmanaged writers and assume lifecycle/cleanup checks cover them. Public schema consumption remains single-partition/serialized.</p>
-<p>OCI Streaming does not support dynamic partition addition through Kafka compatibility. Plan partition count up front; moving to a new stream requires an explicit queue-incarnation, offset, lineage and replay migration. Shared multi-table source connectors, per-source dispatch, target sharding, cursor pagination and preaggregated chart statistics remain future work.</p>
-<p>Capacity-test one peak-rate table first, then concurrent tables/sources, then failure/catch-up. Include binlog retention, queue limits, target commits/indexes, ledger growth, OCI quotas/cost and recovery evidence. Reconfirm current service limits using <a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Concepts/streamingoverview_topic-Limits_on_Streaming_Resources.htm">OCI Streaming limits</a>.</p></section><section class="section" id="change"><div class="kicker">Appendices</div><h2>Appendix B. Changing configuration safely</h2><table>
+<p>The writer's ordinary defaults remain 250 records, 4 MiB and 500 ms; one complete
+logical event may exceed the ordinary batch byte budget within its logical cap.
+Publishing batches up to 500 records and 900,000 estimated encoded bytes by default.
+GETs fetch up to 1,000 records and back off on idle queues. Tune only after measuring
+request counters, byte volume, delivery lag, target latency and peak/catch-up load.</p>
+<p>Plan partitions and retention in advance. Changing stream identity requires an
+explicit checkpoint/lineage migration. Automatic scaling, target sharding,
+preaggregated chart statistics and compact schema-free envelopes are not implemented.
+Grouped target automatic retention and deployed wildcard historical repositioning
+remain disabled. See <a href="../../streaming-and-size-limits.md">Streaming and size limits</a>.</p></section><section class="section" id="change"><div class="kicker">Appendices</div><h2>Appendix B. Changing configuration safely</h2><table>
 <thead>
 <tr>
 <th>Intended change</th>
@@ -1569,7 +1858,8 @@ git pull --ff-only origin main
 </ol>
 <p>The action retains <code>p_older</code>, <code>p_future</code>, identity ledger, schema state, delivery checkpoints, retention state and job manifests. It drops only eligible named monthly partitions, with a maximum of 24 per job. Guard data needs separate investigation. The durable cutoff stops ingestion of older events for review, preventing expired payload from silently returning through replay.</p>
 <p>The ledger and metadata continue growing. Their deletion needs a validated replay-floor/archive policy and is not coupled to this button. Physical storage allocation or billing may not shrink after dropping partitions.</p>
-<p>Source partition DDL and target housekeeping are different. This target cleanup intentionally expires audit payloads and records cleanup/cutoff state; it does not generate one DELETE audit event per expired payload and is not an archive.</p></section><section class="section" id="storage"><div class="kicker">Appendices</div><h2>Appendix E. Target data layout and retrieval</h2><p>The target schema contains the per-flow row payload table plus shared evidence/recovery tables. These are distinct from the embedded control repository.</p>
+<p>Source partition DDL and target housekeeping are different. This target cleanup intentionally expires audit payloads and records cleanup/cutoff state; it does not generate one DELETE audit event per expired payload and is not an archive.</p>
+<p>Automatic cleanup is disabled for database/table grouped targets. Coordinated payload, identity, routing, delivery and fragment maintenance requires separate review.</p></section><section class="section" id="storage"><div class="kicker">Appendices</div><h2>Appendix E. Target data layout and retrieval</h2><p>The target schema contains the per-flow row payload table plus shared evidence/recovery tables. These are distinct from the embedded control repository.</p>
 <table>
 <thead>
 <tr>
@@ -1593,6 +1883,18 @@ git pull --ff-only origin main
 <tr>
 <td>Per-flow private JDBC schema-history table</td>
 <td>Debezium recovery/decode state for OCI Streaming</td>
+</tr>
+<tr>
+<td>audit_native_offsets</td>
+<td>Full native source offset state, including GTIDs and within-transaction progress</td>
+</tr>
+<tr>
+<td>audit_target_routes / claims</td>
+<td>Source namespace to owned physical audit destination</td>
+</tr>
+<tr>
+<td>audit_message_assemblies / fragments</td>
+<td>Durable incomplete custody and compact completed replay receipts</td>
 </tr>
 <tr>
 <td>audit_delivery_checkpoints</td>
@@ -1647,7 +1949,7 @@ git pull --ff-only origin main
 </tr>
 <tr>
 <td>Deploy requests both topics</td>
-<td>Prepare data and single-partition public schema stream; verify the selected harness/state</td>
+<td>Prepare data and single-partition public schema stream; verify the actual stream identities and delivery checkpoints</td>
 </tr>
 <tr>
 <td>Debezium running, task unavailable</td>
@@ -1688,7 +1990,8 @@ git pull --ff-only origin main
 </tbody>
 </table>
 <p>Use Notifications to retrieve recent messages; clearing them is not a remedy. The Action needs attention page gives the safe operation message, optional guidance/policy example and request ID. Use its return action to revisit the appropriate workspace.</p>
-<p>Do not reset offsets, drop ledgers, replace the fingerprint key or delete evidence to force a successful status. A poison record/conflict stops consumption for investigation and is not silently skipped. Preserve the first error, effective image/config revision, flow identity, timing and relevant coordinates without copying passwords or row images into public tickets.</p></section><section class="section" id="recovery"><div class="kicker">Appendices</div><h2>Appendix G. Security, backup and recovery boundaries</h2><h3>Security responsibilities</h3>
+<p>Do not reset offsets, drop ledgers, replace the fingerprint key or delete evidence to force a successful status. A poison record/conflict stops consumption for investigation and is not silently skipped. Preserve the first error, effective image/config revision, flow identity, timing and relevant coordinates without copying passwords or row images into public tickets.</p>
+<p>For Streaming 429, identify PutMessages/GetMessages and inspect bytes, batch counts, hot partitions and paced request deltas. HTTP 200 can contain rejected PUT entries. Container lifecycle/log API 429 is a separate management quota. Incomplete fragment custody and target packet failures need evidence review; repeatedly restarting is not a capacity solution.</p></section><section class="section" id="recovery"><div class="kicker">Appendices</div><h2>Appendix G. Security, backup and recovery boundaries</h2><h3>Security responsibilities</h3>
 <p>Use least-permitted same-compartment principals, private worker/DB paths, restricted web ingress and dedicated DB accounts. The default MySQL TLS mode encrypts without certificate verification; enable reviewed global verified trust when required. Authentication, CSRF, server-side sessions, scope and ownership checks protect app actions, but do not replace deployment security review.</p>
 <p>Audit payloads can contain the full source row, including personal or sensitive values. Restrict access to target history, screenshots, exports, backups and logs. Redaction/column filtering and a complete field-level access model are not implemented. A history fingerprint is not encryption, anonymization or proof against all tampering.</p>
 <h3>Preserve the state that defines continuity</h3>
@@ -1701,79 +2004,59 @@ git pull --ff-only origin main
 <thead>
 <tr>
 <th>Term</th>
-<th>Meaning in this manual</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Flow</td>
-<td>One registered source table, data topic and target payload table with its workloads</td>
+<td>Debezium Engine</td>
+<td>Embedded MySQL binlog reader producing typed change/schema events</td>
 </tr>
 <tr>
-<td>Binlog</td>
-<td>Source MySQL binary log containing replication/change evidence</td>
+<td>Source scope</td>
+<td>One table, <code>database.*</code> or <code>*.*</code> after exclusions</td>
 </tr>
 <tr>
-<td>Debezium</td>
-<td>Connector reading the source and producing change/schema events</td>
+<td>Target grouping</td>
+<td>One audit destination per flow, source database or source table</td>
 </tr>
 <tr>
-<td>Connect harness</td>
-<td>OCI Streaming Connect configuration with isolated Connect state resources</td>
+<td>GTID set</td>
+<td>UUID/interval groups describing transactions already processed</td>
 </tr>
 <tr>
-<td>History writer</td>
-<td>Consumer that validates, fingerprints and writes target evidence</td>
+<td>Purged GTIDs</td>
+<td>Executed transactions no longer available in retained binlogs</td>
 </tr>
 <tr>
-<td>BEFORE / AFTER</td>
-<td>Available row state immediately before/after the captured operation</td>
+<td>Native source offset</td>
+<td>Full file/position/event/row and GTID recovery state</td>
 </tr>
 <tr>
-<td>GTID executed set</td>
-<td>Transactions treated as already processed at the selected source boundary</td>
+<td>Stream identity</td>
+<td>Actual OCI stream ID binding delivery state to its retained data</td>
 </tr>
 <tr>
-<td>Schema baseline</td>
-<td>Earliest retained structural evidence from which this connector can decode safely</td>
+<td>Fragment custody</td>
+<td>Durable saved parts awaiting complete validated reassembly</td>
+</tr>
+<tr>
+<td>Delivery checkpoint</td>
+<td>Next stream offset after durable custody/audit evidence</td>
 </tr>
 <tr>
 <td>Fingerprint</td>
-<td>Keyed row/content identity or non-secret event digest, depending on the field</td>
-</tr>
-<tr>
-<td>Checkpoint</td>
-<td>Durable next-delivery/source position used for restart/recovery</td>
-</tr>
-<tr>
-<td>Incarnation / lineage</td>
-<td>Identity separating messaging recreation and capture histories</td>
-</tr>
-<tr>
-<td>DDL / DCL</td>
-<td>Structural SQL / account and privilege administration</td>
+<td>Keyed canonical identity/content hash; not proof of capture completeness</td>
 </tr>
 </tbody>
 </table>
-<h3>Repository guides</h3>
-<ul>
-<li><a href="../../operations.md">Setup and operations</a></li>
-<li><a href="../../iam-policy.md">IAM and database access</a></li>
-<li><a href="../../capture-start.md">Capture positioning</a></li>
-<li><a href="../../before-after-capture.md">Before/after capture and retrieval</a></li>
-<li><a href="../../service-provisioning.md">OCI resource provisioning</a></li>
-<li><a href="../../design-validation.md">Design validation and remaining engineering work</a></li>
-<li><a href="https://ivanxma.github.io/hw_data_audit_center/demo/">Narrated demo and companion materials</a></li>
-</ul>
-<h3>Primary product documentation</h3>
-<ul>
-<li><a href="https://debezium.io/documentation/reference/3.4/connectors/mysql.html">Debezium MySQL connector 3.4</a>: connector behavior, snapshots and event representation.</li>
-<li><a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm">OCI Streaming Kafka compatibility</a>: API compatibility and service differences.</li>
-<li><a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Concepts/streamingoverview_topic-Limits_on_Streaming_Resources.htm">OCI Streaming limits</a>: confirm current quotas and data-plane budgets.</li>
-<li><a href="https://docs.oracle.com/en-us/iaas/mysql-database/doc/mysql-enterprise-audit-plugin.html">MySQL Enterprise Audit on HeatWave</a>: filters and security-audit source configuration.</li>
-<li><a href="https://docs.oracle.com/en-us/iaas/Content/container-instances/permissions/policy-reference.htm">OCI Container Instances permissions</a>: workload resource-principal and management permissions.</li>
-</ul>
-<p>This manual documents an independent prototype. Service limits, versions and permissions can change; review the linked primary documentation and validate the selected deployment when operating it.</p></section><section class="section" id="ddl-data-limitations"><div class="kicker">Appendices</div><h2>Appendix I. DDL-driven row changes and audit coverage</h2><p><strong>This prototype cannot promise complete row history for DDL-driven data changes.</strong> MySQL logs DDL as statements even in ROW mode. FULL supplies columns in row events; it does not create individual row images for a partition swap or drop. Debezium and the writer cannot recover missing values from a DDL statement.</p>
+<p>Further reading: <a href="https://debezium.io/documentation/reference/3.4/connectors/mysql.html">Debezium MySQL</a>,
+<a href="https://debezium.io/documentation/reference/development/engine.html">Debezium Engine</a>,
+<a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/publishing.htm">OCI publishing</a>,
+<a href="https://docs.oracle.com/en-us/iaas/Content/Streaming/Reference/troubleshootingstreaming.htm">OCI throttling</a>,
+<a href="https://dev.mysql.com/doc/refman/8.4/en/json.html">MySQL JSON</a>,
+<a href="../../capture-start.md">capture positioning</a>, <a href="../../table-scopes.md">source scopes</a>,
+<a href="../../streaming-and-size-limits.md">buffering and size limits</a>.</p></section><section class="section" id="ddl-data-limitations"><div class="kicker">Appendices</div><h2>Appendix I. DDL-driven row changes and audit coverage</h2><p><strong>This prototype cannot promise complete row history for DDL-driven data changes.</strong> MySQL logs DDL as statements even in ROW mode. FULL supplies columns in row events; it does not create individual row images for a partition swap or drop. Debezium and the writer cannot recover missing values from a DDL statement.</p>
 <table>
 <thead>
 <tr>
@@ -1876,11 +2159,7 @@ even when an IAM policy could permit access.</p>
 </tr>
 <tr>
 <td>OCI Streaming</td>
-<td>Stream pool, data/schema streams and Connect configuration in the same compartment</td>
-</tr>
-<tr>
-<td>Managed Apache Kafka</td>
-<td>Cluster/configuration and referenced networking in the same compartment</td>
+<td>Stream pool and data/schema streams in the same compartment</td>
 </tr>
 <tr>
 <td>Container Registry</td>
@@ -1943,4 +2222,4 @@ them.</p>
 <p>Supporting multiple resource compartments or regions would require an explicit
 scope model, separately approved IAM/network access, attachment validation,
 credential handling and migration/recovery tests. Editing an OCID in private JSON
-alone is not that implementation.</p></section><section class="section gallery-section" id="screen-reference"><h2>Screen reference gallery</h2><p>Open any image to inspect the full-size screen. All images are illustrative and use the current application templates with isolated sample records.</p><details><summary>Browse 54 screenshots and setup dialogs</summary><div class="gallery"><figure><a href="../assets/screenshots/access-checks.png" target="_blank" rel="noopener"><img src="../assets/screenshots/access-checks.png" alt="access checks" loading="lazy"></a><figcaption>access checks · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/account-menu.png" target="_blank" rel="noopener"><img src="../assets/screenshots/account-menu.png" alt="account menu" loading="lazy"></a><figcaption>account menu · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/attention.png" target="_blank" rel="noopener"><img src="../assets/screenshots/attention.png" alt="attention" loading="lazy"></a><figcaption>attention · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/capture-preview.png" target="_blank" rel="noopener"><img src="../assets/screenshots/capture-preview.png" alt="capture preview" loading="lazy"></a><figcaption>capture preview · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/capture-start.png" target="_blank" rel="noopener"><img src="../assets/screenshots/capture-start.png" alt="capture start" loading="lazy"></a><figcaption>capture start · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connect_harness-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connect_harness-create.png" alt="connect harness create" loading="lazy"></a><figcaption>connect harness create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connection-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connection-dialog.png" alt="connection dialog" loading="lazy"></a><figcaption>connection dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connection-edit.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connection-edit.png" alt="connection edit" loading="lazy"></a><figcaption>connection edit · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connections-selected.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connections-selected.png" alt="connections selected" loading="lazy"></a><figcaption>connections selected · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connections.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connections.png" alt="connections" loading="lazy"></a><figcaption>connections · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/container-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/container-create.png" alt="container create" loading="lazy"></a><figcaption>container create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/containers.png" target="_blank" rel="noopener"><img src="../assets/screenshots/containers.png" alt="containers" loading="lazy"></a><figcaption>containers · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/control.png" target="_blank" rel="noopener"><img src="../assets/screenshots/control.png" alt="control" loading="lazy"></a><figcaption>control · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/dashboard.png" target="_blank" rel="noopener"><img src="../assets/screenshots/dashboard.png" alt="dashboard" loading="lazy"></a><figcaption>dashboard · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/database-bars.png" target="_blank" rel="noopener"><img src="../assets/screenshots/database-bars.png" alt="database bars" loading="lazy"></a><figcaption>database bars · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/full-value.png" target="_blank" rel="noopener"><img src="../assets/screenshots/full-value.png" alt="full value" loading="lazy"></a><figcaption>full value · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/global.png" target="_blank" rel="noopener"><img src="../assets/screenshots/global.png" alt="global" loading="lazy"></a><figcaption>global · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/heatwave-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/heatwave-create.png" alt="heatwave create" loading="lazy"></a><figcaption>heatwave create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/heatwave.png" target="_blank" rel="noopener"><img src="../assets/screenshots/heatwave.png" alt="heatwave" loading="lazy"></a><figcaption>heatwave · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/history.png" target="_blank" rel="noopener"><img src="../assets/screenshots/history.png" alt="history" loading="lazy"></a><figcaption>history · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/image-build.png" target="_blank" rel="noopener"><img src="../assets/screenshots/image-build.png" alt="image build" loading="lazy"></a><figcaption>image build · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/image-selection.png" target="_blank" rel="noopener"><img src="../assets/screenshots/image-selection.png" alt="image selection" loading="lazy"></a><figcaption>image selection · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/images.png" target="_blank" rel="noopener"><img src="../assets/screenshots/images.png" alt="images" loading="lazy"></a><figcaption>images · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/kafka.png" target="_blank" rel="noopener"><img src="../assets/screenshots/kafka.png" alt="kafka" loading="lazy"></a><figcaption>kafka · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/kafka_cluster-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/kafka_cluster-create.png" alt="kafka cluster create" loading="lazy"></a><figcaption>kafka cluster create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/kafka_config-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/kafka_config-create.png" alt="kafka config create" loading="lazy"></a><figcaption>kafka config create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/login.png" target="_blank" rel="noopener"><img src="../assets/screenshots/login.png" alt="login" loading="lazy"></a><figcaption>login · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/mapping-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/mapping-dialog.png" alt="mapping dialog" loading="lazy"></a><figcaption>mapping dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/messages.png" target="_blank" rel="noopener"><img src="../assets/screenshots/messages.png" alt="messages" loading="lazy"></a><figcaption>messages · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/notifications.png" target="_blank" rel="noopener"><img src="../assets/screenshots/notifications.png" alt="notifications" loading="lazy"></a><figcaption>notifications · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/partitions.png" target="_blank" rel="noopener"><img src="../assets/screenshots/partitions.png" alt="partitions" loading="lazy"></a><figcaption>partitions · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/password.png" target="_blank" rel="noopener"><img src="../assets/screenshots/password.png" alt="password" loading="lazy"></a><figcaption>password · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/process-error.png" target="_blank" rel="noopener"><img src="../assets/screenshots/process-error.png" alt="process error" loading="lazy"></a><figcaption>process error · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/queue-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/queue-dialog.png" alt="queue dialog" loading="lazy"></a><figcaption>queue dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/queues.png" target="_blank" rel="noopener"><img src="../assets/screenshots/queues.png" alt="queues" loading="lazy"></a><figcaption>queues · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/registry.png" target="_blank" rel="noopener"><img src="../assets/screenshots/registry.png" alt="registry" loading="lazy"></a><figcaption>registry · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/repository-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/repository-create.png" alt="repository create" loading="lazy"></a><figcaption>repository create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/repository.png" target="_blank" rel="noopener"><img src="../assets/screenshots/repository.png" alt="repository" loading="lazy"></a><figcaption>repository · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/runtime-key.png" target="_blank" rel="noopener"><img src="../assets/screenshots/runtime-key.png" alt="runtime key" loading="lazy"></a><figcaption>runtime key · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/runtime-settings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/runtime-settings.png" alt="runtime settings" loading="lazy"></a><figcaption>runtime settings · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/secret-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/secret-create.png" alt="secret create" loading="lazy"></a><figcaption>secret create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/source-account-setup.png" target="_blank" rel="noopener"><img src="../assets/screenshots/source-account-setup.png" alt="source account setup" loading="lazy"></a><figcaption>source account setup · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/source-validation.png" target="_blank" rel="noopener"><img src="../assets/screenshots/source-validation.png" alt="source validation" loading="lazy"></a><figcaption>source validation · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/stream-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/stream-create.png" alt="stream create" loading="lazy"></a><figcaption>stream create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/stream_pool-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/stream_pool-create.png" alt="stream pool create" loading="lazy"></a><figcaption>stream pool create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/streaming.png" target="_blank" rel="noopener"><img src="../assets/screenshots/streaming.png" alt="streaming" loading="lazy"></a><figcaption>streaming · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/table-mappings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/table-mappings.png" alt="table mappings" loading="lazy"></a><figcaption>table mappings · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/target-account-setup.png" target="_blank" rel="noopener"><img src="../assets/screenshots/target-account-setup.png" alt="target account setup" loading="lazy"></a><figcaption>target account setup · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/topic-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/topic-dialog.png" alt="topic dialog" loading="lazy"></a><figcaption>topic dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/topics.png" target="_blank" rel="noopener"><img src="../assets/screenshots/topics.png" alt="topics" loading="lazy"></a><figcaption>topics · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/trends.png" target="_blank" rel="noopener"><img src="../assets/screenshots/trends.png" alt="trends" loading="lazy"></a><figcaption>trends · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/vault-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/vault-create.png" alt="vault create" loading="lazy"></a><figcaption>vault create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/vault.png" target="_blank" rel="noopener"><img src="../assets/screenshots/vault.png" alt="vault" loading="lazy"></a><figcaption>vault · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/workload-settings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/workload-settings.png" alt="workload settings" loading="lazy"></a><figcaption>workload settings · illustrative sample-data screenshot</figcaption></figure></div></details></section><footer>Independent prototype for evaluation and rehearsal. Oracle names and symbols describe service integration; they do not imply Oracle authorship, support or endorsement.</footer></main><script>document.getElementById('nav-search').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('nav a').forEach(a=>a.hidden=!a.textContent.toLowerCase().includes(q));});</script></body></html>
+alone is not that implementation.</p></section><section class="section gallery-section" id="screen-reference"><h2>Screen reference gallery</h2><p>Open any image to inspect the full-size screen. All images are illustrative and use the current application templates with isolated sample records.</p><details><summary>Browse 53 screenshots and setup dialogs</summary><div class="gallery"><figure><a href="../assets/screenshots/access-checks.png" target="_blank" rel="noopener"><img src="../assets/screenshots/access-checks.png" alt="access checks" loading="lazy"></a><figcaption>access checks · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/account-menu.png" target="_blank" rel="noopener"><img src="../assets/screenshots/account-menu.png" alt="account menu" loading="lazy"></a><figcaption>account menu · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/attention.png" target="_blank" rel="noopener"><img src="../assets/screenshots/attention.png" alt="attention" loading="lazy"></a><figcaption>attention · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/capture-preview.png" target="_blank" rel="noopener"><img src="../assets/screenshots/capture-preview.png" alt="capture preview" loading="lazy"></a><figcaption>capture preview · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/capture-start.png" target="_blank" rel="noopener"><img src="../assets/screenshots/capture-start.png" alt="capture start" loading="lazy"></a><figcaption>capture start · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connection-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connection-dialog.png" alt="connection dialog" loading="lazy"></a><figcaption>connection dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connection-edit.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connection-edit.png" alt="connection edit" loading="lazy"></a><figcaption>connection edit · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connections-selected.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connections-selected.png" alt="connections selected" loading="lazy"></a><figcaption>connections selected · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/connections.png" target="_blank" rel="noopener"><img src="../assets/screenshots/connections.png" alt="connections" loading="lazy"></a><figcaption>connections · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/container-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/container-create.png" alt="container create" loading="lazy"></a><figcaption>container create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/containers.png" target="_blank" rel="noopener"><img src="../assets/screenshots/containers.png" alt="containers" loading="lazy"></a><figcaption>containers · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/control.png" target="_blank" rel="noopener"><img src="../assets/screenshots/control.png" alt="control" loading="lazy"></a><figcaption>control · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/dashboard.png" target="_blank" rel="noopener"><img src="../assets/screenshots/dashboard.png" alt="dashboard" loading="lazy"></a><figcaption>dashboard · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/database-bars.png" target="_blank" rel="noopener"><img src="../assets/screenshots/database-bars.png" alt="database bars" loading="lazy"></a><figcaption>database bars · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/full-value.png" target="_blank" rel="noopener"><img src="../assets/screenshots/full-value.png" alt="full value" loading="lazy"></a><figcaption>full value · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/global.png" target="_blank" rel="noopener"><img src="../assets/screenshots/global.png" alt="global" loading="lazy"></a><figcaption>global · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/heatwave-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/heatwave-create.png" alt="heatwave create" loading="lazy"></a><figcaption>heatwave create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/heatwave.png" target="_blank" rel="noopener"><img src="../assets/screenshots/heatwave.png" alt="heatwave" loading="lazy"></a><figcaption>heatwave · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/history-filters.png" target="_blank" rel="noopener"><img src="../assets/screenshots/history-filters.png" alt="history filters" loading="lazy"></a><figcaption>history filters · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/history.png" target="_blank" rel="noopener"><img src="../assets/screenshots/history.png" alt="history" loading="lazy"></a><figcaption>history · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/image-build.png" target="_blank" rel="noopener"><img src="../assets/screenshots/image-build.png" alt="image build" loading="lazy"></a><figcaption>image build · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/image-selection.png" target="_blank" rel="noopener"><img src="../assets/screenshots/image-selection.png" alt="image selection" loading="lazy"></a><figcaption>image selection · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/images.png" target="_blank" rel="noopener"><img src="../assets/screenshots/images.png" alt="images" loading="lazy"></a><figcaption>images · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/login.png" target="_blank" rel="noopener"><img src="../assets/screenshots/login.png" alt="login" loading="lazy"></a><figcaption>login · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/mapping-database.png" target="_blank" rel="noopener"><img src="../assets/screenshots/mapping-database.png" alt="mapping database" loading="lazy"></a><figcaption>mapping database · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/mapping-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/mapping-dialog.png" alt="mapping dialog" loading="lazy"></a><figcaption>mapping dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/mapping-gtid.png" target="_blank" rel="noopener"><img src="../assets/screenshots/mapping-gtid.png" alt="mapping gtid" loading="lazy"></a><figcaption>mapping gtid · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/messages.png" target="_blank" rel="noopener"><img src="../assets/screenshots/messages.png" alt="messages" loading="lazy"></a><figcaption>messages · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/notifications.png" target="_blank" rel="noopener"><img src="../assets/screenshots/notifications.png" alt="notifications" loading="lazy"></a><figcaption>notifications · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/partitions.png" target="_blank" rel="noopener"><img src="../assets/screenshots/partitions.png" alt="partitions" loading="lazy"></a><figcaption>partitions · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/password.png" target="_blank" rel="noopener"><img src="../assets/screenshots/password.png" alt="password" loading="lazy"></a><figcaption>password · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/process-error.png" target="_blank" rel="noopener"><img src="../assets/screenshots/process-error.png" alt="process error" loading="lazy"></a><figcaption>process error · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/queue-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/queue-dialog.png" alt="queue dialog" loading="lazy"></a><figcaption>queue dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/queues.png" target="_blank" rel="noopener"><img src="../assets/screenshots/queues.png" alt="queues" loading="lazy"></a><figcaption>queues · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/registry.png" target="_blank" rel="noopener"><img src="../assets/screenshots/registry.png" alt="registry" loading="lazy"></a><figcaption>registry · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/repository-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/repository-create.png" alt="repository create" loading="lazy"></a><figcaption>repository create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/repository.png" target="_blank" rel="noopener"><img src="../assets/screenshots/repository.png" alt="repository" loading="lazy"></a><figcaption>repository · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/runtime-key.png" target="_blank" rel="noopener"><img src="../assets/screenshots/runtime-key.png" alt="runtime key" loading="lazy"></a><figcaption>runtime key · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/runtime-settings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/runtime-settings.png" alt="runtime settings" loading="lazy"></a><figcaption>runtime settings · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/secret-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/secret-create.png" alt="secret create" loading="lazy"></a><figcaption>secret create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/source-account-setup.png" target="_blank" rel="noopener"><img src="../assets/screenshots/source-account-setup.png" alt="source account setup" loading="lazy"></a><figcaption>source account setup · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/source-validation.png" target="_blank" rel="noopener"><img src="../assets/screenshots/source-validation.png" alt="source validation" loading="lazy"></a><figcaption>source validation · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/stream-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/stream-create.png" alt="stream create" loading="lazy"></a><figcaption>stream create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/stream_pool-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/stream_pool-create.png" alt="stream pool create" loading="lazy"></a><figcaption>stream pool create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/streaming.png" target="_blank" rel="noopener"><img src="../assets/screenshots/streaming.png" alt="streaming" loading="lazy"></a><figcaption>streaming · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/table-mappings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/table-mappings.png" alt="table mappings" loading="lazy"></a><figcaption>table mappings · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/target-account-setup.png" target="_blank" rel="noopener"><img src="../assets/screenshots/target-account-setup.png" alt="target account setup" loading="lazy"></a><figcaption>target account setup · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/topic-dialog.png" target="_blank" rel="noopener"><img src="../assets/screenshots/topic-dialog.png" alt="topic dialog" loading="lazy"></a><figcaption>topic dialog · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/topics.png" target="_blank" rel="noopener"><img src="../assets/screenshots/topics.png" alt="topics" loading="lazy"></a><figcaption>topics · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/trends.png" target="_blank" rel="noopener"><img src="../assets/screenshots/trends.png" alt="trends" loading="lazy"></a><figcaption>trends · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/vault-create.png" target="_blank" rel="noopener"><img src="../assets/screenshots/vault-create.png" alt="vault create" loading="lazy"></a><figcaption>vault create · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/vault.png" target="_blank" rel="noopener"><img src="../assets/screenshots/vault.png" alt="vault" loading="lazy"></a><figcaption>vault · illustrative sample-data screenshot</figcaption></figure><figure><a href="../assets/screenshots/workload-settings.png" target="_blank" rel="noopener"><img src="../assets/screenshots/workload-settings.png" alt="workload settings" loading="lazy"></a><figcaption>workload settings · illustrative sample-data screenshot</figcaption></figure></div></details></section><footer>Independent prototype for evaluation and rehearsal. Oracle names and symbols describe service integration; they do not imply Oracle authorship, support or endorsement.</footer></main></body></html>

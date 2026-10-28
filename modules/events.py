@@ -8,9 +8,9 @@ from .fingerprints import canonical, digest, row_hash
 OPS = {"c": "CREATE", "u": "UPDATE", "d": "DELETE", "r": "SNAPSHOT", "t": "TRUNCATE"}
 
 
-def decode(raw, key, topic, partition, offset, flow, fingerprint_key):
+def decode(raw, key, topic, partition, offset, flow, fingerprint_key, *, message_id=None):
     if raw is None:
-        return None  # Kafka delete tombstone, not a second DELETE.
+        return None  # Delete tombstone, not a second DELETE.
     obj = json.loads(raw)
     if not isinstance(obj, dict):
         raise ValueError("Change message must be a JSON object.")
@@ -22,7 +22,9 @@ def decode(raw, key, topic, partition, offset, flow, fingerprint_key):
     source = envelope.get("source", {})
     if not isinstance(source, dict):
         raise ValueError("Change source must be an object.")
-    if source.get("db") != flow["source_schema"] or source.get("table") != flow["source_table"]:
+    from .capture_scope import matches
+
+    if not matches(flow, source.get("db"), source.get("table")):
         raise ValueError("Message does not belong to the registered table.")
     op = envelope["op"]
     if op in {"u", "d"} and not isinstance(envelope.get("before"), dict):
@@ -60,7 +62,11 @@ def decode(raw, key, topic, partition, offset, flow, fingerprint_key):
     if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)) or timestamp < 0:
         raise ValueError("Invalid event timestamp.")
     # Include target-independent flow identity and immutable queue coordinates.
-    capture_id = digest([flow["lineage_id"], flow["queue_incarnation"], topic, partition, offset])
+    capture_id = digest(
+        [flow["lineage_id"], flow["queue_incarnation"], topic, partition, offset]
+        if message_id is None
+        else [flow["lineage_id"], flow["queue_incarnation"], topic, "framed-v1", message_id]
+    )
     origin = None
     if (
         op in {"c", "u", "d"}
@@ -85,14 +91,17 @@ def decode(raw, key, topic, partition, offset, flow, fingerprint_key):
     if op in {"c", "u", "d"} and origin is None:
         raise ValueError("Source-event coordinates are incomplete; no acknowledgement sent.")
     event_id = digest(origin) if origin else capture_id
+    row_namespace = {**flow, "source_schema": source["db"], "source_table": source["table"]}
     return {
         "event_id": event_id,
         "capture_fingerprint": capture_id,
-        "key_hash": row_hash(record_key, flow, fingerprint_key) if record_key is not None else None,
-        "before_fingerprint": row_hash(envelope.get("before"), flow, fingerprint_key)
+        "key_hash": row_hash(record_key, row_namespace, fingerprint_key)
+        if record_key is not None
+        else None,
+        "before_fingerprint": row_hash(envelope.get("before"), row_namespace, fingerprint_key)
         if envelope.get("before") is not None
         else None,
-        "after_fingerprint": row_hash(envelope.get("after"), flow, fingerprint_key)
+        "after_fingerprint": row_hash(envelope.get("after"), row_namespace, fingerprint_key)
         if envelope.get("after") is not None
         else None,
         "schema_document": obj.get("schema"),

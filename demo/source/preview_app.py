@@ -45,7 +45,6 @@ F = dict(
     processor_ocid="demo-writer",
     connector_ocid="demo-reader",
     queue_connection_id=1,
-    connect_harness_id="demo-harness",
     capture_start='{"mode":"end"}',
     updated_at=datetime(2026, 10, 24, 10, 14),
     last_action="deploy",
@@ -212,6 +211,16 @@ def render_page(endpoint, **kwargs):
                 for role in ["Debezium", "History writer"]
             ],
         )
+    if endpoint == "initial_gtid_check":
+        return {
+            "ok": True,
+            "boundary": {
+                "source_range": {
+                    "executed": "11111111-1111-1111-1111-111111111111:1-32:40-45,22222222-2222-2222-2222-222222222222:1-18",
+                    "purged": "11111111-1111-1111-1111-111111111111:1-20",
+                }
+            },
+        }
     if endpoint == "resource_scope":
         return dict(
             compartments=[dict(id="demo-compartment", name="VM compartment (demo)")],
@@ -227,24 +236,17 @@ def render_page(endpoint, **kwargs):
                 dict(id="demo-data-stream", name="demo-orders", state="ACTIVE", managed=True),
                 dict(id="demo-schema-stream", name="audit_1", state="ACTIVE", managed=True),
             ],
-            "connect_harness": [
-                dict(
-                    id="demo-harness",
-                    name="Orders Connect configuration",
-                    state="ACTIVE",
-                    managed=True,
-                )
-            ],
         }
         return dict(resources=rows.get(kwargs.get("kind"), []))
     if endpoint == "service_options":
         opts = {
             "stream_pool": [dict(id="demo-pool", name="Orders stream pool", state="ACTIVE")],
-            "connect_harness": [
-                dict(id="demo-harness", name="Orders Connect configuration", state="ACTIVE")
-            ],
             "secret": [
-                dict(id="ocid1.vaultsecret.example.source", name="Demo source password reference", state="ACTIVE")
+                dict(
+                    id="ocid1.vaultsecret.example.source",
+                    name="Demo source password reference",
+                    state="ACTIVE",
+                )
             ],
             "availability_domain": [dict(id="Example AD", name="Example AD")],
         }
@@ -392,7 +394,7 @@ def render_page(endpoint, **kwargs):
             next_args={},
         )
     elif endpoint == "capture_start":
-        ctx.update(choice={"mode": "end"}, preview=None, last=None, message=None)
+        ctx.update(choice={"mode": "end"}, preview=None, last=None, message=None, gtid_range=None)
         return render_template("capture_start.html", **ctx)
     elif endpoint not in {"dashboard", "control"}:
         return "This route is outside the illustrative demonstration.", 404

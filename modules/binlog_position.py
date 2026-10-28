@@ -165,10 +165,6 @@ def resolve_boundary(flow, cloud, baseline, value, *, mode="datetime"):
                 "The baseline binlog has expired. Historical transaction order cannot be verified; use a new baseline or restore retained evidence."
             )
         selected = files[start:]
-        if len(selected) > 128:
-            raise ValueError(
-                "Position inspection exceeds 128 binlog files. Review the retained evidence or establish a later baseline."
-            )
         source, tls = flow["source"], cloud.tls_profile()
         settings = {
             "host": source["host"],
@@ -197,6 +193,11 @@ def resolve_boundary(flow, cloud, baseline, value, *, mode="datetime"):
                     + "\n"
                 )
             for index, row in enumerate(selected):
+                if index >= 128:
+                    raise ValueError(
+                        "Position inspection reached its 128 scanned-file limit before finding the boundary. "
+                        "Review the retained evidence or establish a later baseline."
+                    )
                 name = row["Log_name"]
                 if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or name.startswith("-"):
                     raise ValueError("Unexpected binary log name.")
@@ -237,4 +238,7 @@ def resolve_datetime(flow, cloud, baseline, value):
 
 
 def resolve_gtid(flow, cloud, baseline, value):
-    return resolve_boundary(flow, cloud, baseline, value, mode="gtid")
+    from .gtid_position import locate_gtid
+
+    with connect(flow["source"], cloud) as db:
+        return locate_gtid(db, value, baseline)

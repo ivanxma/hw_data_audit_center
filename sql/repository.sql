@@ -15,10 +15,8 @@ CREATE TABLE IF NOT EXISTS connections (
 CREATE TABLE IF NOT EXISTS queue_connections (
  id BIGINT AUTO_INCREMENT PRIMARY KEY,
  name VARCHAR(100) NOT NULL UNIQUE,
- kind ENUM('oci_streaming','oci_kafka') NOT NULL,
+ kind ENUM('oci_streaming') NOT NULL,
  resource_ocid VARCHAR(255) NOT NULL,
- username VARCHAR(255) NOT NULL,
- secret_ocid VARCHAR(255) NOT NULL,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS flows (
@@ -27,14 +25,16 @@ CREATE TABLE IF NOT EXISTS flows (
  source_id BIGINT NOT NULL,
  target_id BIGINT NOT NULL,
  source_schema VARCHAR(64) NOT NULL,
- source_table VARCHAR(64) NOT NULL,
+    source_table VARCHAR(64) NOT NULL,
+    source_exclusions JSON,
+    target_grouping VARCHAR(16) NOT NULL DEFAULT 'flow',
  target_schema VARCHAR(64) NOT NULL,
  target_table VARCHAR(64) NOT NULL,
  topic VARCHAR(249) NOT NULL UNIQUE,
- transport ENUM('kafka','streaming') NOT NULL,
+ transport ENUM('streaming') NOT NULL,
  connector_name VARCHAR(150) NOT NULL UNIQUE,
  queue_connection_id BIGINT,
- connect_harness_id VARCHAR(255),
+ stream_bindings JSON,
  capture_start JSON,
  status VARCHAR(30) NOT NULL DEFAULT 'draft',
  processor_ocid VARCHAR(255),

@@ -74,6 +74,9 @@ def save_config(value, compartment, region, *, expected=None):
             raise ValueError("Credential material is not permitted in deployment settings.")
 
     inspect(value)
+    from .message_policy import policy
+
+    policy(value)
     import fcntl
 
     path = Path(os.environ["AUDIT_CONFIG_FILE"]).expanduser()

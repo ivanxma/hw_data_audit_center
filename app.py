@@ -9,6 +9,7 @@ import secrets
 import threading
 import time
 from functools import wraps
+from pathlib import Path
 
 from flask import (
     Flask,
@@ -414,16 +415,15 @@ def create_app(test_config=None):
     def service_options(kind):
         from modules.service_options import choices
 
-        return jsonify(
-            options=choices(
-                Cloud(),
-                kind,
-                request.args.get("vault_id"),
-                request.args.get("repository_id"),
-                request.args.get("shape_name"),
-                request.args.get("availability_domain"),
-            )
+        options = choices(
+            Cloud(),
+            kind,
+            request.args.get("vault_id"),
+            request.args.get("repository_id"),
+            request.args.get("shape_name"),
+            request.args.get("availability_domain"),
         )
+        return jsonify(options=options)
 
     @app.route("/configuration/services/<kind>/create", methods=["POST"])
     @protected(admin=True)
@@ -467,7 +467,7 @@ def create_app(test_config=None):
         profile(Cloud(), data)
         repo.query(
             g.db,
-            "INSERT INTO queue_connections(name,kind,resource_ocid,username,secret_ocid) VALUES (%s,%s,%s,%s,%s)",
+            "INSERT INTO queue_connections(name,kind,resource_ocid) VALUES (%s,%s,%s)",
             list(data.values()),
         )
         return redirect(url_for("configuration", tab="resources", service="queues"))
@@ -729,8 +729,8 @@ def create_app(test_config=None):
                         list(data.values()),
                     )
                 flash(
-                    "Flow saved as draft. Validate the source and choose Prepare schema topic "
-                    "in Control Center before deployment.",
+                    "Flow saved as draft. Validate the source, then deploy from Control Center. "
+                    "The schema stream is prepared automatically.",
                     "success",
                 )
             else:
@@ -836,9 +836,6 @@ def create_app(test_config=None):
         checks = {}
         if request.args.get("check") == "1":
             calls = {
-                "Managed Kafka": lambda: cloud.kafka.list_kafka_clusters(
-                    compartment_id=cloud.compartment
-                ),
                 "OCI Streaming": lambda: cloud.streams.list_stream_pools(cloud.compartment),
                 "Container Instances": lambda: cloud.containers.list_container_instances(
                     cloud.compartment
@@ -864,7 +861,6 @@ def create_app(test_config=None):
             else {}
         )
         for key in (
-            "kafka",
             "streaming",
             "processor",
             "debezium",
@@ -882,7 +878,7 @@ def create_app(test_config=None):
         result = None
         if request.method == "POST":
             result = validate_source(
-                flow["source"], flow["source_schema"], flow["source_table"], Cloud()
+                flow["source"], flow["source_schema"], flow["source_table"], Cloud(), scope=flow
             )
             repo.record(
                 g.db,
@@ -892,6 +888,26 @@ def create_app(test_config=None):
                 g.record["username"],
             )
         return render_template("validation.html", flow=flow, result=result)
+
+    @app.route("/docs/<path:name>")
+    @protected()
+    def documentation_asset(name):
+        allowed = {
+            ".html": "text/html",
+            ".css": "text/css",
+            ".js": "text/javascript",
+            ".md": "text/plain",
+            ".pdf": "application/pdf",
+            ".png": "image/png",
+            ".drawio": "application/xml",
+            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
+        suffix = Path(name).suffix.lower()
+        if suffix not in allowed:
+            abort(404)
+        return send_from_directory(
+            ROOT / "docs", name, mimetype=allowed[suffix], as_attachment=False, conditional=True
+        )
 
     @app.route("/demo/")
     @protected()
@@ -974,6 +990,7 @@ def create_app(test_config=None):
             "refresh",
             "update_debezium",
             "update_writer",
+            "apply_stream_settings",
         }:
             abort(404)
         from modules.workflows import SourceNotReady, WorkflowService
@@ -1005,6 +1022,12 @@ def create_app(test_config=None):
             )
         elif action == "stop":
             message = "Debezium stop requested. The history writer remains running to drain queued records and waits when caught up. Start resumes capture."
+        elif action == "apply_stream_settings":
+            message = (
+                "A workload is still stopping. Wait for INACTIVE, then choose Apply stream settings again to complete replacement."
+                if status == "stopping"
+                else "Saved stream settings are being applied with the selected workload images. Check workload status for completion."
+            )
         elif action == "stop_all":
             message = "Stop requested for both workloads. Queued messages remain available within the messaging retention period."
         flash(message, "warning" if status in {"attention", "stopping"} else "success")
@@ -1078,6 +1101,18 @@ def create_app(test_config=None):
             jobs = []
             retention_plan = None
             with connect(flow["target"], cloud) as db:
+                from modules.target_routes import tables, grouping
+
+                target_tables = tables(db, flow) or [flow["target_table"]]
+                selected_target = request.args.get("target_table", target_tables[0])
+                if selected_target not in target_tables:
+                    raise ValueError("Select a target table owned by this flow.")
+                if grouping(flow) != "flow":
+                    policy = None
+                    policy_error = "Grouped targets: inspect each physical table below. Automated cleanup requires a coordinated grouped-target maintenance plan."
+                    if request.method == "POST" and request.form.get("action") == "cleanup":
+                        raise ValueError(policy_error)
+                flow = {**flow, "target_table": selected_target}
                 if request.method == "POST":
                     action = request.form.get("action")
                     if action == "prepare":
@@ -1137,6 +1172,7 @@ def create_app(test_config=None):
             policy_error=policy_error,
             retention_plan=retention_plan,
             jobs=jobs,
+            target_tables=target_tables,
         )
 
     @app.route("/audit")
@@ -1156,6 +1192,7 @@ def create_app(test_config=None):
                 and (
                     not request.args.get("source_schema")
                     or f["source_schema"] == request.args["source_schema"]
+                    or f["source_schema"] == "*"
                 )
             ]
             if len(chosen) > 100:

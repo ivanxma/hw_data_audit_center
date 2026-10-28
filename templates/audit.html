@@ -13,6 +13,7 @@
     <input type="hidden" name="tab" data-tab-selection value="{{ selected_tab }}">
     <label>Server / table<select name="flow_id" required><option value="">Select a registered table</option>{% for f in flows %}<option value="{{ f.id }}" {{ 'selected' if request.args.get('flow_id')==f.id|string else '' }}>{{ f.source_name }} / {{ f.source_schema }}.{{ f.source_table }}</option>{% endfor %}</select></label>
     <label>Operation<select name="operation"><option value="">All operations</option>{% for op in ['CREATE','UPDATE','DELETE','SNAPSHOT','TRUNCATE'] %}<option {{ 'selected' if request.args.get('operation')==op else '' }}>{{ op }}</option>{% endfor %}</select></label>
+    {% if flow.source_table == '*' %}<label>Source database<input name="source_database" placeholder="{{ 'Database name' if flow.source_schema == '*' else flow.source_schema }}" value="{{ request.args.get('source_database','') }}"></label><label>Source table<input name="source_table_filter" placeholder="Table name" value="{{ request.args.get('source_table_filter','') }}"></label>{% endif %}
     <label>Record key<input name="key" placeholder='{"id":1042}' title="Complete primary-key JSON object" value="{{ request.args.get('key','') }}"></label>
     <label>Interval<select name="interval">{% for value,label in [('hour','Hour'),('minute','Minute (one-hour view)'),('day','Day'),('week','Week (Monday UTC)')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('interval','hour')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
     <label>Chart type<select name="chart_type">{% for value,label in [('line','Line'),('bar','Bar'),('stacked','Stacked bar')] %}<option value="{{ value }}" {{ 'selected' if request.args.get('chart_type','line')==value else '' }}>{{ label }}</option>{% endfor %}</select></label>
@@ -40,7 +41,7 @@
       <tbody>
         {% for row in result.rows %}
         <tr data-row-id="{{ row.event_id }}" data-image-dialog="event-{{ loop.index }}">
-          <td data-full-value="{{ row.event_time }}&#10;{{ row.event_id }}"><strong>{{ row.event_time }}</strong><small>{{ row.event_id[:16] }}…</small></td>
+          <td data-full-value="{{ row.event_time }}&#10;{{ row.event_id }}"><strong>{{ row.event_time }}</strong><small>{{ row.source_schema }}.{{ row.source_table }}</small><small>{{ row.event_id[:16] }}…</small></td>
           <td><span class="badge {{ row.operation|lower }}">{{ row.operation }}</span></td>
           <td>
             <code>{{ row.record_key|tojson }}</code>

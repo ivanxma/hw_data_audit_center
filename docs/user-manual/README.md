@@ -15,3 +15,9 @@ explains the same-compartment limitation for Vaults, secrets and other OCI
 resources, including the limits of host-only database registration.
 
 Screenshots are shared under `assets/`; editable architecture diagrams and their previews are under `diagrams/`.
+
+The current guide covers native OCI Streaming, wildcard source scopes, all three
+target groupings, GTID/purged-history checks, durable staging, conditional
+fragmentation, size limits and request pacing. The signed-in Dashboard opens the
+deployed guide; its downloads include the PDF and
+[PowerPoint overview](../presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx).

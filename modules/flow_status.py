@@ -1,14 +1,18 @@
 """Read container process state without confusing OCI instance lifecycle with health."""
 
-import threading
+import fcntl
+import hashlib
+import json
+import os
 import time
-from collections import OrderedDict
+from pathlib import Path
+
+import oci
+
+from .config import ROOT, write_private_json
 
 from .connector_health import from_logs
 from .process_errors import from_logs as process_error_from_logs
-
-_cache = OrderedDict()
-_lock = threading.Lock()
 
 
 def image_status(cloud, field, item, container):
@@ -18,11 +22,6 @@ def image_status(cloud, field, item, container):
     item["deployed_image"] = deployed or ""
     item["update_available"] = bool(selected and deployed and selected != deployed)
     item["selected_release"] = settings.get("image_release", "")
-    if item["update_available"] and item["state"] == "ACTIVE":
-        label = "Debezium" if role == "debezium" else "history writer"
-        item["guidance"] = (
-            f"Workload default differs. Update {label} image opens a release picker for this flow."
-        )
 
 
 def inspect_flow(cloud, flow):
@@ -32,6 +31,7 @@ def inspect_flow(cloud, flow):
         item = {"role": label, "state": "NOT_DEPLOYED", "process": "", "exit_code": None}
         log_container = None
         log_text = None
+        log_attempted = False
         if resource_id:
             instance = cloud.owned_container(resource_id, flow["id"])
             item["state"] = instance.lifecycle_state
@@ -79,6 +79,7 @@ def inspect_flow(cloud, flow):
                     item["process"] = "RUNNING"
                     if field == "connector_ocid":
                         try:
+                            log_attempted = True
                             response = cloud.containers.retrieve_logs(
                                 instance.containers[0].container_id
                             ).data
@@ -99,7 +100,7 @@ def inspect_flow(cloud, flow):
                     item["process"] = "STARTING"
         if log_container is not None:
             try:
-                if log_text is None:
+                if log_text is None and not log_attempted:
                     response = cloud.containers.retrieve_logs(
                         log_container.id
                         if hasattr(log_container, "id")
@@ -107,7 +108,7 @@ def inspect_flow(cloud, flow):
                     ).data
                     raw = response.content if hasattr(response, "content") else response.read()
                     log_text = raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
-                latest = process_error_from_logs(log_text, label)
+                latest = process_error_from_logs(log_text, label) if log_text is not None else None
                 if latest:
                     item["last_error"] = latest
                     if item.get("process") == "EXITED" and not item.get("update_available"):
@@ -167,22 +168,47 @@ def inspect_flow(cloud, flow):
 
 
 def snapshot(flow, cloud_factory):
-    # Shared short cache bounds repeated browser polls; it contains no credentials.
-    key = (
+    """Share bounded status reads across browser tabs and Gunicorn processes."""
+    directory = ROOT / ".data" / "flow-status"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    config_path = os.environ.get("AUDIT_CONFIG_FILE")
+    revision = Path(config_path).stat().st_mtime_ns if config_path else None
+    identity = [
         flow["id"],
         flow.get("connector_ocid"),
         flow.get("processor_ocid"),
         flow["status"],
         flow.get("last_action"),
-    )
-    with _lock:
-        cached = _cache.get(key)
-        if cached and time.monotonic() - cached[0] < 10:
-            return cached[1]
-    result = inspect_flow(cloud_factory(), flow)
-    with _lock:
-        _cache[key] = (time.monotonic(), result)
-        _cache.move_to_end(key)
-        while len(_cache) > 256:
-            _cache.popitem(last=False)
-    return result
+        revision,
+    ]
+    key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
+    path = directory / (str(int(flow["id"])) + ".json")
+    lock_path = path.with_suffix(".lock")
+    with lock_path.open("a") as lock:
+        os.chmod(lock_path, 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            cached = json.loads(path.read_text())
+        except (FileNotFoundError, ValueError):
+            cached = {}
+        age = time.time() - cached.get("checked_at", 0)
+        if cached.get("key") == key and 0 <= age < cached.get("ttl", 0):
+            return cached["result"]
+        try:
+            result = inspect_flow(cloud_factory(), flow)
+        except oci.exceptions.ServiceError as error:
+            if error.status not in {429, 500, 502, 503, 504}:
+                raise
+            result = {
+                "id": flow["id"],
+                "status": "unavailable",
+                "workloads": [],
+                "message": "OCI workload status is temporarily unavailable. Checks are paced automatically.",
+            }
+        checked_at = time.time()
+        result["checked_at"] = checked_at
+        ttl = 10 if result["status"] in {"starting", "stopping", "deploying"} else 45
+        write_private_json(
+            path, {"key": key, "checked_at": checked_at, "ttl": ttl, "result": result}
+        )
+        return result

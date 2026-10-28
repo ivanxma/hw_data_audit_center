@@ -80,31 +80,14 @@ def release_tag(role, revision, now=None):
 def snapshot(source, context, role):
     if role not in ROLES:
         raise ValueError("Choose Debezium or the processor.")
-    files = [
-        "deploy/Containerfile." + role,
-        "deploy/streaming-java/pom.xml",
-        "deploy/streaming-java/PrincipalRuntimeCheck.java",
-    ]
+    files = ["deploy/Containerfile." + role]
+    files += [str(p.relative_to(source)) for p in (source / "modules").rglob("*.py")]
     if role == "processor":
-        files += ["requirements.txt", "worker.py"]
-        files += [str(p.relative_to(source)) for p in (source / "modules").rglob("*.py")]
+        files += ["worker.py"]
     else:
-        files += [
-            "deploy/debezium_bootstrap.py",
-            "deploy/install_jdbc_history.py",
-            "modules/transport.py",
-            "modules/workload_secrets.py",
-            "modules/connector_health.py",
-            "modules/process_errors.py",
-            "modules/capture_runtime.py",
-            "modules/capture_requests.py",
-            "modules/capture_start.py",
-            "modules/mysql_util.py",
-            "modules/repository.py",
-            "modules/config.py",
-            "modules/validation.py",
-            "modules/fingerprints.py",
-        ]
+        files += ["deploy/debezium_bootstrap.py"]
+        files += [str(p.relative_to(source)) for p in (source / "deploy/native-capture").rglob("*")
+                  if p.is_file() and "target" not in p.parts]
     manifest = {}
     context.mkdir(mode=0o700)
     for name in sorted(files):
@@ -142,6 +125,7 @@ def enqueue(cloud, role, repository_id, compartment, actor):
         job = {
             "id": job_id,
             "role": role,
+            "runtime_protocol": 3,
             "repository_id": repository.id,
             "repository_name": repository.display_name,
             "compartment_id": cloud.compartment,

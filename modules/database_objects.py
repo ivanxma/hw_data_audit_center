@@ -50,7 +50,7 @@ def discover(connection, cloud, schema=None):
 def new_audit_name(source_schema, source_table):
     import hashlib
 
-    value = source_schema + "_" + source_table + "_history"
+    value = ("all_databases" if source_schema == "*" else source_schema) + "_" + ("all_tables" if source_table == "*" else source_table) + "_history"
     if len(value) > 64:
         value = value[:51] + "_" + hashlib.sha256(value.encode()).hexdigest()[:12]
     return identifier(value)

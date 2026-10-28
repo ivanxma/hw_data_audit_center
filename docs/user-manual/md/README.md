@@ -36,51 +36,53 @@
 
 - [15. Configuration: register a table mapping](#mappings)
 
-- [16. Runtime settings and fingerprint-key setup](#runtime)
+- [16. Source scopes and target layouts](#source-layouts)
 
-- [17. Source validation and full row images](#source-checks)
+- [17. Streaming buffers, size limits and request control](#stream-capacity)
 
-- [18. OCI resources: common controls](#services)
+- [18. Runtime settings and fingerprint-key setup](#runtime)
 
-- [19. OCI Streaming: pools, streams and harnesses](#streaming)
+- [19. Source validation and full row images](#source-checks)
 
-- [20. Queue registrations and topic management](#queues)
+- [20. OCI resources: common controls](#services)
 
-- [21. Apache Kafka alternative](#kafka)
+- [21. Native OCI Streaming: pools and streams](#streaming)
 
-- [22. Container Registry and image builds](#registry)
+- [22. Queue registrations and topic management](#queues)
 
-- [23. Container Instances and workload settings](#containers)
+- [23. Container Registry and image builds](#registry)
 
-- [24. Vault and password references](#vault)
+- [24. Container Instances and workload settings](#containers)
 
-- [25. HeatWave DB resource controls](#heatwave)
+- [25. Vault and password references](#vault)
 
-- [26. Embedded repository page](#repository)
+- [26. HeatWave DB resource controls](#heatwave)
 
-- [27. Control Center: flow row and status](#control)
+- [27. Embedded repository page](#repository)
 
-- [28. Control Center: action conditions](#control-actions)
+- [28. Control Center: flow row and status](#control)
 
-- [29. Choose where Debezium begins reading](#capture)
+- [29. Control Center: action conditions](#control-actions)
 
-- [30. Apply a reviewed capture position](#capture-apply)
+- [30. Capture start, GTID sets and purged history](#capture)
 
-- [31. Message Explorer](#messages)
+- [31. Apply a reviewed capture position](#capture-apply)
 
-- [32. Audit Center: all databases overview](#audit-overview)
+- [32. Message Explorer](#messages)
 
-- [33. Audit Center: table history and lookup](#history)
+- [33. Audit Center: all databases overview](#audit-overview)
 
-- [34. Before/after images and operation meanings](#images)
+- [34. Audit Center: table history and lookup](#history)
 
-- [35. Charts, intervals and downloads](#charts)
+- [35. Before/after images and operation meanings](#images)
 
-- [36. Schema changes and security auditing](#ddl-dcl)
+- [36. Charts, intervals and downloads](#charts)
 
-- [37. Daily operations and a controlled verification](#daily-operations)
+- [37. Schema changes and security auditing](#ddl-dcl)
 
-- [38. Summary and handover checklist](#summary)
+- [38. Daily operations and a controlled verification](#daily-operations)
+
+- [39. Summary and handover checklist](#summary)
 
 - [Appendix A. Scaling and massive change volume](#scale)
 
@@ -118,17 +120,18 @@ The aim is to retain evidence of changes to registered tables: what a row contai
 
 Operators use the Dashboard, Control Center, Message Explorer and Audit Center. Application administrators also manage configuration, resources, capture positions and retention. An OCI administrator prepares IAM and networking; a database administrator prepares schemas, users and supported source settings.
 
-This manual describes the repository implementation as reviewed on 24 October 2026, including the lifecycle, diagnostic and coverage clarifications. Screenshots show representative sample records, not a live OCI acceptance test. Endpoint names, resource identifiers and CIDRs are examples. Never copy the example identifiers into a real deployment.
+This manual describes the repository implementation as reviewed on 28 October 2026, including the lifecycle, diagnostic and coverage clarifications. Screenshots show representative sample records, not a live OCI acceptance test. Endpoint names, resource identifiers and CIDRs are examples. Never copy the example identifiers into a real deployment.
 
 ### What is available
 
-- Registered table DML capture, complete row images when the source records them, replay checks, typed-key lookup and operation charts.
+- Native OCI Streaming capture for one table, database wildcards or all-database wildcards; grouped audit targets; complete images when recorded; GTID initialization, replay checks, typed-key lookup and charts.
+- Conditional large-event fragmentation, durable reassembly, PUT batching/byte pacing and adaptive GET polling.
 - Public schema evidence with available before/after definitions and semantic differences; SQL inspection is used for DDL evidence.
 - OCI Container Instances lifecycle and image replacement, same-compartment resource management and explicit partition cleanup.
 
 ### Important boundaries
 
-User/privilege auditing needs a separately configured database-audit collector; it is not implemented here. DML binlogs do not establish a complete actor or privilege history. Automatic fleet scaling, shared multi-table source connectors, verified archive export/restore, fingerprint-key rotation and a dedicated schema-comparison browser are not implemented. Validate the chosen deployment, recovery and capacity before relying on it.
+User/privilege auditing needs a separately configured database-audit collector; it is not implemented here. DML binlogs do not establish a complete actor or privilege history. Automatic fleet scaling, verified archive export/restore, fingerprint-key rotation and a dedicated schema-comparison browser are not implemented. Validate the chosen deployment, recovery and capacity before relying on it.
 
 **Row-audit coverage:** partition exchange, partition drop/truncate and other DDL can change many rows without individual row-image events, even with ROW/FULL. Schema evidence, fingerprints and event charts cannot establish complete data-change coverage. See Appendix I and [audit limitations](../../limitations.md).
 
@@ -136,81 +139,94 @@ User/privilege auditing needs a separately configured database-audit collector; 
 
 ## 2. Challenges and the implemented approach
 
-| Challenge | Approach in this prototype | Operator responsibility |
+| Challenge | Implemented approach | Operational boundary |
 | --- | --- | --- |
-| Incomplete old/new row values | Require ROW/FULL, disable PARTIAL_JSON, validate envelope images | Reconnect source writers after session-related setting changes; old incomplete logs cannot be repaired |
-| Binlogs expire during an outage | Require retention above three days; recommend an initial seven-day review point | Size for outage, snapshot and catch-up time; monitor disk and age |
-| Repeated delivery after failure | Source-event identity ledger and payload consistency checks | Preserve lineage and checkpoints; investigate conflicting evidence |
-| Fast row lookup in growing history | Typed-key HMAC, row-key/time index and monthly partitions | Supply the full key and useful UTC range; preserve its Vault key |
-| Container ACTIVE but no data arrives | Separate process/task status from queue and target checks | Verify all stages with a controlled transaction |
-| OCI Streaming differs from a Kafka cluster | Kafka-compatible data path, Connect harness state and JDBC private schema history | Prepare both public streams and isolated Connect state |
-| Schema changes are more than SQL text | Store available definitions, semantic delta and fidelity | Treat missing default/index/partition metadata as unknown |
-| Retention can be undone by replay | Durable expiry cutoff, guarded partition manifest and retained deduplication state | Stop both workloads and review the policy before cleanup |
-| Multiple flows grow cost and load | One connector and writer per table flow; bounded target batches | Measure per-source extraction, queue and target capacity; autoscaling is future work |
-| Resource deletion affects shared systems | Compartment and installation ownership checks; reject in-use dependencies | Keep IAM and network administration outside the app |
+| Large source tables | End or Specific GTID avoids copying current rows | Existing unchanged rows have no snapshot baseline |
+| Multiple source tables | One table, database wildcard or all-database wildcard per flow | Stable keys, metadata inventory and scope checks still required |
+| Target organization | Audit tables grouped by flow, source database or source table | Generated tables stay in one selected target schema |
+| Target apply temporarily delayed | Native OCI Streaming retains pending changes | Capture offsets/JDBC history still depend on the target database |
+| Large full-image events | Conditional fragmentation and durable reassembly | Logical/custody, target packet and memory limits still apply |
+| Request throttling | PUT batching/byte pacing and adaptive GET polling | Retries are bounded fallback handling |
+| Recovery and replay | Full offsets, stream identities, deduplication and target delivery state | No global distributed exactly-once transaction |
 
-The controls fail closed when coverage, ownership or supported state cannot be established. A denied list operation is not an empty inventory. A failed source check is an instruction to review the source, not permission for the app to change database settings.
+This prototype makes observed changes traceable. It does not establish complete
+security auditing, reconstruct unavailable pre-capture history, or expand DDL into
+missing row images. Review the coverage and storage limitations before adoption.
 
 <a id="architecture"></a>
 
 ## 3. Deployment architecture
 
-![OCI Streaming deployment architecture](../diagrams/deployment-architecture.png)
+![Native OCI deployment architecture](../diagrams/deployment-architecture.png)
 
-*Reference deployment with example CIDRs. Official OCI symbols are used; generic official compute symbols represent the OCI Container Instances workloads.*
+The OL9 application VM manages registered resources with its instance principal.
+A private Container Instance runs embedded Debezium Engine and the OCI Java SDK;
+another runs the Python history writer and OCI Python SDK. Both use resource
+principals for workload access. Private registry images are digest pinned.
 
-The OL9 VM runs Flask/Gunicorn, HTTPS, a socket-only embedded MySQL control repository and a rootless image-builder service. Embedded MySQL authenticates local accounts and retains registrations, revisions and operations; it is separate from both HeatWave databases.
+Source and target database endpoints attach to the database subnet. Regional
+Streaming, Vault, Registry and HeatWave services sit outside the VCN boundary;
+private attachments are shown separately. CIDRs are illustrative examples.
 
-Debezium and the history writer run as separate OCI Container Instances in a private worker subnet. Debezium connects to the source MySQL endpoint, reads the binlog and publishes row/schema events. The writer consumes those events and commits audit evidence to the target HeatWave schema.
+The target contains audit payloads, deduplication evidence, routes, fragment custody,
+delivery checkpoints, complete source offsets and private JDBC schema history.
+Source and writer restarts preserve those namespaces. A full target outage can
+therefore pause capture as well as apply; source binlog retention remains essential.
 
-OCI Streaming, Vault and Container Registry are regional services outside customer subnets. HeatWave customer subnet endpoints connect to service-managed DB systems. The region/VCN/subnet boundaries in the diagram are actual draw.io containers, not decorative rectangles.
-
-Resource instances and attachments managed or selected by the application must remain in the VM compartment. IAM groups/policies and shared network provisioning are administrator prerequisites; the app does not modify them. Source/target database connections use the supplied endpoint and a real MySQL login test; the app does not discover a DB system from its IP.
-
-[Editable deployment diagram](../diagrams/deployment-architecture.drawio)
+[Editable deployment architecture](../diagrams/deployment-architecture.drawio)
 
 <a id="network"></a>
 
 ## 4. Network access and security boundaries
 
-![OCI network access and trust boundaries](../diagrams/network-access.png)
+![Network access and principal boundaries](../diagrams/network-access.png)
 
-*Example network. Blue arrows show client-initiated data connections; brown dashed links show HeatWave endpoint/service associations. Data can flow back over an established connection.*
-
-| Path | Purpose and restriction |
+| Connection | Purpose |
 | --- | --- |
-| Approved browser networks → OL9 VM TCP 443 | Web application HTTPS; use the VM DNS name or routable address |
-| App / Debezium → source TCP 3306 | Login checks, metadata, binlog reading; TLS policy is global |
-| App / writer / Debezium → target TCP 3306 | History browsing, target commits, private JDBC schema history and capture requests |
-| Workers → Streaming TCP 9092 | Kafka-compatible TLS producer/consumer connections |
-| VM / workloads → OCI TCP 443 | Permitted APIs, Vault secret reads and private registry access |
-| Kafka Connect REST TCP 8083 | Container loopback only; do not expose publicly |
+| Approved browser → application HTTPS 443 | Authenticated UI; CSRF protects actions |
+| Application / Debezium → source TLS 3306 | Metadata checks, optional row snapshot and replication reads |
+| Application / workloads → target TLS 3306 | Audit queries/commits, offsets, JDBC history and recovery state |
+| Workers → native Streaming HTTPS 443 | OCI SDK PutMessages and GetMessages |
+| VM / workloads → permitted OCI HTTPS 443 | Secret retrieval, registry and scoped service operations |
+| Native capture control on container loopback | Internal engine control; no public ingress |
 
-Public app-subnet default routing uses an internet gateway. Private subnet routes use the service gateway for supported regional OCI service destinations and approved NAT egress when required. Local VCN routes carry worker-to-DB traffic. Check the selected service endpoint, DNS, NSGs and route tables together; IAM permission does not open a network path.
+Debezium initiates the source MySQL connection; binlog data flows back on that
+connection. A snapshot queries source rows directly. The writer connects separately
+to the target. IAM permits an operation but does not create a network route.
 
-Private Streaming endpoints, if selected, need their own attachment/DNS/routing review. The reference diagram depicts regional service access, not an assertion that every endpoint is automatically reachable through a service gateway. The app does not create shared gateways, routes or NSG rules.
+The reference public subnet uses an internet gateway. Private subnet access uses
+approved regional service-gateway destinations and any separately approved NAT
+egress. Check endpoint DNS, routes and NSGs together. Private service endpoints
+need their own attachment/routing review. The app does not alter shared networking.
 
-[Editable network diagram](../diagrams/network-access.drawio)
+[Editable network reference](../diagrams/network-access.drawio)
 
 <a id="data-flow"></a>
 
 ## 5. Data flow, fingerprints and evidence
 
-![Capture and fingerprint lookup workflow](../diagrams/capture-workflow.png)
+![Capture, delivery and fingerprint lookup](../diagrams/capture-workflow.png)
 
-A row change passes through source binlog, Debezium, the data stream and the history writer. Public schema events use a separate single-partition stream. Private Debezium schema recovery history is separate again: for OCI Streaming it resides in the target through JDBC. Connect configuration/offset/status state belongs to the selected harness.
+A row change passes through source binlog, embedded Debezium Engine, the data
+stream and the history writer. Schema events use a separate single-partition
+stream. Source recovery uses target-backed full offsets and JDBC schema history.
+Small events remain single messages. Large events are framed and reassembled
+before normal audit writes; partial fragments are never audit rows.
 
-The writer validates each envelope, computes identities, commits fresh payload and ledger evidence, saves durable target delivery checkpoints and then acknowledges queue offsets. These are recoverable stages, not one distributed transaction. A crash can replay messages; supported duplicates are checked against existing evidence.
+The writer validates events, computes identities, writes fresh payload/deduplication
+evidence, and saves target delivery checkpoints before acknowledging in memory.
+These are recoverable stages, not a single distributed transaction. Durable
+fragment custody can permit delivery progress before the whole event arrives.
 
-### Three different identities
+- **Row-key fingerprint:** keyed hash of canonical typed source identity, actual database/table and complete primary key.
+- **Before/after fingerprints:** keyed hashes of observed row content.
+- **Event/delivery identity:** immutable source coordinates identify supported DML replays; stream coordinates describe deliveries. A GTID alone does not identify each row event.
 
-- **Row-key fingerprint:** HMAC-SHA256 of canonical typed JSON containing source identity, source schema, source table and complete primary key. It locates versions of that key.
-- **Before/after fingerprints:** keyed hashes of row content. They describe content equality/change and are not a replacement for row identity.
-- **Event/delivery identity:** source lineage and binlog coordinates identify supported DML replays; queue coordinates identify deliveries and snapshot observations.
+Canonical JSON preserves types and sorts object keys. `{"id":1042}` differs from
+`{"id":"1042"}`. Preserve the fingerprint secret and source identity with retained
+history. Automatic stitching of histories across a primary-key change is not implemented.
 
-Canonical JSON sorts object keys and preserves types. `{"id":1042}` differs from `{"id":"1042"}`. Composite keys must include every key field. Preserve the fingerprint secret and source identity for the lifetime of retained history. A primary-key change can create separate histories; automatic key-alias stitching is not implemented.
-
-[Editable workflow diagram](../diagrams/capture-workflow.drawio)
+[Editable workflow](../diagrams/capture-workflow.drawio)
 
 <a id="prerequisites"></a>
 
@@ -283,7 +299,7 @@ The VM uses its **instance principal** for OCI management. Container Instances u
 
 Use the full [IAM policy guide](../../iam-policy.md), replacing placeholders with the actual identity-domain/group subjects and VM compartment. Grants depend on enabled features. Typical capabilities include container lifecycle, private repositories, permitted secret metadata/bundles and use of existing network attachments.
 
-`manage stream-family` in the VM compartment covers OCI streams, stream pools and Connect configurations. It does not grant managed Kafka cluster administration. Container principals need permitted produce/consume/read access and secret/repository access separately. A list success proves that read operation only.
+`manage stream-family` in the VM compartment covers OCI streams and stream pools. Native produce/consume permissions are needed for the relevant principal. Container principals need permitted produce/consume/read access and secret/repository access separately. A list success proves that read operation only.
 
 App ownership tags guard app actions but are not an IAM isolation boundary. Review dynamic-group membership, especially rules that match every Container Instance in a compartment. The application cannot authorize changes outside its compartment merely because a broader IAM policy exists.
 
@@ -304,22 +320,18 @@ Keep safe OCI request IDs for troubleshooting. A 403/404 may indicate membership
 
 ## 9. First working flow: setup order
 
-Use this sequence after installation. Each stage has a corresponding screen described later.
+1. Verify the OL9 application and embedded repository login. Run setup/access checks.
+2. Register source and target connections using Vault password references; test both.
+3. Review source ROW/FULL binlogging, GTIDs, retention, stable keys and grants.
+4. In OCI resources, select/create the active Streaming pool and data stream. Register the pool connection without a username or messaging token.
+5. Build/publish the native Debezium and writer images in the private registry. Select compatible digest-pinned releases and private workload networking.
+6. Register a mapping: one table, `database.*` or `*.*`; choose target grouping and End, Start or Specific GTID. End is the default and avoids a row-copy snapshot.
+7. Run source checks. Prepare/select the data stream; prepare the single-partition schema stream `audit_<flow-id>`. Deployment also prepares the schema stream automatically.
+8. Deploy. Confirm the source task and writer are running, then verify queue arrival and newest target events/checkpoints.
+9. Use approved isolated CREATE/UPDATE/DELETE operations to verify typed keys, full images, actual source table labels and replay behavior.
 
-1. Sign in, rotate the bootstrap password and sign in again.
-2. Open Configuration & setup. Test and register source/target connections using Vault references. Optionally create dedicated Debezium/history-writer users in Add connection; the setup administrator is replaced before registration.
-3. Open Runtime settings. Generate and configure the dedicated fingerprint secret using a same-compartment vault and existing encryption key.
-4. In OCI resources → OCI Streaming, create/select an active stream pool, data stream and a dedicated Connect configuration for the independent connector.
-5. In Queue connections, register the pool. OCI Streaming uses principal authentication; no queue username/token is needed.
-6. In Table mappings, load source and target objects through connection dropdowns. Choose a new audit table or a compatible existing one. Choose initial **End** for future changes only, or **Start** for a current-row snapshot.
-7. Select the mapping, run **Validate source** and resolve every Action required result. Prepare the schema topic `audit_<flow-id>` and verify both public topics are active.
-8. In Container Registry, build and publish Debezium and history-writer releases. In OCI Container Instances → Workload settings, select their completed releases, network/shape settings and save both roles.
-9. In Control Center select the flow and Deploy. Inspect Debezium process/task state and writer process state; then check actual queue messages and target evidence.
-10. On an authorized test table, perform INSERT, UPDATE and DELETE for one known primary key. Confirm the three operations and their correct before/after images in Audit Center.
-
-**Completion means verified evidence, not just an Active badge.** Compare source commit time, queue partition/offset, target event and target checkpoint progress. Keep the same registration identities and fingerprint key when continuity is intended.
-
-The provided [five-minute demonstration](https://ivanxma.github.io/hw_data_audit_center/demo/) illustrates these concepts with sample data. It is not proof that a particular deployment meets its operational or recovery requirements.
+Keep a reviewed record of stream IDs, source lineage, offsets, JDBC history,
+fingerprint secret and delivery state. Container ACTIVE alone does not prove capture.
 
 <a id="login"></a>
 
@@ -402,6 +414,9 @@ Enabled buttons can still be rejected by server-side scope, ownership, state and
 Use this page for a first health overview. If a flow needs attention, open Control Center and inspect both workload tips. A green process state does not establish that data has arrived. Use Message Explorer and Audit Center for evidence, and workload logs/checkpoints for diagnosis.
 
 **Watch demo** opens the signed-in `/demo/` playback page. Play or pause the narrated video in the browser, use native seek/full-screen controls, enable English captions or select a chapter. The page does not require an MP4 download.
+
+
+**User manual** opens the deployed HTML guide. Its downloads include the PDF and PowerPoint overview. Watch demo opens the signed-in video player with narration, captions and chapters.
 
 
 <a id="connections"></a>
@@ -497,40 +512,307 @@ For password rotation on a referenced deployed connection, preserve the secret r
 
 ## 15. Configuration: register a table mapping
 
-![Registered table mappings](../assets/screenshots/table-mappings.png)
+![Registered mappings](../assets/screenshots/table-mappings.png)
 
-*Registered table mappings. Illustrative screenshot using the current templates and isolated sample data.*
+*Illustrative screenshot from current templates with isolated sample data.*
 
+![Wildcard source and target grouping](../assets/screenshots/mapping-dialog.png)
 
+*Illustrative screenshot from current templates with isolated sample data.*
 
-![Source/target object dropdowns and initial capture choice](../assets/screenshots/mapping-dialog.png)
+Open **Table mappings → Register table** after source/target connections and the Streaming pool connection exist.
 
-*Source/target object dropdowns and initial capture choice. Illustrative screenshot using the current templates and isolated sample data.*
-
-
-Open **Table mappings → Register table** after registering source and target connections. Object lists are fetched from the selected database connections; the UI does not require typing table names.
-
-| Field | Meaning / condition |
+| Field | Meaning |
 | --- | --- |
-| Flow name | Unique operational label using letters, digits, underscore or hyphen |
-| Source connection / Target connection | Select the appropriate registered roles |
-| Source schema / Source table | Select a visible source object; needs a stable primary key and approved grants |
-| Target schema | Existing writable schema on the target |
-| Target audit table | Select a compatible audit table or Create new audit table; a business table is not automatically compatible |
-| Messaging connection | Registered OCI Streaming pool or supported managed Kafka connection |
-| Stream / topic | Existing data stream/topic in that connection; loaded after connection selection |
-| Connect harness | OCI Streaming only; active dedicated Connect configuration for this independent connector |
-| Initial capture | Start snapshots current rows; End captures schema then future changes only |
+| Flow name | Unique operational label |
+| Source / target connection | Registered connections with the required role and Vault reference |
+| Source database / table | One table, one database with `*`, or `*.*`; stable primary keys required |
+| Target schema | Existing writable target schema |
+| Target audit table | Compatible audit table or new root/prefix for generated destinations |
+| Target grouping | By flow, by source database, or by source table |
+| OCI Streaming connection | Active registered stream pool |
+| Data stream | Existing prepared stream in the selected pool |
+| Initial capture | End by default; Start snapshots current rows; Specific GTID starts after the validated processed set |
+| GTID set and Check | Visible for Specific GTID; supports multiple UUID groups and intervals; shows executed/purged bounds |
 
-**Save mapping** creates a draft, not running containers. **Cancel / ×** closes the dialog. Register table is unavailable until sufficient source/target registrations exist. Connection/object and queue dropdowns remain disabled while their prerequisites are missing or inaccessible.
+**Save mapping** creates a draft. Select the mapping for source checks and schema
+stream preparation. Deployment prepares missing schema infrastructure, not a missing
+selected data stream. Wait for the data stream to become active before deploying.
 
-Select one mapping and choose **Validate source** to check the live source. **Prepare schema topic** prepares `audit_<flow-id>` with one partition alongside the selected data topic. Wait for readiness before deployment. **Edit** follows the draft/deployed restrictions in section 14.
+Overlapping source aliases, incompatible audit targets, reserved state tables and
+feedback paths are rejected. Deployed scope and grouping are locked to preserve
+history; register a new mapping for a different data path. See the source-scope
+and target-layout reference below.
 
-The app rejects duplicate physical source aliases, incompatible target layouts, source/target feedback paths and reserved recovery-table mappings. Retain one source table, one data topic and one audit payload table per flow in this prototype.
+<a id="source-layouts"></a>
+
+## 16. Source scopes and target layouts
+
+A mapping selects which source row changes belong to a flow and how the writer
+organizes their audit history. The target uses fixed audit-event JSON columns;
+it does not recreate each source table's columns.
+
+## Source selection
+
+| Source selection | Captured scope |
+| --- | --- |
+| `sales.orders` | One named base table |
+| `sales.*` | Eligible base tables in one database |
+| `*.*` | Eligible base tables across source databases |
+
+Use the database and table selectors in **Register table**. The wildcard is a
+whole-name choice; partial patterns such as `sales.order*` are not supported.
+Literal names are escaped when constructing Debezium's anchored regular-expression
+filters. Internal/system databases are excluded. Registered audit-target schemas
+on the same source server are excluded to prevent capture feedback.
+
+Source checks inspect metadata and primary keys, not table contents. Current
+inventory is limited to 1,000 tables; a larger result is rejected rather than
+silently truncated. Every included table needs a complete stable primary key.
+A new table or database that matches the saved scope can be discovered while
+capture runs. A newly created keyless table is not silently ignored: unsupported
+row events stop the writer for review. Review filters and exclusions when adding
+new databases, audit destinations or broad source registrations.
+
+Broad capture increases schema/change volume and may include sensitive application
+data. Choose the narrowest scope that meets the audit requirement. Source account
+permissions and metadata visibility must cover the intended databases; a wildcard
+does not grant MySQL privileges. Overlapping registrations on the same source and
+unsafe source-to-target feedback paths are rejected.
+
+## Target grouping
+
+All three choices use the selected target connection and schema.
+
+| Grouping | Physical audit destination |
+| --- | --- |
+| **By flow** | One audit table for every source table in the flow |
+| **By source database** | One generated audit table per actual source database |
+| **By source table** | One generated audit table per actual source database/table pair |
+
+For example, `sales.orders`, `sales.customers` and `billing.orders` produce one,
+two or three physical audit tables respectively. By database does **not** create
+one target schema per source database. The registered target-table name acts as
+the root/prefix for generated destinations. Names include a deterministic hash
+of the complete source namespace and flow identity, remain within MySQL's name
+limit, and are recorded in durable route/ownership tables.
+
+The writer creates a destination only after claiming ownership. It refuses an
+unowned existing physical table rather than treating it as an empty audit store.
+Interrupted creation can resume from its saved claim. The root table retains the
+flow's retention anchor even when generated destinations hold the row events.
+
+Each event retains its actual source database and table. Row-key hashes include
+that namespace, so identical primary keys in different tables remain distinct.
+The flow has one writer lease, one source offset namespace, and its prepared data
+and schema streams. Grouping does not create a connector or stream per table.
+Writes to several physical destinations are recoverable commits, not one atomic
+cross-table/source transaction. Replay checks prevent supported duplicate events
+when a later grouped write or checkpoint fails.
+
+## Browsing and operating boundaries
+
+Audit Center combines the flow's owned destinations for history and charts. Filter
+by source database/table; a primary-key lookup must identify one actual table
+(and a database for `*.*`). Audit partitions lets you choose a generated physical
+table. Large JSON pages sort event coordinates before loading selected payloads.
+
+End and initial Specific GTID are supported for wildcard mappings without copying
+existing rows. Start requests an initial row snapshot across the included scope
+and can be expensive. Normal restarts and image replacements retain full offsets.
+**Historical repositioning of an already deployed wildcard flow is disabled**
+until complete schema-baseline coverage across all included tables can be proven.
+The single-table historical preview does not imply that capability for a wildcard.
+
+**Automatic retention cleanup for grouped targets is disabled.** Use a separately
+reviewed, coordinated maintenance procedure that preserves the flow's payload,
+deduplication, delivery, schema, routing and fragment evidence together. A row
+count or an old root table alone is not sufficient cleanup evidence.
+
+Once deployment history exists, source scope and target grouping are locked.
+Register a new flow for a changed data path; do not edit identifiers under saved
+checkpoints. See [capture position](../../capture-start.md),
+[Streaming and size limits](../../streaming-and-size-limits.md) and
+[coverage limitations](../../limitations.md).
+
+<a id="stream-capacity"></a>
+
+## 17. Streaming buffers, size limits and request control
+
+The deployed path is source MySQL binlog → embedded Debezium Engine → native
+OCI Streaming → history writer → target audit store. The capture and writer use
+OCI SDKs over HTTPS with resource principals. No Object Storage overflow path is
+used. Ordinary events keep their original key and full Debezium envelope.
+
+## Why stage changes in a stream?
+
+A durable stream lets capture publish while a writer is stopped, slow or being
+replaced. The writer later resumes from its target delivery checkpoint. Source
+capture and target apply can progress at different speeds, and short apply-side
+interruptions need not force an immediate source replay. Stream retention bounds
+this buffer: it is not an unlimited archive or a substitute for source binlogs.
+
+There is a significant dependency in this implementation: the **source offset and
+Debezium JDBC schema history are stored in the target database too**. If the entire
+target database is unavailable, capture can also pause when it needs that state.
+Streaming decouples publishing from row apply, but does not make capture fully
+independent of the target database. Preserve enough source binlog retention for
+that outage and enough stream retention for the writer's recovery. An independent
+capture-state database would be an additional design change.
+
+## Which limits can change?
+
+| Boundary | Current behavior | Operator control |
+| --- | --- | --- |
+| OCI message and PUT request | Service maximum remains 1 MiB; batching must fit the request too | Application configuration cannot raise the service maximum |
+| Publisher request budget | At most 900,000 estimated encoded bytes, including keys and overhead | Fixed conservative application budget |
+| Normal event | Original key/value in one message if it fits the publisher budget | No fragmentation for events that fit |
+| Oversized event | Lossless framing, with chunks of at most 400,000 packed bytes | Automatic within the logical event limit |
+| Logical event | Default 16 MiB for packed key, value and framing header | `streaming.max_event_bytes`: 1–64 MiB |
+| Incomplete fragment custody | Default 128 MiB reserved per flow | `streaming.max_pending_fragment_bytes`: at least one maximum event, at most 1 GiB |
+| Target database | JSON/document, packet, connection and storage limits still apply | DBA settings and supported service configuration; application limits do not override them |
+
+The publisher budget is deliberately below the service ceiling. An event smaller
+than 1 MiB in raw JSON may still need fragments because the key, UTF-8, base64
+encoding, full envelope and request structure consume space. Inspect serialized
+bytes rather than character count. Oracle describes chunking and external payload
+storage as large-message designs; this application implements chunking.
+[OCI publishing and large messages](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/publishing.htm),
+[PutMessages request limit](https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/streaming/stream/message/put.html).
+
+## Debezium envelope overhead
+
+The `payload` contains the operation, before/after values and source coordinates.
+The outer `schema` describes the serialized fields and their types. A two-column
+update can therefore carry far more metadata than changed business values. Source
+metadata describes the event's origin and replication position; database passwords
+and connection secrets are not part of the row message.
+
+This release retains the complete schema and both images for supported updates.
+It does not silently remove fields or change typed fingerprint semantics. Debezium
+JSON serialization can omit repeated schema descriptions, but a compact mode needs
+an explicit schema recovery/versioning contract and compatibility validation.
+Such a mode is **not implemented here**. Removing unchanged columns or the BEFORE
+image would also change what audit history can establish. Fragmentation preserves
+information; it is not compression and adds some bytes and processing work.
+[Debezium Engine serialization](https://debezium.io/documentation/reference/development/engine.html).
+
+Snapshots read current source rows directly. End and Specific GTID establish
+schema and follow binlog events without a row-copy snapshot. A broad wildcard
+scope still increases metadata and change volume; skipping the snapshot does not
+remove the cost of reading and serializing large row changes.
+[Debezium MySQL connector](https://debezium.io/documentation/reference/3.4/connectors/mysql.html).
+
+## Fragment delivery and recovery
+
+1. The publisher measures the complete key/value. A normal event stays one message.
+2. An oversized event is packed with the original key and split. Each part includes
+   its index/count, declared size, message identity and part/full SHA-256 checksums.
+   A stable routing key keeps the parts of that event in one stream partition.
+3. The source checkpoint advances only after every required part was accepted.
+   A partially accepted request cannot acknowledge an unpublished source event.
+4. The writer commits fragment custody before advancing the delivery checkpoint
+   past an incomplete part. A restart can resume from those saved parts.
+5. Only complete, validated events enter the normal audit writer. The original
+   before/after data, schema and key are reconstructed; partial events never become
+   audit rows. Completed payload blobs are released after durable delivery state
+   proves completion. Compact receipts remain for replay checks.
+
+A source restart can regenerate processing timestamps in an envelope. That can
+produce a different fragment generation for the same underlying source event.
+An older incomplete generation is retained even when a later complete generation
+arrives. Source-coordinate deduplication protects supported row events, but does
+not automatically reconcile every abandoned fragment set. Review retained custody
+and source/delivery evidence before explicit cleanup. The pending limit stops
+further custody instead of silently discarding incomplete data.
+
+Complete receipts, the event deduplication ledger and audit payloads have different
+lifetimes. This release does not automatically prune every receipt. Grouped target
+retention also requires coordinated maintenance. Neither source transactions nor
+writes across multiple target tables form one distributed atomic transaction.
+
+## Fewer requests before retries
+
+Several small events share one `PutMessages` request while remaining separate OCI
+messages. A request is flushed when its byte budget, record count or destination
+requires it. Data and schema streams require separate requests. No custom aggregate
+wrapper is added around normal events.
+
+| Runtime JSON setting under `streaming` | Default | Purpose |
+| --- | ---: | --- |
+| `put_max_records` | 500 | Maximum records per engine/publish batch, bounded by bytes |
+| `put_requests_per_second` | 4 | Request ceiling per stream |
+| `put_bytes_per_second` | 850000 | Smooth estimated encoded PUT bytes per stream |
+| `get_max_records` | 1000 | Fetch more queued records in one GET |
+| `get_idle_max_ms` | 2000 | Back off empty partition polls up to this delay |
+| `get_bytes_per_second` | 1500000 | Pace reads by estimated response bytes per partition |
+
+Publishing uses the lower of the configured byte rate and 850,000 times the stream's
+partition count. A hot key can concentrate traffic in one partition, so increasing
+the rate or partition count does not guarantee higher usable throughput. Reading
+waits at least 250 ms between requests for the same partition and slows further
+for byte volume or idle queues. Backoff adds some latency when a quiet queue
+becomes active. Each source engine also has a bounded 64 MiB change queue.
+
+Retries remain bounded fallback handling. HTTP success does not prove every PUT
+entry succeeded: the publisher checks individual results, including numeric `429`,
+and retries only rejected entries. A failed batch retains the source checkpoint.
+GET retries retain the same cursor; target checkpoints move only after durable
+custody or audit commits. Partition throughput, API management quotas and workload
+lifecycle quotas are distinct constraints; identify the service and operation from
+the actual error rather than assuming PUT and GET share one global quota.
+[OCI Streaming throttling](https://docs.oracle.com/en-us/iaas/Content/Streaming/Reference/troubleshootingstreaming.htm).
+
+The Control Center page polls every 15 seconds, but shared status samples limit OCI
+reads across tabs and web workers: up to 45 seconds for settled states, 10 seconds
+during transitions. A throttled status read is shared too; the page does not
+immediately duplicate it. **Checked** displays the actual sample time.
+
+Save Runtime settings, then choose **Control Center → More actions → Apply stream
+settings**. This uses the selected workload images and replaces the writer before
+the source while retaining history and checkpoints. An interrupted operation can
+be resumed with the same action. Unchanged effective policy/image pairs are kept.
+The action permits unchanged or increased message/custody limits; reducing them
+requires a separately reviewed drain and retained-fragment reconciliation.
+
+Publisher health counters include PUT requests, accepted physical messages, wire
+bytes, throttled entries and logical events. Writer logs report GET requests,
+records, bytes, empty responses, retries and throttles. Compare deltas for a known
+workload instead of relying on retry counts alone.
+
+## Target size and browse limits
+
+The target stores keys, images and schema as JSON in a fixed audit structure. It
+is not a column-for-column replica of the source's wide row. InnoDB page/row rules
+therefore differ from the total JSON payload size, and large values can use
+out-of-page storage. This does not make JSON or network packets unlimited.
+A JSON value is constrained by `max_allowed_packet`; client/server packet settings,
+writer memory, serialization expansion and batch size must also be adequate.
+[MySQL JSON limits](https://dev.mysql.com/doc/refman/8.4/en/json.html),
+[packet limits](https://dev.mysql.com/doc/refman/8.4/en/packet-too-large.html),
+[storage requirements](https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html).
+
+Raising the application event limit cannot raise the database's limits. Test the
+largest full update, including both images and schema, under representative load.
+The writer bounds batch bytes; one assembled event can exceed that ordinary batch
+budget while remaining subject to the logical event ceiling. Audit Center pages
+sort lightweight event coordinates before retrieving selected JSON payloads,
+avoiding a large JSON sort. Selected payloads are still loaded for the page: many
+very large events can produce a heavy browser response.
+
+## Validation scope
+
+Live validation on 28 October 2026 delivered large Unicode CREATE, UPDATE and
+DELETE events exactly once in each of the three target layouts, verified partial
+writer reassembly recovery, and restarted source and writer without changing
+retained history. A separate burst of 100 row events plus one schema event used
+**2 PUT requests, 101 physical messages, zero throttled entries**. Normal events
+remained single messages. This is a functional batching result for that fixture,
+not a general throughput or latency benchmark.
 
 <a id="runtime"></a>
 
-## 16. Runtime settings and fingerprint-key setup
+## 18. Runtime settings and fingerprint-key setup
 
 ![Runtime settings with dedicated row-history key setup](../assets/screenshots/runtime-key.png)
 
@@ -553,15 +835,18 @@ Once configured, the app prevents removal or replacement of the fingerprint-secr
 
 ### Settings that operators commonly review
 
-`streaming` selects principal mode, pool, harness and Connect-state profiles. `debezium` and `processor` select workload network, shape, image and secret references. `processor.batch` and offset commit interval bound writer work. `mysql_tls` is global transport policy. `retention` contains explicit per-flow cleanup policies.
+`streaming` selects the native pool, logical/custody limits, PUT batching/pacing and GET polling policy. `debezium` and `processor` select workload network, shape, image and secret references. `processor.batch` and offset commit interval bound writer work. `mysql_tls` is global transport policy. `retention` contains explicit per-flow cleanup policies.
 
-Saving a revision does not update effective settings inside existing containers. Select/build the required image and use the matching controlled Update action to replace a workload. Review continuity before changing queue incarnation, source identity, group or target; a configuration edit must not silently reset them.
+Saving a revision does not update effective settings inside existing containers. Use Control Center → More actions → Apply stream settings with compatible selected images. It replaces the writer first and retains checkpoints; limit reductions require a separately reviewed drain. Review continuity before changing queue incarnation, source identity, group or target; a configuration edit must not silently reset them.
 
 The configuration contains sensitive deployment references even without passwords. Keep its real file on the VM and out of Git. Examples in this manual are placeholders.
 
+Defaults: logical event 16 MiB, incomplete custody 128 MiB; PUT batch 500, request ceiling 4/sec and estimated bytes 850,000/sec per stream; GET batch 1,000, idle maximum 2 seconds and estimated bytes 1,500,000/sec per partition. See the complete Streaming reference below.
+
+
 <a id="source-checks"></a>
 
-## 17. Source validation and full row images
+## 19. Source validation and full row images
 
 ![Live source validation results and recommended settings](../assets/screenshots/source-validation.png)
 
@@ -589,14 +874,14 @@ Prepare the public schema topic before Deploy. It is distinct from the data topi
 
 <a id="services"></a>
 
-## 18. OCI resources: common controls
+## 20. OCI resources: common controls
 
 ![OCI resources with service tabs, compartment scope and inventory](../assets/screenshots/streaming.png)
 
 *OCI resources with service tabs, compartment scope and inventory. Illustrative screenshot using the current templates and isolated sample data.*
 
 
-Open **Configuration & setup → OCI resources**. The service tabs are OCI Streaming, Apache Kafka, OCI Container Instances, Container Registry, Vault, HeatWave and Queue connections. Existing resources with lifecycle state DELETED are filtered from inventories.
+Open **Configuration & setup → OCI resources**. The service tabs are OCI Streaming, OCI Container Instances, Container Registry, Vault, HeatWave and Queue connections. Existing resources with lifecycle state DELETED are filtered from inventories.
 
 | Control / column | Meaning and condition |
 | --- | --- |
@@ -616,97 +901,68 @@ The app provisions resources and attaches existing networking inside scope; it d
 
 <a id="streaming"></a>
 
-## 19. OCI Streaming: pools, streams and harnesses
+## 21. Native OCI Streaming: pools and streams
 
-![Create stream dialog](../assets/screenshots/stream-create.png)
+![Native OCI Streaming resources](../assets/screenshots/streaming.png)
 
-*Create stream dialog. Illustrative screenshot using the current templates and isolated sample data.*
+*Illustrative screenshot from current templates with isolated sample data.*
 
+OCI Streaming uses its native HTTPS APIs. Select or create an active same-compartment stream pool and prepare the data stream plus the separate single-partition schema stream. Each flow binds delivery state to the actual stream IDs.
 
-Create/select the pool first. Use a data stream for row envelopes and a separate public schema stream named `audit_<flow-id>`. Each independent connector needs isolated Connect configuration/offset/status state; select a dedicated Connect harness/profile.
+| Resource / action | Meaning |
+| --- | --- |
+| Stream pool | Service grouping selected by the queue connection |
+| Data stream | Row events; choose partitions and retention for measured load |
+| Schema stream | `audit_<flow-id>`, exactly one partition |
+| Refresh | Reload permitted service inventory |
+| Create | Submit the supported typed resource form with reviewed scope |
+| Delete | Guarded by compartment, ownership, lifecycle and in-use checks |
 
-| Form | Field | Purpose / condition |
-| --- | --- | --- |
-| Stream pool | Name | Operational display name |
-| Stream pool | Private endpoint subnet (optional) | Existing same-compartment subnet; requires private access/DNS/network review |
-| Stream | Name | Unique usable name within the chosen pool |
-| Stream | Stream pool | Existing active pool |
-| Stream | Partitions | Choose for anticipated load at creation; public schema stream must have one |
-| Stream | Retention (hours) | Form allows 24–168; default 168 (seven days) |
-| Connect harness | Name | Dedicated Connect configuration for connector state |
+The pool connection needs no Kafka/SASL credentials. The VM uses its instance
+principal; capture/writer use container resource principals. Source offsets and
+private schema history are in the target database. Public schema events remain
+in their own stream for the writer.
 
-**Create** submits the specific resource; **Cancel / ×** abandons the form. **Refresh** observes lifecycle progress. Do not deploy until data, public schema stream and harness are ready and accessible to the relevant principals.
-
-OCI Streaming is accessed through its Kafka-compatible endpoint; this does not require running a separate Kafka cluster. This app uses principal authentication and JDBC private schema history for this transport. Oracle documents differences including unavailable compaction, Kafka transactions, idempotent production and dynamic partition addition; do not assume Kafka configuration examples apply unchanged. See [Streaming compatibility](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm).
-
-Public schema history is not the Connect harness state and is not Debezium's private schema recovery store. Keep all three purposes distinct during provisioning and cleanup.
+Retention is a bounded delivery buffer. Recreating a stream changes its identity
+and cannot silently reuse old checkpoints. A missing required data stream is a
+readiness error: prepare it in the selected pool. See the buffering and size limits
+reference for fragmentation and request pacing.
 
 <a id="queues"></a>
 
-## 20. Queue registrations and topic management
+## 22. Queue registrations and topic management
 
-![Queue registrations and topic management](../assets/screenshots/queues.png)
+![OCI Streaming connections](../assets/screenshots/queues.png)
 
-*Queue registrations and topic management. Illustrative screenshot using the current templates and isolated sample data.*
+*Illustrative screenshot from current templates with isolated sample data.*
 
+![Register a native Streaming pool](../assets/screenshots/queue-dialog.png)
 
+*Illustrative screenshot from current templates with isolated sample data.*
 
-![OCI Streaming queue connection without username or token](../assets/screenshots/queue-dialog.png)
+Open **OCI resources → Queue connections → Add OCI Streaming connection**.
 
-*OCI Streaming queue connection without username or token. Illustrative screenshot using the current templates and isolated sample data.*
-
-
-Open **OCI resources → Queue connections → Add queue connection**.
-
-| Field / action | Meaning and condition |
+| Field / action | Meaning |
 | --- | --- |
-| Name | Human-readable queue registration |
-| Service | OCI Streaming or supported managed Apache Kafka |
-| Stream pool / Kafka cluster | Select an existing active same-compartment service resource |
-| Kafka/SASL username | Kafka only; hidden and disabled for new OCI Streaming principal-mode connections |
-| Kafka password secret | Kafka only; same-compartment Vault credential reference |
-| Register queue connection | Verify the selected service and save its registration |
+| Name | Human-readable registration label |
+| Stream pool | Existing active pool in the selected compartment |
+| Register connection | Validate the pool and save the registration |
+| Edit | Change permitted registration fields; in-use resource identity stays fixed |
+| Delete registration | Remove an eligible local registration; does not delete the pool |
 
-OCI Streaming uses the VM instance principal for app access and container resource principals for Debezium/writer access. No queue username/token secret is required for this mode. Legacy SASL settings are not a reason to add credentials to a new principal-mode registration.
+No messaging username, password/token or external connector harness is requested.
+Source/target passwords remain separate Vault references.
 
-### Streams / Kafka topics panel
-
-Choose **Messaging connection** to load its topics. **Create topic** asks for Messaging connection, Topic name and Partitions. Topic names use letters, digits, dot, underscore or hyphen; the form bounds partitions to 1–1000, while actual service limits can be lower. This action requests seven-day retention and does not silently change an existing topic.
-
-**Refresh** reloads topic state. Use **Prepare schema topic** on the selected mapping for its required single-partition schema stream. Existing matching app-owned topic requests are reconciled; foreign or incompatible topics are not silently adopted. Topic deletion remains guarded by ownership/in-use checks and retention implications.
-
-Select exactly one queue registration for **Edit**. Referenced/app-topic-backed registrations keep their service resource fixed. A queue registration Delete removes the allowed local registration; it does not by itself delete the pool.
-
-<a id="kafka"></a>
-
-## 21. Apache Kafka alternative
-
-![Managed Apache Kafka cluster and configuration inventories](../assets/screenshots/kafka.png)
-
-*Managed Apache Kafka cluster and configuration inventories. Illustrative screenshot using the current templates and isolated sample data.*
-
-
-OCI Streaming is sufficient for the primary workflow. The application also exposes managed Apache Kafka resources; this tab is optional and uses different OCI and broker permissions.
-
-| Form / fields | Purpose |
-| --- | --- |
-| Kafka configuration: Name, Kafka properties (JSON) | Create the cluster configuration; JSON must be valid |
-| Cluster: Name, Kafka configuration, Configuration version | Select the configuration/revision for the cluster |
-| Subnet | Existing permitted same-compartment network attachment |
-| Supported Kafka version / Coordination type | Supply values supported by the selected regional service/API |
-| Cluster type | PRODUCTION or DEVELOPMENT |
-| Broker node shape / Broker nodes | Service-supported shape and node count |
-| OCPUs per broker / Storage per broker (GB) | Capacity requests within service limits |
-
-These cluster-version/shape fields are typed fields in the current prototype, unlike the HeatWave shape/version dropdowns. Review service-supported values before submission. **Create** is asynchronous; **Refresh** observes completion. Configuration resources may be blocked from deletion while referenced by a cluster.
-
-Register the active cluster in Queue connections with broker username and Vault password secret. The implementation uses SCRAM-SHA-512 over TLS on 9092; mTLS is not implemented. Configure broker/topic ACLs in addition to OCI management IAM. Independent connectors need isolated state topics; Kafka private schema history is different from the OCI Streaming JDBC history path.
-
-An unavailable/denied Kafka inventory does not mean an OCI Streaming flow requires Kafka permissions. Correct the selected service permissions or continue with the intended Streaming configuration; do not change identity or broaden to tenancy-wide access.
+The streams panel loads streams for the selected connection. **Create topic** asks
+for name and partition count; actual OCI limits/capacity still apply. The action
+requests seven-day retention without changing an existing stream's policy.
+**Prepare schema topic** on a mapping prepares its one-partition `audit_<flow-id>`
+stream. Ownership/in-use checks guard deletion; deleting an unconsumed stream
+removes its retained delivery buffer.
 
 <a id="registry"></a>
 
-## 22. Container Registry and image builds
+## 23. Container Registry and image builds
 
 ![Container Registry and image release inventory](../assets/screenshots/registry.png)
 
@@ -737,7 +993,7 @@ A newly completed build does not replace running containers. In Control Center s
 
 <a id="containers"></a>
 
-## 23. Container Instances and workload settings
+## 24. Container Instances and workload settings
 
 ![OCI Container Instances inventory](../assets/screenshots/containers.png)
 
@@ -773,7 +1029,7 @@ Use flow controls for app-owned workloads. Resource inventory deletion and retir
 
 <a id="vault"></a>
 
-## 24. Vault and password references
+## 25. Vault and password references
 
 ![Vault and secret inventories](../assets/screenshots/vault.png)
 
@@ -797,7 +1053,7 @@ Use the **Vault** tab to list vaults and secrets. New vault creation asks for **
 
 **Create** submits the chosen resource; **Cancel / ×** discards the form. **Refresh** checks readiness. Selecting the resource later uses its identifier, not its plaintext value. Secret creation needs Vault/key encryption rights; reading existing secret metadata and retrieving secret bundles are different permissions.
 
-Use separate purpose-specific secrets: source DB password, target DB password and the dedicated row-history fingerprint key. Kafka credentials or an optional registry pull secret are additional only for their configured modes. The key-generation screen creates the fingerprint secret; it should not contain a database password.
+Use separate purpose-specific secrets: source DB password, target DB password and the dedicated row-history fingerprint key. An optional registry pull secret is used only for its configured authentication mode. The key-generation screen creates the fingerprint secret; it should not contain a database password.
 
 Delete controls are app-ownership/in-use guarded. Vault/secret deletion is scheduled according to the OCI operation; it is not always immediate. Do not schedule deletion of the fingerprint secret or a credential needed by retained history/recovery. Review actual OCI state after submission.
 
@@ -805,7 +1061,7 @@ Workloads resolve permitted secrets through their own resource principals. Succe
 
 <a id="heatwave"></a>
 
-## 25. HeatWave DB resource controls
+## 26. HeatWave DB resource controls
 
 ![HeatWave DB system inventory](../assets/screenshots/heatwave.png)
 
@@ -843,7 +1099,7 @@ The app does not send ETag/If-Match for HeatWave OCI operations. Fresh compartme
 
 <a id="repository"></a>
 
-## 26. Embedded repository page
+## 27. Embedded repository page
 
 ![Embedded MySQL repository information](../assets/screenshots/repository.png)
 
@@ -862,7 +1118,7 @@ Do not copy local repository files, `.runtime.env`, sessions, TLS keys or an app
 
 <a id="control"></a>
 
-## 27. Control Center: flow row and status
+## 28. Control Center: flow row and status
 
 ![Control Center with one selected flow and component status blocks](../assets/screenshots/control.png)
 
@@ -895,9 +1151,12 @@ Each process block shows a compact latest-error summary and report time alongsid
 
 *Illustrative failed-writer example: MySQL code and report time; click the field for the failed step and next action. No live credentials or row images are shown.*
 
+The page polls every 15 seconds. Shared OCI samples can be 45 seconds old for settled workloads or 10 seconds during transitions. Checked shows the actual cloud sample time. An image difference from the saved default is informational, not a source-database failure.
+
+
 <a id="control-actions"></a>
 
-## 28. Control Center: action conditions
+## 29. Control Center: action conditions
 
 All lifecycle actions require an administrator, exactly one selected flow and fresh supported state. The backend repeats readiness, scope, ownership and flow-lock checks.
 
@@ -909,6 +1168,7 @@ All lifecycle actions require an administrator, exactly one selected flow and fr
 | Stop both workloads | At least one workload ACTIVE; explicit maintenance stop of both components |
 | Update Debezium image | Deployed Debezium ACTIVE/INACTIVE; open the release picker, select a different published release, then preflight, stop, wait and replace Debezium only |
 | Update history writer image | Deployed writer ACTIVE/INACTIVE; open the release picker and select a different published release; replace writer only; capture may keep adding messages |
+| Apply stream settings | Both workloads in ACTIVE/INACTIVE states; apply saved message/pacing policy and selected images, writer first; same image digest is allowed; reductions require separate drain/review |
 | Restart | Both components registered with supported ACTIVE/INACTIVE states; restart with existing state, no new position |
 | Source checks / Capture start / Audit partitions | Open the selected flow's corresponding page; that page independently validates actions |
 | Prepare schema topic | Non-retired flow with a queue registration; prepare required schema stream/topic |
@@ -944,56 +1204,72 @@ The release ID and the instance shown in the dialog are checked again under the 
 
 <a id="capture"></a>
 
-## 29. Choose where Debezium begins reading
+## 30. Capture start, GTID sets and purged history
 
-![Capture start choices for an existing flow](../assets/screenshots/capture-start.png)
+![GTID source bounds and capture positions](../assets/screenshots/capture-start.png)
 
-*Capture start choices for an existing flow. Illustrative screenshot using the current templates and isolated sample data.*
+*Illustrative screenshot from current templates with isolated sample data.*
 
+A new mapping supports End (default), Start, and Specific GTID. End and GTID
+establish schema without scanning current rows. Start reads current source rows
+directly and then follows the binlog. Large snapshots require source capacity,
+locking and retention planning. The target's fixed JSON audit structure does not
+require a row-copy baseline to record later changes.
 
-Open **Control Center → select one flow → More actions → Capture start → Run**. A new mapping's initial Start/End is also set during registration or an allowed draft Edit.
+For a deployed **single-table** flow, Capture start can preview supported retained
+Start/End/GTID or UTC datetime boundaries with proven schema coverage. Historical
+repositioning is disabled for deployed wildcard flows. Normal Start/Resume/Restart
+preserves full offsets and does not repeat initialization.
 
-| Choice | New flow | Existing compatible flow |
-| --- | --- | --- |
-| Start | Snapshot current rows, then stream changes | Replay after earliest retained schema baseline, without recreating the initial row snapshot |
-| End | Schema-only baseline, then future changes | Boundary fixed at preview time, subject to confirmed schema coverage |
-| Specific GTID | Unavailable until schema history exists | Supply the complete executed GTID set; read transactions after it |
-| Datetime | Unavailable until schema history exists | Resolve UTC time to first retained transaction at/after its commit timestamp |
+A GTID set means transactions **already processed**. For example:
 
-**Preview position** checks retained binlogs, executed/purged GTIDs and schema evidence, then shows the resolved source offset. It does not move the connector. A compatible capture-control image is required. The preview is actor/flow-bound and expires after five minutes.
+```text
+11111111-1111-1111-1111-111111111111:1-32:40-45,
+22222222-2222-2222-2222-222222222222:1-18
+```
 
-The supplied GTID set means already processed transactions, not a UUID include filter or instruction to include its final transaction. Non-cumulative holes and unsupported tagged sets are rejected. A source clock change can make timestamps non-monotonic; datetime is a boundary lookup, not a later per-event timestamp filter.
+Each UUID can have multiple intervals. Inspect executed, purged and selected sets.
+Required containment is `purged ⊆ selected ⊆ executed`: no transaction still needed
+for capture may have been purged. Already-processed purged transactions belong in
+the selected set. A complete supported transaction-order prefix and compatible
+schema boundary are also required; interval membership alone is insufficient.
+Unsupported holes and unavailable schema/binlog evidence are rejected.
 
-For an existing lagging connector, End/forward positioning can be rejected if it would skip uncaptured schema changes. Resume its checkpoint, let it catch up and preview again. Purged logs and positions older than the schema baseline cannot be replayed safely.
-
-Normal Start, Resume and Restart retain the saved position; they do not reapply this choice on every launch.
+A row event's `source.gtid` identifies its transaction, not the whole processed
+set or a unique row event. Keep file/position/event/row coordinates in the durable
+source offset too. See [capture position and recovery](../../capture-start.md).
 
 <a id="capture-apply"></a>
 
-## 30. Apply a reviewed capture position
+## 31. Apply a reviewed capture position
 
-![Resolved boundary and explicit one-time apply acknowledgement](../assets/screenshots/capture-preview.png)
+![Reviewed single-table capture boundary](../assets/screenshots/capture-preview.png)
 
-*Resolved boundary and explicit one-time apply acknowledgement. Illustrative screenshot using the current templates and isolated sample data.*
+*Illustrative screenshot from current templates with isolated sample data.*
 
+For an eligible deployed single-table flow, Preview position resolves and checks
+the proposed boundary without moving capture. Review source identity, full offset,
+retained schema evidence and the operational reason. Preview is actor/flow bound,
+expires after five minutes and must be regenerated if stale.
 
-Review the binlog file, position and GTID set together with the earliest schema baseline. Moving backward can replay messages; moving forward can skip uncaptured changes. Existing history and writer checkpoints are retained, so this is not a target reset.
+1. Generate a fresh preview on the intended flow.
+2. Review replay or skipped-history effects and tick the acknowledgement.
+3. Choose **Apply this position once**. Source/schema checks run again.
+4. Inspect the latest request result, source task, stream and target progress.
 
-1. Generate a fresh Preview position on the intended flow.
-2. Check its source identity, UTC boundary, retained-history coverage and operational reason.
-3. Tick the acknowledgement only after reviewing replay/skip effects.
-4. Choose **Apply this position once**. The source/schema checks run again.
-5. Refresh the page and review Latest position request until its result is known. Verify the connector task, queue and target after it resumes.
+The runtime controls the embedded engine through its loopback native capture API,
+saves/read-checks full offsets and resumes from the reviewed position. The OCI
+instance remains running. Applied requests are not repeated on ordinary restart.
+Writer checkpoints and existing target history are retained.
 
-The runtime stops the connector task through loopback Kafka Connect REST, saves its prior offset, patches/read-checks the reviewed offset and resumes. The OCI Container Instance itself remains running. Applied requests are not reapplied on a normal restart.
-
-An ambiguous/failed request can leave the task stopped for review. **Resume existing checkpoint** resumes the currently stored offset without requesting a different boundary; it does not promise the previous pre-request position. Do not repeatedly apply a new reset to resolve an unrelated writer/permission failure.
-
-A retired flow cannot change its position. Old images without the supported capture-control protocol cannot accept historical-position requests. Follow [capture positioning](../../capture-start.md) for detailed recovery semantics.
+An ambiguous failure can leave capture stopped for review. **Resume existing
+checkpoint** resumes the stored offset; it does not promise the former position.
+A retired flow cannot reposition. Wildcard historical repositioning remains
+disabled. Do not reset position to fix an unrelated writer or permission failure.
 
 <a id="messages"></a>
 
-## 31. Message Explorer
+## 32. Message Explorer
 
 ![Read-only sample with an expanded Debezium envelope](../assets/screenshots/messages.png)
 
@@ -1014,9 +1290,12 @@ For DML, Debezium uses `c` (create), `u` (update), `d` (delete) and `r` (snapsho
 
 This screen samples row data. Public schema events are archived separately and do not become ordinary row-image history entries. If the queue has the event but Audit Center does not, inspect writer health, target access, schema decoding, target checkpoint and any retention/conflict error. Do not move the source capture position to mask a downstream failure.
 
+Oversized-event parts are labelled with their fragment index/count in Message Explorer. They are transport pieces; the audit writer creates an event only after complete validated reassembly.
+
+
 <a id="audit-overview"></a>
 
-## 32. Audit Center: all databases overview
+## 33. Audit Center: all databases overview
 
 ![All databases pie chart and table availability](../assets/screenshots/global.png)
 
@@ -1044,7 +1323,7 @@ Use the same range/operation when comparing overview and drill-down counts. Coun
 
 <a id="history"></a>
 
-## 33. Audit Center: table history and lookup
+## 34. Audit Center: table history and lookup
 
 ![Table-specific history with a typed record-key lookup](../assets/screenshots/history.png)
 
@@ -1070,9 +1349,12 @@ Unkeyed browsing defaults to a bounded 24-hour window. Keyed lookup without an e
 
 Each row shows event time/identity, operation, record key and queue topic/partition/offset. Select exactly one row and choose **Compare images**. Click a field value for its full text. A key typo, wrong JSON type, wrong table/source or expired range can produce an empty result without implying capture failed.
 
+For wildcard flows, select the actual source database/table. Primary-key lookup needs one actual table; `*.*` also needs a database. Grouped destinations are combined for the selected flow.
+
+
 <a id="images"></a>
 
-## 34. Before/after images and operation meanings
+## 35. Before/after images and operation meanings
 
 ![Selected UPDATE showing its before and after images](../assets/screenshots/images.png)
 
@@ -1099,7 +1381,7 @@ The target retains a deleted row's earlier evidence until an explicit eligible r
 
 <a id="charts"></a>
 
-## 35. Charts, intervals and downloads
+## 36. Charts, intervals and downloads
 
 ![Operation legend and custom-range stacked-bar chart](../assets/screenshots/trends.png)
 
@@ -1128,7 +1410,7 @@ DDL-driven row-set changes are not counted as individual DML unless row events w
 
 <a id="ddl-dcl"></a>
 
-## 36. Schema changes and security auditing
+## 37. Schema changes and security auditing
 
 ### DDL: structural evidence
 
@@ -1160,7 +1442,7 @@ EXCHANGE PARTITION can swap millions of rows without changing the column structu
 
 <a id="daily-operations"></a>
 
-## 37. Daily operations and a controlled verification
+## 38. Daily operations and a controlled verification
 
 ### Start-of-shift checks
 
@@ -1189,7 +1471,7 @@ Retiring a flow stops workloads and retains audit evidence. Terminate retired co
 
 <a id="summary"></a>
 
-## 38. Summary and handover checklist
+## 39. Summary and handover checklist
 
 The application coordinates a registered table's journey from HeatWave binlog through Debezium and OCI messaging to retained audit evidence. Its useful result is a traceable before/after history that can be retrieved by typed row key and explored over time.
 
@@ -1197,7 +1479,7 @@ Before handing over an evaluation deployment, record:
 
 - Its prototype status, intended evaluation scope and accepted capability limits.
 - The app owner, OCI/database administrators, VM compartment, region and approved network access.
-- Source/target registrations, dedicated Connect state, both public streams and image release/digest selections.
+- Source/target registrations, complete source offsets and private JDBC history, both public streams and image release/digest selections.
 - The stable fingerprint-secret reference and the private state that must be preserved for recovery.
 - Evidence of full-image capture, process/task health, target-before-ack behavior and row-key lookup.
 - Tested source/queue outage windows, expected peak rates, target capacity and monitoring responsibilities.
@@ -1211,30 +1493,35 @@ Keep real deployment inventories/runbooks under private, Git-ignored `internal_d
 
 ## Appendix A. Scaling and massive change volume
 
-### What the current implementation can do
+One flow has one embedded Debezium reader and one history writer. A flow can
+capture one table, a database wildcard or an all-database wildcard. Grouping audit
+targets by flow/database/table does not add a reader or writer per table.
 
-Each table flow has one Debezium connector and one history-writer container. Multiple source databases are separate registrations/flows. Connector `tasks.max=1` means adding Connect task count does not parallelize one MySQL binlog reader. More table flows can reread the same source binlog, increasing source/network/state overhead.
+One MySQL binlog reader is not parallelized by increasing connector task count.
+Independent overlapping readers can multiply source/network work; scope overlap
+checks prevent unsupported duplicate mappings. The target writer lease enforces
+one active writer per flow. Arbitrary horizontal replicas are not supported.
 
-The writer preserves ordered lanes per assigned partition and uses bounded batches. Default `processor.batch` is 250 records, 4194304 bytes and 500 ms; offset commits are paced at 500 ms. The configured record limit is capped at 1000. Increase only from measured message size, target latency, memory and queue throttling. There is no promised throughput at these defaults.
-
-### Find the bottleneck before changing capacity
-
-| Evidence | Likely focus |
+| Observed bottleneck | Review |
 | --- | --- |
-| Source commit ahead of Debezium position | Source/binlog extraction, connector CPU/memory/network and event size |
-| Queue arrival ahead of target checkpoint | Writer capacity, target commit/index contention, throttling or poison/conflict records |
-| Source and queue retention windows shrinking | Reduce pause/catch-up time; increase supported retention/capacity before expiry |
-| Large JSON/BLOB/full-row envelopes | Message/byte budgets, supported queue size limits and target payload/storage cost |
-| Hot row/key or one busy partition | Serial ordering lane; additional unrelated consumers cannot split that key's order |
-| Slow broad charts/searches | Narrow key/time range, partition/index use and target query budget |
+| Source ahead of capture | Source/binlog retention, reader CPU/memory and serialization size |
+| Stream ahead of target | Writer batches, target commits/indexes, conflicts and fragment custody |
+| Streaming 429 or per-entry rejection | Bytes per partition, hot keys, batch size and PUT/GET pacing |
+| Container lifecycle/log API 429 | Management polling/operation rate; separate from Streaming traffic |
+| Large full-row updates | Both images plus full schema, logical limit, target packets and memory |
+| Slow broad browsing | Narrow source/key/time filters; selected JSON page volume still matters |
 
-### Changes that need engineering, not just a button
+The writer's ordinary defaults remain 250 records, 4 MiB and 500 ms; one complete
+logical event may exceed the ordinary batch byte budget within its logical cap.
+Publishing batches up to 500 records and 900,000 estimated encoded bytes by default.
+GETs fetch up to 1,000 records and back off on idle queues. Tune only after measuring
+request counters, byte volume, delivery lag, target latency and peak/catch-up load.
 
-Horizontal writer replicas can only add useful parallelism up to assigned data partitions and require stable group/partition ownership and target connection budgets. The app currently tracks one writer per flow; it has no replica-count control, lag-driven autoscaler or fleet reconciler. Do not launch unmanaged writers and assume lifecycle/cleanup checks cover them. Public schema consumption remains single-partition/serialized.
-
-OCI Streaming does not support dynamic partition addition through Kafka compatibility. Plan partition count up front; moving to a new stream requires an explicit queue-incarnation, offset, lineage and replay migration. Shared multi-table source connectors, per-source dispatch, target sharding, cursor pagination and preaggregated chart statistics remain future work.
-
-Capacity-test one peak-rate table first, then concurrent tables/sources, then failure/catch-up. Include binlog retention, queue limits, target commits/indexes, ledger growth, OCI quotas/cost and recovery evidence. Reconfirm current service limits using [OCI Streaming limits](https://docs.oracle.com/en-us/iaas/Content/Streaming/Concepts/streamingoverview_topic-Limits_on_Streaming_Resources.htm).
+Plan partitions and retention in advance. Changing stream identity requires an
+explicit checkpoint/lineage migration. Automatic scaling, target sharding,
+preaggregated chart statistics and compact schema-free envelopes are not implemented.
+Grouped target automatic retention and deployed wildcard historical repositioning
+remain disabled. See [Streaming and size limits](../../streaming-and-size-limits.md).
 
 <a id="change"></a>
 
@@ -1322,6 +1609,9 @@ The ledger and metadata continue growing. Their deletion needs a validated repla
 
 Source partition DDL and target housekeeping are different. This target cleanup intentionally expires audit payloads and records cleanup/cutoff state; it does not generate one DELETE audit event per expired payload and is not an archive.
 
+Automatic cleanup is disabled for database/table grouped targets. Coordinated payload, identity, routing, delivery and fragment maintenance requires separate review.
+
+
 <a id="storage"></a>
 
 ## Appendix E. Target data layout and retrieval
@@ -1334,6 +1624,9 @@ The target schema contains the per-flow row payload table plus shared evidence/r
 | audit_event_dedup | Unique event identity and payload fingerprint; protects supported replay across partition boundaries |
 | audit_schema_changes | Public DDL/schema evidence: before/after definitions, semantic delta, source position, fidelity |
 | Per-flow private JDBC schema-history table | Debezium recovery/decode state for OCI Streaming |
+| audit_native_offsets | Full native source offset state, including GTIDs and within-transaction progress |
+| audit_target_routes / claims | Source namespace to owned physical audit destination |
+| audit_message_assemblies / fragments | Durable incomplete custody and compact completed replay receipts |
 | audit_delivery_checkpoints | Durable target next offsets by delivery partition/incarnation |
 | audit_capture_requests | Reviewed capture-position requests and execution evidence |
 | audit_retention_state | Monotonic payload expiry cutoff and target identity |
@@ -1363,7 +1656,7 @@ Use [before/after capture and retrieval](../../before-after-capture.md) for fiel
 | Fingerprint key missing | Runtime settings → Generate and configure key using permitted vault/key |
 | OCI inventory 403/404 | Correct principal group/domain, service-specific permissions, compartment, region and resource readiness; retain request ID |
 | Stream creation result ambiguous | Refresh/reconcile the pool/name/app provenance before retrying; never blindly duplicate |
-| Deploy requests both topics | Prepare data and single-partition public schema stream; verify the selected harness/state |
+| Deploy requests both topics | Prepare data and single-partition public schema stream; verify the actual stream identities and delivery checkpoints |
 | Debezium running, task unavailable | Fresh runtime/task health and log permissions, image compatibility, source/secret/network settings |
 | Writer inactive or exited | Start existing healthy image, or select fixed release and Update writer; inspect target/checkpoint/decode errors |
 | Queue has event, target has none | Writer state, target transaction/permissions, schema/type parsing, expiry cutoff or identity conflict |
@@ -1377,6 +1670,9 @@ Use [before/after capture and retrieval](../../before-after-capture.md) for fiel
 Use Notifications to retrieve recent messages; clearing them is not a remedy. The Action needs attention page gives the safe operation message, optional guidance/policy example and request ID. Use its return action to revisit the appropriate workspace.
 
 Do not reset offsets, drop ledgers, replace the fingerprint key or delete evidence to force a successful status. A poison record/conflict stops consumption for investigation and is not silently skipped. Preserve the first error, effective image/config revision, flow identity, timing and relevant coordinates without copying passwords or row images into public tickets.
+
+For Streaming 429, identify PutMessages/GetMessages and inspect bytes, batch counts, hot partitions and paced request deltas. HTTP 200 can contain rejected PUT entries. Container lifecycle/log API 429 is a separate management quota. Incomplete fragment custody and target packet failures need evidence review; repeatedly restarting is not a capacity solution.
+
 
 <a id="recovery"></a>
 
@@ -1406,40 +1702,26 @@ Do not claim a zero-loss recovery point or global transaction reconstruction unt
 
 ## Appendix H. Glossary and further reading
 
-| Term | Meaning in this manual |
+| Term | Meaning |
 | --- | --- |
-| Flow | One registered source table, data topic and target payload table with its workloads |
-| Binlog | Source MySQL binary log containing replication/change evidence |
-| Debezium | Connector reading the source and producing change/schema events |
-| Connect harness | OCI Streaming Connect configuration with isolated Connect state resources |
-| History writer | Consumer that validates, fingerprints and writes target evidence |
-| BEFORE / AFTER | Available row state immediately before/after the captured operation |
-| GTID executed set | Transactions treated as already processed at the selected source boundary |
-| Schema baseline | Earliest retained structural evidence from which this connector can decode safely |
-| Fingerprint | Keyed row/content identity or non-secret event digest, depending on the field |
-| Checkpoint | Durable next-delivery/source position used for restart/recovery |
-| Incarnation / lineage | Identity separating messaging recreation and capture histories |
-| DDL / DCL | Structural SQL / account and privilege administration |
+| Debezium Engine | Embedded MySQL binlog reader producing typed change/schema events |
+| Source scope | One table, `database.*` or `*.*` after exclusions |
+| Target grouping | One audit destination per flow, source database or source table |
+| GTID set | UUID/interval groups describing transactions already processed |
+| Purged GTIDs | Executed transactions no longer available in retained binlogs |
+| Native source offset | Full file/position/event/row and GTID recovery state |
+| Stream identity | Actual OCI stream ID binding delivery state to its retained data |
+| Fragment custody | Durable saved parts awaiting complete validated reassembly |
+| Delivery checkpoint | Next stream offset after durable custody/audit evidence |
+| Fingerprint | Keyed canonical identity/content hash; not proof of capture completeness |
 
-### Repository guides
-
-- [Setup and operations](../../operations.md)
-- [IAM and database access](../../iam-policy.md)
-- [Capture positioning](../../capture-start.md)
-- [Before/after capture and retrieval](../../before-after-capture.md)
-- [OCI resource provisioning](../../service-provisioning.md)
-- [Design validation and remaining engineering work](../../design-validation.md)
-- [Narrated demo and companion materials](https://ivanxma.github.io/hw_data_audit_center/demo/)
-
-### Primary product documentation
-
-- [Debezium MySQL connector 3.4](https://debezium.io/documentation/reference/3.4/connectors/mysql.html): connector behavior, snapshots and event representation.
-- [OCI Streaming Kafka compatibility](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm): API compatibility and service differences.
-- [OCI Streaming limits](https://docs.oracle.com/en-us/iaas/Content/Streaming/Concepts/streamingoverview_topic-Limits_on_Streaming_Resources.htm): confirm current quotas and data-plane budgets.
-- [MySQL Enterprise Audit on HeatWave](https://docs.oracle.com/en-us/iaas/mysql-database/doc/mysql-enterprise-audit-plugin.html): filters and security-audit source configuration.
-- [OCI Container Instances permissions](https://docs.oracle.com/en-us/iaas/Content/container-instances/permissions/policy-reference.htm): workload resource-principal and management permissions.
-
-This manual documents an independent prototype. Service limits, versions and permissions can change; review the linked primary documentation and validate the selected deployment when operating it.
+Further reading: [Debezium MySQL](https://debezium.io/documentation/reference/3.4/connectors/mysql.html),
+[Debezium Engine](https://debezium.io/documentation/reference/development/engine.html),
+[OCI publishing](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/publishing.htm),
+[OCI throttling](https://docs.oracle.com/en-us/iaas/Content/Streaming/Reference/troubleshootingstreaming.htm),
+[MySQL JSON](https://dev.mysql.com/doc/refman/8.4/en/json.html),
+[capture positioning](../../capture-start.md), [source scopes](../../table-scopes.md),
+[buffering and size limits](../../streaming-and-size-limits.md).
 
 <a id="ddl-data-limitations"></a>
 
@@ -1532,8 +1814,7 @@ even when an IAM policy could permit access.
 | Vault and encryption key | Choose an ACTIVE Vault and enabled AES key in the VM compartment; the key must belong to the selected Vault |
 | Existing credential secrets | Use a local-compartment secret and Vault; importing an out-of-compartment OCID is not a supported alternative to selection |
 | Row-fingerprint secret | Dedicated, stable secret in the same compartment; preserve it for all existing history |
-| OCI Streaming | Stream pool, data/schema streams and Connect configuration in the same compartment |
-| Managed Apache Kafka | Cluster/configuration and referenced networking in the same compartment |
+| OCI Streaming | Stream pool and data/schema streams in the same compartment |
 | Container Registry | Private repository and selected images in the same compartment |
 | Container Instances | Workloads and their selected subnet/VCN attachments in the same compartment |
 | Managed networking | Existing VCNs, subnets and referenced NSGs checked by the provisioning path must be in the VM compartment; shared networking is not modified |

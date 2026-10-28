@@ -55,3 +55,27 @@ class DemoPlayerTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.mimetype, content_type)
                 response.close()
+
+    def test_manual_and_materials_remain_authenticated_and_use_external_assets(self):
+        manual = "/docs/user-manual/html/index.html"
+        self.assertEqual(self.client.get(manual).status_code, 302)
+        self.auth()
+        with patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()):
+            response = self.client.get(manual)
+            self.assertEqual(response.status_code, 200)
+            text = response.get_data(as_text=True)
+            self.assertIn('href="manual.css"', text)
+            self.assertIn('src="manual.js"', text)
+            self.assertNotIn("<style>", text)
+            self.assertNotIn("<script>", text)
+            self.assertNotIn("onclick=", text)
+            response.close()
+            for url in ("/docs/../app.py", "/docs/user-manual/manual-content.json"):
+                self.assertEqual(self.client.get(url).status_code, 404)
+            response = self.client.get(
+                "/docs/user-manual/pdf/HeatWave-Audit-Center-User-Manual.pdf",
+                headers={"Range": "bytes=0-63"},
+            )
+            self.assertEqual(response.status_code, 206)
+            self.assertEqual(response.mimetype, "application/pdf")
+            response.close()

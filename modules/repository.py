@@ -127,8 +127,10 @@ def migrate_resources(connection):
         names = {r["name"] for r in columns}
         for name, datatype in [
             ("queue_connection_id", "BIGINT"),
-            ("connect_harness_id", "VARCHAR(255)"),
+            ("stream_bindings", "JSON"),
             ("capture_start", "JSON"),
+            ("source_exclusions", "JSON"),
+            ("target_grouping", "VARCHAR(16) NOT NULL DEFAULT 'flow'"),
         ]:
             if name not in names:
                 query(connection, "ALTER TABLE flows ADD COLUMN " + name + " " + datatype)

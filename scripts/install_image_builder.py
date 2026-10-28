@@ -39,7 +39,9 @@ def main():
         "Environment=AUDIT_IMAGE_RUNTIME_DIR=/run/heatwave-audit-image-builder\n"
         "RuntimeDirectory=heatwave-audit-image-builder\nRuntimeDirectoryMode=0700\nRuntimeDirectoryPreserve=yes\n"
         "ExecStart=/usr/bin/bash " + quoted(ROOT / "scripts/start_image_builder.sh") + "\n"
-        "UMask=0077\nPrivateTmp=true\nProtectSystem=strict\nReadWritePaths=" + quoted(ROOT) + "\n"
+        # Rootless Podman's pause process outlives the worker service. Its mount
+        # namespace must not retain a PrivateTmp directory deleted on restart.
+        "UMask=0077\nPrivateTmp=false\nProtectSystem=strict\nReadWritePaths=" + quoted(ROOT) + " /var/tmp\n"
         "Delegate=yes\nRestart=on-failure\nRestartSec=5\nTimeoutStopSec=30\n"
         "[Install]\nWantedBy=multi-user.target\n",
     )

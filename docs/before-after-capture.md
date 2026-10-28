@@ -6,8 +6,7 @@ credentials. Oracle Linux 9 is the deployment platform.
 
 ## Capture path
 
-Source HeatWave binlog → Debezium on OCI Container Instances → Kafka or OCI
-Streaming → processor on OCI Container Instances → target HeatWave audit tables.
+Source HeatWave binlog → Debezium on OCI Container Instances → native OCI Streaming → processor on OCI Container Instances → target HeatWave audit tables.
 
 MySQL records the row images. Debezium decodes those records into change events.
 The processor stores the images from the event; it does not issue a later SELECT
@@ -184,12 +183,17 @@ deleted key also requires row-lifetime context when interpreting a timeline.
 A snapshot supplies a baseline, not earlier row versions. Purged binlogs,
 expired unconsumed queue records, or filters can create coverage gaps. Retain
 connector offsets and private schema-recovery state across container restarts;
-retain processor consumer-group identity and target deduplication state too.
+retain actual stream identities, per-partition delivery checkpoints and target
+deduplication state too.
 A container restart alone does not prove that a new configuration was applied.
 
-Kafka and OCI Streaming carry the same required image envelope. Their transport
-and recovery-state configuration differ; see the [README](../README.md#capture-readiness).
-Validate both connector recovery and processor replay on the selected transport.
+Native OCI Streaming carries the complete image envelope. Large envelopes are
+fragmented and reassembled before audit writes; small events share native PUT
+requests while remaining separate messages. See [buffering and message limits](streaming-and-size-limits.md).
+Validate both source recovery and writer replay.
+
+Mappings can select one table, `database.*` or `*.*`, and organize audit targets
+by flow, source database or source table. See [scope and target layouts](table-scopes.md).
 
 DDL is archived separately from row events. A structure comparison can show
 added/removed columns and available type/default/index/partition differences,

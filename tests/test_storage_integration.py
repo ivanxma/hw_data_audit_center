@@ -1,6 +1,8 @@
 """Opt-in tests on a disposable socket-only MySQL; never use a production account."""
 
 import json
+import base64
+import hashlib
 import os
 import unittest
 import uuid
@@ -76,6 +78,255 @@ class StorageTests(unittest.TestCase):
             f"SELECT COUNT(*) AS n FROM `{self.schema}`.`{self.flow['target_table']}`",
             one=True,
         )["n"]
+
+    def fragment_fixture(self, topic="orders", marker="large"):
+        from test_message_fragments import framed
+
+        source = {
+            "db": "sales",
+            "table": "orders",
+            "file": "binlog.1",
+            "pos": 876,
+            "row": 0,
+            "ts_ms": 1793000000000,
+        }
+        value = json.dumps(
+            {
+                "op": "u",
+                "source": source,
+                "before": {"id": 1, "state": "pending", "large": "é" * 180000},
+                "after": {"id": 1, "state": marker, "large": "界" * 220000},
+            },
+            ensure_ascii=False,
+        ).encode()
+        key = b'{"id":1}'
+        return key, value, framed(topic, key, value)
+
+    def test_fragment_custody_survives_new_connection_and_out_of_order_parts(self):
+        from modules.message_fragments import frame, accept, commit_groups
+        from test_message_fragments import framed
+
+        key, value, parts = self.fragment_fixture()
+        self.assertGreater(len(parts), 2)
+        self.assertIsNone(accept(self.db, self.flow, "orders", 0, 0, frame(parts[1])))
+        other, _ = open_connection(self.profile, "root", "")
+        try:
+            assembled = None
+            for offset, index in enumerate([0, *range(2, len(parts))], 1):
+                assembled = accept(other, self.flow, "orders", 0, offset, frame(parts[index]))
+            self.assertEqual(assembled["key"], key)
+            self.assertEqual(assembled["value"], value)
+            event = decode(
+                value,
+                key,
+                "orders",
+                0,
+                len(parts) - 1,
+                self.flow,
+                b"test-hmac",
+                message_id=assembled["message_id"],
+            )
+            self.assertEqual(write_batch(other, self.flow, [event]), 1)
+            commit_groups(other, self.flow, [assembled["group_id"]])
+            for offset, raw in enumerate(parts, 100):
+                self.assertIsNone(accept(other, self.flow, "orders", 0, offset, frame(raw)))
+            changed = json.loads(parts[0])
+            payload = bytearray(base64.b64decode(changed["_audit_fragment_v1"]["data"]))
+            payload[-1] ^= 1
+            changed["_audit_fragment_v1"]["data"] = base64.b64encode(payload).decode()
+            changed["_audit_fragment_v1"]["chunk_sha256"] = hashlib.sha256(payload).hexdigest()
+            with self.assertRaisesRegex(ValueError, "conflicts"):
+                accept(other, self.flow, "orders", 0, 200, frame(json.dumps(changed)))
+        finally:
+            other.close()
+        self.assertEqual(self.count(), 1)
+        self.assertEqual(
+            query(
+                self.db,
+                f"SELECT COUNT(*) AS n FROM `{self.schema}`.audit_message_fragments WHERE group_id=%s AND payload IS NOT NULL",
+                (assembled["group_id"],),
+                one=True,
+            )["n"],
+            0,
+        )
+
+    def test_fragment_completion_write_failure_replays_without_losing_parts(self):
+        from modules.ingestion import BatchWriter
+        from test_ingestion import message
+        from unittest.mock import MagicMock
+
+        key, value, parts = self.fragment_fixture()
+        flow = {**self.flow, "topic": "orders", "schema_topic": "schema"}
+        consumer = MagicMock()
+        writer = BatchWriter(consumer, self.db, flow, b"test-hmac")
+        writer.owned = {("orders", 0)}
+        for offset, raw in enumerate(parts[:-1]):
+            writer.add(message(offset, value=raw))
+        writer.flush()
+        self.assertEqual(self.count(), 0)
+        consumer.acknowledge.reset_mock()
+        writer.add(message(len(parts) - 1, value=parts[-1]))
+        with patch("modules.ingestion.write_batch", side_effect=RuntimeError("target interrupted")):
+            with self.assertRaises(RuntimeError):
+                writer.flush()
+        consumer.acknowledge.assert_not_called()
+        checkpoint = query(
+            self.db,
+            f"SELECT next_offset FROM `{self.schema}`.audit_delivery_checkpoints WHERE flow_id=%s",
+            (flow["id"],),
+            one=True,
+        )
+        self.assertEqual(checkpoint["next_offset"], len(parts) - 1)
+        restarted = BatchWriter(consumer, self.db, flow, b"test-hmac")
+        restarted.owned = {("orders", 0)}
+        restarted.add(message(len(parts) - 1, value=parts[-1]))
+        restarted.flush()
+        self.assertEqual(self.count(), 1)
+        for offset, raw in enumerate(parts, len(parts)):
+            restarted.add(message(offset, value=raw))
+        restarted.flush()
+        self.assertEqual(self.count(), 1)
+        row = query(
+            self.db,
+            f"SELECT before_image,after_image FROM `{self.schema}`.`{flow['target_table']}`",
+            one=True,
+        )
+        self.assertEqual(json.loads(row["after_image"])["large"], "界" * 220000)
+        self.assertEqual(json.loads(row["before_image"])["large"], "é" * 180000)
+
+    def test_fragment_receipt_recovery_after_completion_checkpoint(self):
+        from modules.message_fragments import frame, accept, note_event_time, recover_committed
+        from modules.checkpoints import save
+
+        key, value, parts = self.fragment_fixture()
+        assembled = None
+        for offset, raw in enumerate(parts):
+            assembled = accept(self.db, self.flow, "orders", 0, offset, frame(raw))
+        event = decode(
+            value,
+            key,
+            "orders",
+            0,
+            len(parts) - 1,
+            self.flow,
+            b"test-hmac",
+            message_id=assembled["message_id"],
+        )
+        note_event_time(self.db, self.flow, assembled["group_id"], event["event_time"])
+        write_batch(self.db, self.flow, [event])
+        save(self.db, self.flow, {("orders", 0): len(parts)})
+        recover_committed(self.db, self.flow)
+        row = query(
+            self.db,
+            f"SELECT state,event_time FROM `{self.schema}`.audit_message_assemblies WHERE group_id=%s",
+            (assembled["group_id"],),
+            one=True,
+        )
+        self.assertEqual(row["state"], "committed")
+        self.assertEqual(row["event_time"], event["event_time"])
+        self.assertIsNone(accept(self.db, self.flow, "orders", 0, 100, frame(parts[0])))
+
+    def test_fragment_pending_budget_and_full_checksum_are_enforced(self):
+        from modules.message_fragments import frame, accept
+
+        key, value, parts = self.fragment_fixture()
+        policy = {
+            **self.flow,
+            "message_policy": {"max_event_bytes": 1024 * 1024, "max_pending_bytes": 1024 * 1024},
+        }
+        self.assertIsNone(accept(self.db, policy, "orders", 0, 0, frame(parts[0])))
+        key, value2, parts2 = self.fragment_fixture(marker="different")
+        with self.assertRaisesRegex(ValueError, "custody budget"):
+            accept(self.db, policy, "orders", 0, 1, frame(parts2[0]))
+
+    def test_grouped_targets_route_replay_and_preserve_cross_table_keys(self):
+        from modules.target_routes import write, tables, relation, ensure
+
+        for mode, expected in [("flow", 1), ("database", 2), ("table", 3)]:
+            f = {
+                **self.flow,
+                "id": self.flow["id"] + {"flow": 1, "database": 2, "table": 3}[mode],
+                "target_table": self.flow["target_table"] + "_" + mode,
+                "lineage_id": self.flow["lineage_id"] + "-" + mode,
+                "source_schema": "*",
+                "source_table": "*",
+                "target_grouping": mode,
+            }
+            prepare_target(self.db, f)
+            events = []
+            for pos, (schema, table) in enumerate(
+                [("sales", "orders"), ("sales", "customers"), ("warehouse", "orders")], 100
+            ):
+                payload = {
+                    "op": "c",
+                    "before": None,
+                    "after": {"id": 1, "state": "new"},
+                    "source": {
+                        "db": schema,
+                        "table": table,
+                        "file": "binlog.1",
+                        "pos": pos,
+                        "row": 0,
+                        "ts_ms": 1793000000000,
+                    },
+                }
+                events.append(decode(json.dumps(payload), b'{"id":1}', "data", 0, pos, f, b"test"))
+            self.assertEqual(write(self.db, f, events), 3)
+            self.assertEqual(write(self.db, f, events), 0)
+            self.assertEqual(len(tables(self.db, f)), expected)
+            self.assertEqual(len({e["key_hash"] for e in events}), 3)
+            rows = query(
+                self.db,
+                "SELECT source_schema,source_table FROM "
+                + relation(self.db, f)
+                + " ORDER BY source_schema,source_table",
+            )
+            self.assertEqual(len(rows), 3)
+
+            @contextmanager
+            def connection(*args):
+                yield self.db
+
+            read_flow = {
+                **f,
+                "source_id": 7,
+                "source": {"name": "Example source", "server_identity": "integration-source"},
+                "target": {},
+            }
+            filters = {"from": "2026-10-25", "to": "2026-10-27", "interval": "day"}
+            with patch("modules.audit_service.connect", connection):
+                result = browse(read_flow, None, filters)
+                self.assertEqual(result["total"], 3)
+                narrowed = browse(
+                    read_flow,
+                    None,
+                    {**filters, "source_database": "sales", "source_table_filter": "orders"},
+                )
+                self.assertEqual(narrowed["total"], 1)
+                summary = overview([read_flow], None, filters)
+                self.assertEqual(summary["total"], 3)
+                self.assertEqual(len(summary["rows"]), 3)
+                only_sales = overview([read_flow], None, {**filters, "source_schema": "sales"})
+                self.assertEqual(only_sales["total"], 2)
+            if mode != "flow":
+                self.assertEqual(
+                    ensure(self.db, f, "sales", "orders"), ensure(self.db, f, "sales", "orders")
+                )
+                claims = query(
+                    self.db,
+                    f"SELECT flow_id FROM `{self.schema}`.audit_target_route_claims WHERE flow_id=%s",
+                    (f["id"],),
+                )
+                self.assertEqual(len(claims), expected)
+
+    def test_generated_target_refuses_unowned_existing_table(self):
+        from modules.target_routes import table_name, ensure
+
+        f = {**self.flow, "source_table": "*", "target_grouping": "table"}
+        target = table_name(f, "sales", "orders")
+        query(self.db, f"CREATE TABLE `{self.schema}`.`{target}` (id INT PRIMARY KEY)")
+        with self.assertRaisesRegex(ValueError, "ownership"):
+            ensure(self.db, f, "sales", "orders")
 
     def test_chart_week_boundaries_and_global_range_counts(self):
         sunday = datetime(2026, 10, 18, 23, 59, tzinfo=timezone.utc)
@@ -365,7 +616,7 @@ class StorageTests(unittest.TestCase):
             (ROOT / "sql/repository.sql")
             .read_text()
             .replace(" queue_connection_id BIGINT,\n", "")
-            .replace(" connect_harness_id VARCHAR(255),\n", "")
+            .replace(" stream_bindings JSON,\n", "")
             .replace(
                 " CONSTRAINT queue_connection_ref FOREIGN KEY (queue_connection_id) REFERENCES queue_connections(id),\n",
                 "",
@@ -387,11 +638,11 @@ class StorageTests(unittest.TestCase):
             )
             queue = query(
                 self.db,
-                "INSERT INTO queue_connections(name,kind,resource_ocid,username,secret_ocid) VALUES ('queue','oci_streaming','pool','user','secret')",
+                "INSERT INTO queue_connections(name,kind,resource_ocid) VALUES ('queue','oci_streaming','pool')",
             )
             flow = query(
                 self.db,
-                "INSERT INTO flows(name,source_id,target_id,source_schema,source_table,target_schema,target_table,topic,transport,connector_name,queue_connection_id,connect_harness_id) VALUES ('mapping',%s,%s,'sales','orders','history','orders_history','orders','streaming','capture',%s,'harness')",
+                "INSERT INTO flows(name,source_id,target_id,source_schema,source_table,target_schema,target_table,topic,transport,connector_name,queue_connection_id) VALUES ('mapping',%s,%s,'sales','orders','history','orders_history','orders','streaming','capture',%s)",
                 (source, target, queue),
             )
             loaded = get_flow(self.db, flow)

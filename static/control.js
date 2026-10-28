@@ -17,7 +17,7 @@ function allowed(row,action){
  if(!data||!workloads.length)return false;
  if(action==='stop')return workloads.some(w=>w.role==='Debezium'&&w.state==='ACTIVE');
  if(action==='stop_all')return workloads.some(w=>w.state==='ACTIVE');
- if(action==='restart')return connector&&writer&&workloads.every(w=>['ACTIVE','INACTIVE'].includes(w.state));
+ if(['restart','apply_stream_settings'].includes(action))return connector&&writer&&workloads.every(w=>['ACTIVE','INACTIVE'].includes(w.state));
  return connector&&writer&&workloads.some(w=>w.state==='INACTIVE')&&workloads.every(w=>['ACTIVE','INACTIVE'].includes(w.state));
 }
 function update(){if(submitting)return;const rows=selected(),row=rows.length===1?rows[0]:null;
@@ -28,7 +28,7 @@ function update(){if(submitting)return;const rows=selected(),row=rows.length===1
 function act(action){if(submitting)return;const rows=selected();if(rows.length!==1||!allowed(rows[0],action))return;const row=rows[0];
  if(['source','capture','partitions'].includes(action)){location.href=row.dataset[action+'Url'];return;}
  if(action.startsWith('update_')){openImages(row,action);return;}
- const confirmation={stop:'Pause Debezium capture? The history writer keeps running to drain queued messages, then waits. Start resumes capture from saved offsets.',stop_all:'Stop both workloads for maintenance? Queued messages remain subject to messaging retention. Audit history is retained.',restart:'Restart both deployed workloads using their existing checkpoints?',retire:'Retire this flow? Capture stops and audit history is preserved.',terminate:'Terminate both retired containers? Audit history is retained.',delete:'Delete this retired registration? Audit history is retained.',prepare:'Prepare the schema topic? Existing topics and their contents are retained.'};
+ const confirmation={apply_stream_settings:'Apply the saved Streaming limits and pacing settings using the selected workload images? The writer is replaced first, then Debezium. Checkpoints and audit history are retained. Limit decreases require a separate drain and review.',stop:'Pause Debezium capture? The history writer keeps running to drain queued messages, then waits. Start resumes capture from saved offsets.',stop_all:'Stop both workloads for maintenance? Queued messages remain subject to messaging retention. Audit history is retained.',restart:'Restart both deployed workloads using their existing checkpoints?',retire:'Retire this flow? Capture stops and audit history is preserved.',terminate:'Terminate both retired containers? Audit history is retained.',delete:'Delete this retired registration? Audit history is retained.',prepare:'Prepare the schema stream? Existing streams and their contents are retained.'};
  if(confirmation[action]&&!confirm(confirmation[action]))return;
  submitting=true;buttons.forEach(b=>b.disabled=true);if(run)run.disabled=true;if(more)more.disabled=true;
  document.querySelector('[data-control-selection]').textContent=action.startsWith('update_')?'Checking the selected image and waiting for this workload to stop before replacement…':'Submitting action…';

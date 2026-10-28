@@ -25,6 +25,19 @@ def summarize(document, now=None):
     )
     checked_at = time.time() if now is None else now
     result = {"state": state, "tasks": len(tasks), "checked_at": checked_at}
+    metrics = document.get("metrics")
+    if isinstance(metrics, dict):
+        result["metrics"] = {
+            k: metrics[k]
+            for k in (
+                "put_requests",
+                "put_records",
+                "put_wire_bytes",
+                "throttled_records",
+                "published_logical_events",
+            )
+            if type(metrics.get(k)) is int and metrics[k] >= 0
+        }
     if state == "FAILED":
         trace = "\n".join(str(task.get("trace", "")) for task in tasks)
         code = (

@@ -1,47 +1,65 @@
 00:00 — Every row has a story
 Welcome to HeatWave Audit Center. Source left, controls in the centre, audit history right. This walkthrough uses illustrative demo data.
 
-00:10 — Safe harbor statement
+00:12 — Safe harbor statement
 This demonstration explains the current application and its limits. Oracle styling does not imply Oracle authorship or endorsement. The security audit extension shown later is not implemented in this application.
 
-00:30 — One compartment. One traceable data path.
-The web application runs on Oracle Linux nine. Debezium and the history writer run on O C I Container Instances. Debezium reads source changes, publishes to O C I Streaming, and the writer commits history to the target. Vault holds credentials. Resource access stays in the virtual machine compartment.
+00:32 — One compartment. One traceable data path.
+The web application runs on Oracle Linux nine. Embedded Debezium Engine and the history writer run on private O C I Container Instances. Debezium reads MySQL binlogs and publishes with the native O C I Java S D K over H T T P S. The Python writer consumes Streaming and commits audit history. Vault holds secrets. Resource access remains compartment scoped.
 
-00:50 — Create a table with a stable row key
+01:00 — Create a table with a stable row key
 Begin with a demo orders table and a primary key. Creating this table prepares the source before registration. Because capture starts later, its first schema observation is a baseline. It is not a claim that the earlier create statement was captured from the binary log.
 
-01:06 — Connect, discover and register
+01:19 — Connect, discover and register
 Register the source and target connections. The Test connection button checks MySQL access using a Vault secret reference. Table mappings load schemas and tables from those connections. Select one registration and choose Edit to change its available settings. Existing capture identities remain protected.
 
-01:24 — Select OCI Streaming resources
-Create or select a stream pool, a data stream, and a Connect configuration. Add a queue connection using principal authentication. The mapping uses the data stream; its separate schema stream must also be ready. This demonstration uses O C I Streaming throughout.
+01:42 — Select OCI Streaming resources
+Create or select an active stream pool and data stream. Register the pool connection using principal authentication. The mapping uses that data stream and its own single-partition schema stream. The source publishes with the native O C I S D K, and the writer consumes with the native Python S D K.
 
-01:42 — Start from now, then verify delivery
+02:05 — One table, one database, or all eligible tables
+A mapping can capture one table, every eligible table in one database, or eligible tables across databases. System databases and registered audit destinations are excluded. Included tables need stable primary keys. Target grouping chooses one audit table per flow, source database, or source table, all within the selected target schema. These are audit records, not column-for-column source replicas.
+
+02:34 — Start after a validated processed G T I D set
+End captures new changes without copying existing rows. Start reads current rows for a snapshot. For Specific G T I D, enter transactions already processed. Include all transactions removed from the source logs, and exclude transactions that have not executed. Keep each server identifier and its intervals. Multiple groups are allowed. Also validate transaction order and schema coverage.
+
+03:10 — A durable buffer for delayed target apply
+Streaming retains changes while the writer is stopped, slow, or being replaced. The writer catches up from durable delivery checkpoints, within stream retention. There is an important limit: capture offsets and private Debezium schema history also live in the target database. A full target outage can therefore pause extraction too. Keep source binlogs for that outage window.
+
+03:39 — Full row images can be much larger than a row
+An update carries both images, source metadata, keys and a repeated schema description. The one mebibyte service maximum applies to a message and a P U T request. This publisher uses a lower encoded byte budget. Logical events default to sixteen mebibytes, with bounded incomplete custody. The target database still needs suitable J S O N, packet and memory capacity. The current release preserves the full schema; compact schema-free serialization is not implemented.
+
+04:13 — Normal events stay single; large events split
+An event within budget stays one message. An oversized event is split into checksum-protected parts with stable routing. Source progress is acknowledged only after every part is accepted. The writer saves incomplete parts durably and writes an audit event only after complete reassembly. A writer restart can resume those parts. Interrupted source attempts can leave older incomplete generations, which need retained-evidence review before cleanup.
+
+04:45 — Reduce requests before relying on retries
+Small events share a request and remain separate messages. Batch limits and byte pacing smooth writes. Larger read batches and slower idle polling reduce calls. Retries handle remaining rate limit rejections. Check every result entry. Our test sent one hundred row events and one schema event in two write requests, with no rejected records. Apply stream settings updates the writer before the source.
+
+05:21 — Start from now, then verify delivery
 A new flow initialized at End captures schema and future changes, without copying existing rows. Restarts resume saved offsets. Verify messages and target events, not just container status.
 
-01:56 — INSERT → CREATE with an AFTER image
+05:38 — INSERT → CREATE with an AFTER image
 Insert order ten forty two. Debezium represents the insert as a create event. Its before image is null; its after image contains the new row. The writer stores the key, source position, queue offset and images. A successful target commit must precede acknowledgement of the message.
 
-02:16 — UPDATE → compare complete images
+06:00 — UPDATE → compare complete images
 Now change the order status and amount. The same key links the earlier and later versions. Select the update in Change history, then Compare images. The before image shows new and eighty; the after image shows paid and ninety nine point ninety five. Full row images require the correct source settings.
 
-02:38 — DELETE → retain the final BEFORE image
+06:22 — DELETE → retain the final BEFORE image
 Delete the source row. It disappears from the current source table, but the audit record retains its final before image. The after image is null. History remains available for the original insert, the update and the deletion. Deleting source data does not erase audit history.
 
-02:56 — Find one row across its lifetime
+06:41 — Find one row across its lifetime
 Search with the typed record key, id ten forty two, and a retained date range. The application computes the same keyed fingerprint from the source identity, schema, table and key. An indexed lookup finds that row’s changes. Separate image fingerprints describe content changes; the event identity supports replay deduplication.
 
-03:16 — DDL → compare the table structure
+07:07 — DDL → compare the table structure
 Add a region column with a default, and widen the amount type. Schema events use the separate schema stream. The target stores the prior definition, new definition and a semantic difference. Here, SQL inspection shows the new column and decimal precision change. Defaults, indexes and partitions can only be compared when the captured metadata contains them. Unknown properties stay unknown.
 
-03:42 — Users and privileges need security evidence
+07:37 — Users and privileges need security evidence
 Create a locked demonstration user, grant select, then revoke it. These are account and privilege operations, not row updates. This application does not yet collect them as a security history. Use the MySQL Enterprise Audit plugin with reviewed filters and a separate collector. Retain the actor, account, scope, action, outcome and timestamp. Do not infer complete privilege history from row change capture.
 
-04:10 — From all databases to one table
+08:06 — From all databases to one table
 The Audit Center opens with all databases. A pie chart compares event counts. Choose a database slice or its legend entry to see registered table bars, then select a table to drill into changes over time. These overview counts are a separate sample dataset, not the three earlier demonstration transactions.
 
-04:30 — Choose the interval, range and chart
+08:28 — Choose the interval, range and chart
 Choose a custom date range and an interval of minute, hour, day or week. Minute charts cover one hour. Switch between line, bar and stacked bar, and use the operation legend. Counts include snapshots unless you filter them out. Download a chart image or export the loaded table data.
 
-04:50 — Rows, structures and security: clear boundaries
+08:50 — Rows, structures and security: clear boundaries
 Capture row images, compare schemas, and explore history and charts. Security auditing needs a separate collector. This was an illustrative replay.

@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
 const get=async url=>{const response=await fetch(url,{headers:{Accept:'application/json'}});let data;try{data=await response.json();}catch{throw Error('Sign in again or check service availability.');}if(!response.ok)throw Object.assign(Error(data.message||'Service access failed.'),{policy:data.policy,requestId:data.request_id});return data;};
-function options(select,rows,label='Select…'){select.replaceChildren(new Option(label,''));for(const row of rows)select.add(new Option(row.name||row.id,row.id||row.name));select.disabled=false;}
+function options(select,rows,label='Select…'){select.replaceChildren(new Option(label,''));for(const row of rows){const option=new Option(row.name||row.id,row.id||row.name);option.disabled=!!row.disabled;select.add(option);}select.disabled=false;}
 const dialog=document.getElementById('flow-dialog');
 const mappingLoads={};
 async function loadMappingObjects(role,selected={}){
@@ -17,17 +17,20 @@ async function loadMappingObjects(role,selected={}){
   const data=await get(connection.selectedOptions[0].dataset.objectsUrl);
   if(mappingLoads[role]!==version)return;
   options(schema,data.schemas.map(name=>({name})));
+  if(role==='source')schema.add(new Option('All eligible databases (*)','*'),1);
   if(selected.schema){schema.value=selected.schema;await loadMappingTables(role,selected.table);}
  }catch(e){status.textContent=e.message;throw e;}
 }
 async function loadMappingTables(role,selected=''){
  const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n),status=form.querySelector('[data-mapping-status]');
  const connection=field(role+'_id'),schema=field(role+'_schema'),table=field(role+'_table'),id=connection.value,name=schema.value;
+ if(role==='source'&&name==='*'){options(table,[{id:'*',name:'All eligible tables (*)'}]);table.value='*';return;}
  options(table,[],'Loading tables…');table.disabled=true;if(!id||!name){options(table,[],'Select a schema first');table.disabled=true;return;}
  try{
   const data=await get(connection.selectedOptions[0].dataset.objectsUrl+'?schema='+encodeURIComponent(name));
   if(connection.value!==id||schema.value!==name)return;
   options(table,role==='target'?data.tables.filter(t=>t.compatible):data.tables);
+  if(role==='source')table.add(new Option('All tables in this database (*)','*'),1);
   if(role==='target')table.add(new Option('Create new audit table','__new__'),1);
   if(selected){
    table.value=selected;
@@ -39,27 +42,18 @@ let queueVersion=0;
 async function loadMappingQueue(selected={}){
  if(!dialog)return;
  const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n),status=form.querySelector('[data-mapping-status]');
- const version=++queueVersion,queue=field('queue_connection_id'),topic=field('topic'),harness=field('connect_harness_id'),label=form.querySelector('[data-harness-field]');
- const id=queue.value,streaming=!!id&&queue.selectedOptions[0].dataset.kind==='oci_streaming';
- options(topic,[],id?'Loading streams / topics…':'Select a messaging connection first');topic.disabled=true;
- label.hidden=!streaming;harness.disabled=!streaming;harness.required=streaming;status.textContent='';
+ const version=++queueVersion,queue=field('queue_connection_id'),topic=field('topic');
+ const id=queue.value;
+ options(topic,[],id?'Loading OCI streams…':'Select an OCI Streaming connection first');topic.disabled=true;status.textContent='';
  if(!id)return;
- status.textContent='Loading streams / Kafka topics…';
- const [topicsResult,harnessResult]=await Promise.allSettled([get(queue.selectedOptions[0].dataset.topicsUrl),streaming?loadReference(harness):Promise.resolve()]);
- if(queueVersion!==version)return;
- const messages=[];
- if(topicsResult.status==='fulfilled'){
-  const active=topicsResult.value.topics.filter(t=>t.state==='ACTIVE');
-  options(topic,active,active.length?'Select a stream / topic':'No active streams / topics');topic.disabled=!active.length;
+ try{
+  const data=await get(queue.selectedOptions[0].dataset.topicsUrl);if(queueVersion!==version)return;
+  const active=data.topics.filter(stream=>stream.state==='ACTIVE');
+  options(topic,active,active.length?'Select a data stream':'No active streams');topic.disabled=!active.length;
   if(selected.topic)topic.value=selected.topic;
-  if(!active.length)messages.push('No active topics. Create a stream or Kafka topic in OCI resources, then select this connection again.');
- }else{
-  options(topic,[],'Unable to load streams / topics');topic.disabled=true;messages.push(topicsResult.reason.message+' Select the connection again to retry.');
- }
- if(harnessResult.status==='rejected'){options(harness,[],'Unable to load Connect harnesses');harness.disabled=true;messages.push(harnessResult.reason.message);}
- else if(selected.harness)harness.value=selected.harness;
- status.textContent=messages.join(' ');
- if(messages.length)throw Error(messages.join(' '));
+  if(!active.length)status.textContent='Create a data stream in OCI resources, then select this connection again.';
+ }catch(error){if(queueVersion===version){status.textContent=error.message;throw error;}}
+
 }
 if(dialog){
  const form=dialog.querySelector('form'),field=n=>form.elements.namedItem(n);
@@ -107,17 +101,12 @@ document.querySelectorAll('select[name="vault_id"]').forEach(select=>select.addE
 let queueResourceVersion=0;
 async function loadQueueResources(selected={}){
  const form=document.getElementById('queue-dialog')?.querySelector('form');if(!form)return;
- const version=++queueResourceVersion,select=form.querySelector('[data-queue-resource]'),principal=form.elements.namedItem('kind').value==='oci_streaming';
- form.querySelectorAll('[data-queue-credential]').forEach(label=>{label.hidden=principal;const field=label.querySelector('input,select');field.disabled=principal;field.required=!principal;});
- form.querySelector('[data-queue-auth-help]').textContent=principal?'OCI Streaming uses the VM instance principal for app access and the container resource principal for Debezium and the history writer. No queue username or token secret is needed. Access stays within the VM compartment.':'Apache Kafka uses the username and password configured on the selected cluster. Store its password in a Vault secret in the VM compartment.';
- const secret=form.querySelector('[data-queue-secret]');
- if(!principal){secret.dataset.resourceOptions='secret';}else{delete secret.dataset.resourceOptions;}
- options(select,[],'Loading services…');select.disabled=true;
- const [resources]=await Promise.all([get('/configuration/options/'+(principal?'stream_pool':'kafka_cluster')),principal?Promise.resolve():loadReference(secret)]);
- if(queueResourceVersion!==version)return;
+ const version=++queueResourceVersion,select=form.querySelector('[data-queue-resource]');
+ options(select,[],'Loading stream pools…');select.disabled=true;
+ const resources=await get('/configuration/options/stream_pool');if(queueResourceVersion!==version)return;
  options(select,resources.options.filter(item=>item.state==='ACTIVE'));
  if(selected.resource_ocid)select.value=selected.resource_ocid;
- if(!principal&&selected.secret_ocid)secret.value=selected.secret_ocid;
+
 }
 window.configurationForms={
  cancelLoads(){queueVersion++;queueResourceVersion++;for(const role of ['source','target'])mappingLoads[role]=(mappingLoads[role]||0)+1;document.querySelectorAll('#flow-dialog [data-resource-options],#queue-dialog [data-resource-options]').forEach(select=>select.dataset.requestId=String(Number(select.dataset.requestId||0)+1));},
@@ -125,16 +114,15 @@ window.configurationForms={
   const results=await Promise.allSettled([
    loadMappingObjects('source',{schema:values.source_schema,table:values.source_table}),
    loadMappingObjects('target',{schema:values.target_schema,table:values.target_table}),
-   loadMappingQueue({topic:values.topic,harness:values.connect_harness_id})
+   loadMappingQueue({topic:values.topic})
   ]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
  },
  prefillQueue:loadQueueResources
 };
 document.querySelectorAll('.workload-settings [name=repository_id]').forEach(select=>select.addEventListener('change',()=>{const image=select.closest('form').querySelector('[data-resource-options=image]');loadReference(image).catch(e=>options(image,[],e.message));}));
-document.querySelector('[data-queue-kind]')?.addEventListener('change',()=>loadQueueResources().catch(e=>alert(e.message)));
 const topicQueue=document.getElementById('topic-inventory-queue');
-if(topicQueue)topicQueue.addEventListener('change',async()=>{const id=topicQueue.value,status=document.querySelector('[data-topic-status]'),holder=document.getElementById('topic-inventory');holder.replaceChildren();status.textContent='';if(!id)return;status.textContent='Loading topics…';try{const data=await get('/queue-connections/'+id+'/topics');if(topicQueue.value!==id)return;const scroll=document.createElement('div');scroll.className='table-scroll';const table=document.createElement('table');table.id='managed-topics';table.dataset.selectable='true';table.dataset.deleteUrl='/queue-topics/delete?queue_id='+encodeURIComponent(id);table.dataset.deleteLabel='topics';const head=table.createTHead().insertRow();for(const label of ['Name','Partitions','State']){const cell=document.createElement('th');cell.textContent=label;head.append(cell);}const body=table.createTBody();for(const topic of data.topics){const row=body.insertRow();row.dataset.rowId=topic.name;for(const value of [topic.name,topic.partitions,topic.state])row.insertCell().textContent=value;}if(!data.topics.length){const cell=body.insertRow().insertCell();cell.colSpan=3;cell.textContent='No topics available.';}scroll.append(table);holder.append(scroll);window.initializeTables?.(holder);status.textContent='';}catch(e){if(topicQueue.value===id)status.textContent=e.message;}});
+if(topicQueue)topicQueue.addEventListener('change',async()=>{const id=topicQueue.value,status=document.querySelector('[data-topic-status]'),holder=document.getElementById('topic-inventory');holder.replaceChildren();status.textContent='';if(!id)return;status.textContent='Loading streams…';try{const data=await get('/queue-connections/'+id+'/topics');if(topicQueue.value!==id)return;const scroll=document.createElement('div');scroll.className='table-scroll';const table=document.createElement('table');table.id='managed-topics';table.dataset.selectable='true';table.dataset.deleteUrl='/queue-topics/delete?queue_id='+encodeURIComponent(id);table.dataset.deleteLabel='streams';const head=table.createTHead().insertRow();for(const label of ['Name','Partitions','State']){const cell=document.createElement('th');cell.textContent=label;head.append(cell);}const body=table.createTBody();for(const topic of data.topics){const row=body.insertRow();row.dataset.rowId=topic.name;for(const value of [topic.name,topic.partitions,topic.state])row.insertCell().textContent=value;}if(!data.topics.length){const cell=body.insertRow().insertCell();cell.colSpan=3;cell.textContent='No streams available.';}scroll.append(table);holder.append(scroll);window.initializeTables?.(holder);status.textContent='';}catch(e){if(topicQueue.value===id)status.textContent=e.message;}});
 
 document.querySelector('[data-topics-refresh]')?.addEventListener('click',()=>topicQueue?.dispatchEvent(new Event('change')));
 if(topicQueue){const selected=new URLSearchParams(location.search).get('queue_id');if(selected&&Array.from(topicQueue.options).some(option=>option.value===selected)){topicQueue.value=selected;topicQueue.dispatchEvent(new Event('change'));}}

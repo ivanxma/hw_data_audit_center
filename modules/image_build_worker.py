@@ -50,6 +50,12 @@ def podman(*args):
 def run(path, *args, timeout=1800):
     environment = dict(os.environ)
     environment["XDG_RUNTIME_DIR"] = str(runtime_directory())
+    # A rootless Podman pause process can outlive systemd's PrivateTmp mount.
+    # Keep image-copy temporary files in the app's persistent runtime directory
+    # so subsequent builds do not use an unlinked /var/tmp after a restart.
+    temporary = runtime_directory() / "tmp"
+    temporary.mkdir(parents=True, exist_ok=True, mode=0o700)
+    environment["TMPDIR"] = str(temporary)
     # The builder does not pass deployment references or ambient proxy credentials to builds.
     for name in (
         "AUDIT_CONFIG_FILE",
@@ -144,41 +150,18 @@ def process(path):
         )
         stage = "checking"
         state(stage, "Checking the image runtime and application imports.")
-        python = "python" if job["role"] == "processor" else "/opt/vault-python/bin/python"
         check = (
-            "import worker; import mysql.connector; import confluent_kafka; import oci; "
-            "from modules.principal_kafka import java_runtime; java_runtime()"
+            "import worker; import mysql.connector; import oci; import modules.native_streaming"
             if job["role"] == "processor"
-            else "import sys, pathlib; sys.path.insert(0, '/opt'); import debezium_bootstrap; "
-            "import modules.capture_runtime; import mysql.connector; "
-            "assert pathlib.Path('/docker-entrypoint.sh').is_file()"
+            else "import sys; sys.path.insert(0, '/opt'); import debezium_bootstrap; "
+            "import modules.capture_runtime; import modules.initial_capture; import mysql.connector"
         )
-        run(
-            path,
-            "run",
-            "--rm",
-            "--network=none",
-            "--entrypoint",
-            python,
-            local_image,
-            "-c",
-            check,
-            timeout=120,
-        )
-        run(
-            path,
-            "run",
-            "--rm",
-            "--network=none",
-            "--entrypoint",
-            "java",
-            local_image,
-            "-cp",
-            "/opt/streaming-check:/opt/streaming-libs/*:/kafka/libs/*",
-            "PrincipalRuntimeCheck",
-            *(["connect"] if job["role"] == "debezium" else []),
-            timeout=120,
-        )
+        run(path, "run", "--rm", "--network=none", "--entrypoint", "python", local_image,
+            "-c", check, timeout=120)
+        if job["role"] == "debezium":
+            run(path, "run", "--rm", "--network=none", "--entrypoint", "java", local_image,
+                "-Dorg.slf4j.simpleLogger.defaultLogLevel=warn", "-cp", "/opt/native/native-capture.jar",
+                "local.heatwave.audit.RuntimeCheck", timeout=120)
         stage = "publishing"
         state(stage, "Uploading the image to the selected OCI Registry repository.")
         # Recheck scope and repository immediately before a registry mutation.

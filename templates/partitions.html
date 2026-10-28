@@ -1,5 +1,6 @@
 {% extends 'base.html' %}{% block content %}
 <div class="page-heading"><div><div class="eyebrow">TARGET AUDIT STORAGE</div><h1>Audit partitions</h1><p>{{ flow.name }} · {{ flow.target_schema }}.{{ flow.target_table }} · Source event time in UTC</p></div></div>
+{% if target_tables|default([])|length > 1 %}<form method="get" class="filter-bar"><label>Target history table<select name="target_table">{% for name in target_tables %}<option value="{{ name }}" {{ 'selected' if name==flow.target_table else '' }}>{{ name }}</option>{% endfor %}</select></label><button class="button">Inspect table</button></form>{% endif %}
 {% if policy_error %}<div class="notice">{{ policy_error }}</div>{% endif %}<div class="notice">Monthly partitions support time filtering and retention. Row-key indexes support history lookup. Identity, schema and queue-checkpoint records are retained. Cleanup runs only on an explicitly enabled policy and a stopped flow.</div>
 <section class="panel"><div class="panel-heading"><h2>Payload partitions</h2></div>
 <form method="post" data-table-action="audit-partitions"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="prepare"><button class="primary">Prepare next two months</button></form>

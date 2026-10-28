@@ -1,16 +1,6 @@
-FROM docker.io/library/maven:3.9.9-eclipse-temurin-21 AS streaming-libs
-WORKDIR /build
-COPY deploy/streaming-java/pom.xml .
-COPY deploy/streaming-java/PrincipalRuntimeCheck.java .
-RUN javac -d /probe PrincipalRuntimeCheck.java
-RUN mvn -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/libs
 FROM docker.io/library/python:3.12-slim
-RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-headless && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY --from=streaming-libs /libs /opt/streaming-libs
-COPY --from=streaming-libs /probe /opt/streaming-check
+RUN pip install --no-cache-dir 'oci>=2.160,<3' 'mysql-connector-python>=9.5,<10'
 COPY --chown=10001:10001 modules modules
 COPY --chown=10001:10001 worker.py .
 RUN useradd -u 10001 -m audit

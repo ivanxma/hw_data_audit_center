@@ -2,29 +2,16 @@
   "compartment_id": "",
   "region": "",
   "streaming": {
-    "bootstrap_servers": "",
-    "stream_pool_id": "",
     "kind": "oci_streaming",
-    "connect_harness_id": "",
-    "connect_topics": {
-      "config": "",
-      "offset": "",
-      "status": ""
-    },
-    "incarnation": "",
-    "connect_profiles": {},
-    "auth_mode": "principal"
-  },
-  "kafka": {
-    "bootstrap_servers": "",
-    "username": "",
-    "secret_ocid": "",
-    "kind": "oci_kafka",
-    "cluster_id": "",
-    "connect_topics": {},
-    "replication_factor": 3,
-    "incarnation": "",
-    "connect_profiles": {}
+    "stream_pool_id": "",
+    "max_event_bytes": 16777216,
+    "max_pending_fragment_bytes": 134217728,
+    "put_max_records": 500,
+    "put_requests_per_second": 4,
+    "put_bytes_per_second": 850000,
+    "get_max_records": 1000,
+    "get_idle_max_ms": 2000,
+    "get_bytes_per_second": 1500000
   },
   "processor": {
     "availability_domain": "",
@@ -41,8 +28,7 @@
       "max_records": 250,
       "max_bytes": 4194304,
       "max_wait_ms": 500
-    },
-    "offset_commit_interval_ms": 500
+    }
   },
   "debezium": {
     "availability_domain": "",

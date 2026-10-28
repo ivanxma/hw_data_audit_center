@@ -135,3 +135,18 @@ must remain in the VM compartment and region. Cross-compartment sharing is not
 supported by this prototype. This is an application restriction; host-only MySQL
 connection testing does not attest DB-system compartment placement. See the
 [resource boundary matrix](compartment-scope.md) and user manual Appendix K.
+
+## Streaming, wildcard and storage boundaries
+
+Streaming retention bounds how long apply can lag. Capture offsets and JDBC
+schema history are target-backed, so an entire target outage can pause extraction.
+Large events are fragmented within configured bounds, but fragmentation adds
+bytes and cannot raise target packet/document limits. Interrupted source attempts
+can leave incomplete generations requiring evidence-based review; completed
+receipts are retained. Full schemas remain in the event envelope. See
+[Streaming and size limits](streaming-and-size-limits.md).
+
+Wildcard inventory is bounded to 1,000 eligible tables and requires stable primary
+keys. Historical repositioning of deployed wildcard flows and automatic retention
+cleanup of grouped targets are disabled. Existing deployed scope/layout identifiers
+are locked. See [source scopes and target layouts](table-scopes.md).

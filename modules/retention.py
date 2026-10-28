@@ -69,7 +69,7 @@ def check_ingestion(db, flow, events):
         (flow["id"],),
         one=True,
     )
-    if not row or row["target_table"] != flow["target_table"]:
+    if not row or row["target_table"] != flow.get("retention_table", flow["target_table"]):
         raise ValueError("Target needs retention-state initialization before ingestion.")
     cutoff = row["expiry_cutoff"]
     if cutoff and any(e["event_time"] < cutoff for e in events):
@@ -127,6 +127,9 @@ def eligible_partitions(partitions, cutoff):
 
 
 def preview(db, flow, policy, today=None):
+    from .target_routes import grouping
+    if grouping(flow) != "flow":
+        raise ValueError("Automated payload cleanup requires by-flow target grouping. Grouped target cleanup needs a coordinated maintenance plan.")
     cutoff = month(today or datetime.now(timezone.utc).date(), -policy["retain_months"])
     return {
         "cutoff": cutoff.isoformat(),
@@ -137,6 +140,9 @@ def preview(db, flow, policy, today=None):
 
 
 def cleanup(db, flow, policy, actor):
+    from .target_routes import grouping
+    if grouping(flow) != 'flow':
+        raise ValueError('Automated cleanup is unavailable for grouped targets; use a coordinated maintenance plan.')
     """One explicitly requested job; DDL is bounded and each completed step is durable."""
     from .repository import named_lock
 

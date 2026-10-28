@@ -21,8 +21,7 @@ platform; Debezium and history writers run on OCI Container Instances. Review
 
 The installer validates saved configuration before installing local MySQL. It
 preserves the saved config path, HTTPS port and custom TLS paths unless explicitly
-overridden, keeps MySQL socket-only, installs Java principal dependencies and
-validates generated units with the OL9 systemd parser and restarts the web service after validation. Launchers read the private runtime file as the app owner; systemd does not need to read a home-directory EnvironmentFile. `SKIP_PRIVILEGED_SETUP=1` skips package
+overridden, keeps MySQL socket-only, validates generated units with the OL9 systemd parser and restarts the web service after validation. Launchers read the private runtime file as the app owner; systemd does not need to read a home-directory EnvironmentFile. `SKIP_PRIVILEGED_SETUP=1` skips package
 installation only; service/firewall installation still needs sudo. Do not run
 setup while an image build is active. The builder installer refuses to interrupt
 an active build. Back up before a setup rerun; the script is not an embedded-MySQL
@@ -48,20 +47,18 @@ run with an already rotated password.
    optional global verified trust is a Runtime Settings concern.
 2. Generate/configure the dedicated fingerprint secret once. Retain the same key
    for existing history. It is independent of every database password.
-3. Create/select messaging resources. Streaming uses principal authentication,
-   a data stream and a dedicated Connect harness for each independent connector.
-   Managed Kafka uses broker SCRAM credentials and dedicated internal topics.
-4. Register a source table and compatible target schema/table through metadata
-   dropdowns. Choose Start (current-row snapshot) or End (schema-only baseline).
-5. Validate source ROW/FULL settings, empty binlog_row_value_options, GTID mode,
-   primary key, retention greater than three days and effective grants. Seven
-   days is a starting retention recommendation; size for outage plus catch-up.
-6. Prepare the single-partition public schema topic `audit_<flow_id>`. Both data
-   and schema topics must be ready. Public schema evidence, internal schema
-   history and Connect state are separate stores.
-7. Build both images, select completed releases and save workload settings.
-   Deploy, then verify connector task, writer process, queue arrivals and target
-   history/checkpoints. Running containers alone are insufficient.
+3. Create/select an OCI Streaming pool and data stream. Add a queue connection
+   with its name and pool; authentication uses OCI principals.
+4. Register the source table and audit destination. End is the default; Start
+   scans existing rows, while Specific GTID uses a validated executed set without
+   copying rows. Inspect executed/purged bounds before using GTID.
+5. Run source checks: ROW/FULL, empty binlog_row_value_options, GTID mode, primary
+   key, retention and effective grants. Size retention for outage plus catch-up.
+6. Build and select current native capture/writer images. Deploy prepares the
+   separate single-partition schema stream `audit_<flow_id>` automatically and
+   persists immutable data/schema stream bindings before workload creation.
+7. Verify the source task, writer, stream arrivals, target history and checkpoints.
+   Running containers alone are insufficient.
 
 ## Edit configuration registrations
 
@@ -91,12 +88,15 @@ restart workloads. OCI service resources retain their existing lifecycle control
 
 ## Fixed container build contract
 
-The Debezium image installs the JDBC history module matching the base connector
-version and the MySQL driver. Shared Jersey/HK2 libraries are taken from Connect
-to avoid incompatible duplicates. Runtime probes check imports, class loading
-and Jersey startup before publication. Streaming JDBC history uses a qualified,
-per-flow table with MySQL-safe LONGTEXT storage. Managed Kafka uses durable
-single-partition internal schema history instead.
+The capture image builds an embedded Debezium Engine, MySQL driver, JDBC history
+module and OCI Java SDK together, with aligned dependencies. Runtime probes check
+engine/provider loading, native offset serialization, the custom GTID snapshotter
+and OCI SDK setup before publication. The writer image is Python with the OCI SDK.
+Both publish/consume via native HTTPS APIs with resource principals.
+
+Private schema history and full source offsets are stored on target HeatWave,
+separately from public schema events. Each native flow has its own source state
+and target writer lease; there are no shared connector state topics or harnesses.
 
 Releases are named `debezium-<UTC timestamp>-<revision>` and
 `historywriter-<UTC timestamp>-<revision>`. The VM publishes with its instance
@@ -120,7 +120,7 @@ binary. Saving a selection does not alter existing instances.
    stopping the affected workload.
 3. Click the dialog's **Update image** button. It stops only that workload and waits for OCI INACTIVE
    before creating its replacement. The other workload keeps its current state.
-   Existing connector identities, offsets, consumer groups and history remain.
+   Existing connector identities, offsets, stream bindings and history remain.
    A writer update can temporarily grow the queue while Debezium continues.
 4. If shutdown takes more than 60 seconds, the app reports that it is still
    stopping. Wait for INACTIVE, reopen Update image and choose the intended release again. It never
@@ -164,7 +164,7 @@ its retention window expires. Queue data remains subject to messaging retention.
 
 Capture start has an explicit preview/apply procedure. Start on an existing flow
 replays from retained schema evidence; GTID means an executed set; datetime is a
-UTC transaction boundary. Capture-control protocol 2 requires a matching current
+UTC transaction boundary. Capture-control protocol 3 requires a matching current
 image and checks the durable pre-change checkpoint so a forward jump cannot
 skip uncaptured schema changes. Normal restart never re-applies a reset.
 See [capture position and recovery](capture-start.md).
@@ -210,9 +210,9 @@ idempotency tokens. See [the observed 412 issue](service-provisioning.md#heatwav
 
 Preserve the socket-MySQL repository, private deployment JSON, `.runtime.env`,
 `.data/app-instance-id`, server session/TLS keys, selected image digests, Vault
-fingerprint secret, Connect state, internal schema history and target audit/state
+fingerprint secret, native source offsets, JDBC schema history and target audit/state
 tables. Back up MySQL consistently; copying a running datadir is not a backup.
-Do not change flow lineage, queue incarnation or group names as a recovery shortcut.
+Do not change flow lineage, queue incarnation or delivery identities as a recovery shortcut.
 
 Payload expiry is opt-in: set policy, use **Stop both workloads** and wait for
 INACTIVE, then preview eligible complete
@@ -228,3 +228,21 @@ Global charts count at most 100 registered tables per view. Each count query has
 See [the same-compartment limitation](compartment-scope.md) for Vault/secret
 selection, other OCI resource boundaries and the host-only database identity
 exception. Broader IAM access does not expand this application boundary.
+
+## Streaming settings and workload replacement
+
+Configure message limits, PUT batching/byte pacing and GET polling under
+`streaming` in Runtime settings. **Control Center → More actions → Apply stream
+settings** validates both selected images, replaces the writer before Debezium,
+and retains checkpoints/history. Repeat the action after an unfinished OCI stop;
+unchanged effective image/policy pairs are retained. Limit reductions require a
+separately reviewed drain and fragment reconciliation. See
+[Streaming capacity and message limits](streaming-and-size-limits.md).
+
+Control Center shares OCI status reads across web workers and tabs. The page polls
+every 15 seconds; settled samples can be 45 seconds old, transitions 10 seconds.
+The displayed Checked time is the cloud sample time. A default-image difference
+is informational and does not imply that the source database is stopped.
+
+[Source scopes and target layouts](table-scopes.md) explains wildcard inventory,
+physical target routing and the grouped-retention/historical-position boundaries.

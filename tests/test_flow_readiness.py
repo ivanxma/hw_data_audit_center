@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 from types import SimpleNamespace as Obj
 from unittest.mock import MagicMock, patch
 
@@ -13,14 +14,16 @@ from modules.workflows import SourceNotReady, WorkflowService
 class FlowReadinessTests(unittest.TestCase):
     def setUp(self):
         self.cloud = cloud()
+        self._streams = {}
+        self.cloud.streams.get_stream.side_effect = lambda identifier: Obj(data=self._streams[identifier])
         self.cloud.validate_connection = MagicMock()
-        self.cloud.config = {"fingerprint_secret_ocid": "ocid1.vaultsecret.test.key"}
+        self.cloud.config = {"region": "example-region", "fingerprint_secret_ocid": "ocid1.vaultsecret.test.key"}
         self.cloud.vault.get_secret.return_value.data = Obj(compartment_id="scope")
         self.cloud.streams.get_connect_harness.return_value.data = Obj(
             compartment_id="scope", lifecycle_state="ACTIVE"
         )
         self.cloud.streams.get_stream_pool.return_value.data = Obj(
-            compartment_id="scope",
+            compartment_id="scope", id="pool",
             lifecycle_state="ACTIVE",
             private_endpoint_settings=None,
             kafka_settings=Obj(bootstrap_servers="stream.example.invalid:9092"),
@@ -45,13 +48,15 @@ class FlowReadinessTests(unittest.TestCase):
         }
 
     def listing(self, state="ACTIVE", partitions=1):
-        return Obj(data=[Obj(compartment_id="scope", lifecycle_state=state, partitions=partitions)])
+        stream = Obj(id="stream-" + str(len(self._streams)), compartment_id="scope", stream_pool_id="pool", lifecycle_state=state, partitions=partitions, messages_endpoint="https://example.invalid", time_created=datetime.now(timezone.utc), retention_in_hours=168)
+        self._streams[stream.id] = stream
+        return Obj(data=[stream])
 
     def test_missing_schema_stream_names_resource_and_preparation_action(self):
         with patch(
             "oci.pagination.list_call_get_all_results", side_effect=[self.listing(), Obj(data=[])]
         ):
-            with self.assertRaisesRegex(ValueError, "audit_42.*Prepare schema topic"):
+            with self.assertRaisesRegex(ValueError, "audit_42"):
                 self.cloud.validate_flow(self.flow)
 
     def test_schema_stream_requires_active_one_partition_and_same_compartment(self):
@@ -70,7 +75,7 @@ class FlowReadinessTests(unittest.TestCase):
                     self.cloud.validate_flow(self.flow)
 
     def test_ready_streams_continue_to_explicit_fingerprint_configuration_check(self):
-        self.cloud.config = {}
+        self.cloud.config = {"region": "example-region"}
         with patch("oci.pagination.list_call_get_all_results", return_value=self.listing()):
             with self.assertRaisesRegex(ValueError, "fingerprint_secret_ocid"):
                 self.cloud.validate_flow(self.flow)
@@ -110,6 +115,16 @@ class FlowReadinessTests(unittest.TestCase):
                         "audit_42", prepare_schema_topic("db", self.cloud, self.flow, "operator")
                     )
                 create.assert_not_called()
+
+    def test_deployment_prepares_schema_stream_once_and_waits_for_visibility(self):
+        with (
+            patch("modules.queue_connections.topics", side_effect=[[], [], [{"name": "audit_42", "partitions": 1, "state": "ACTIVE"}]]),
+            patch("modules.queue_connections.create_topic") as create,
+            patch("modules.queue_connections.time.sleep"),
+        ):
+            result = prepare_schema_topic("db", self.cloud, self.flow, "operator", wait=True)
+        create.assert_called_once()
+        self.assertIn("ACTIVE", result)
 
     def test_source_configuration_failure_precedes_queue_and_target_deployment(self):
         service = WorkflowService(MagicMock(), lambda: self.cloud, "operator")

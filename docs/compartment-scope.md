@@ -20,8 +20,7 @@ even when an IAM policy could permit access.
 | Vault and encryption key | Choose an ACTIVE Vault and enabled AES key in the VM compartment; the key must belong to the selected Vault |
 | Existing credential secrets | Use a local-compartment secret and Vault; importing an out-of-compartment OCID is not a supported alternative to selection |
 | Row-fingerprint secret | Dedicated, stable secret in the same compartment; preserve it for all existing history |
-| OCI Streaming | Stream pool, data/schema streams and Connect configuration in the same compartment |
-| Managed Apache Kafka | Cluster/configuration and referenced networking in the same compartment |
+| OCI Streaming | Stream pool and data/schema streams in the same compartment |
 | Container Registry | Private repository and selected images in the same compartment |
 | Container Instances | Workloads and their selected subnet/VCN attachments in the same compartment |
 | Managed networking | Existing VCNs, subnets and referenced NSGs checked by the provisioning path must be in the VM compartment; shared networking is not modified |

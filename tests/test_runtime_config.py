@@ -14,7 +14,10 @@ class RuntimeConfigTests(unittest.TestCase):
     def test_processor_payload_uses_only_runtime_connection_fields(self):
         cloud = Cloud.__new__(Cloud)
         cloud.compartment = "scope"
-        cloud.validate_flow = MagicMock()
+        cloud.require_native_image = MagicMock()
+        cloud.validate_flow = MagicMock(
+            return_value={"kind": "oci_streaming", "incarnation": "pool", "streams": {}}
+        )
         cloud.network = MagicMock()
         cloud.registry = MagicMock()
         cloud.containers = MagicMock()
@@ -39,7 +42,7 @@ class RuntimeConfigTests(unittest.TestCase):
                 "availability_domain": "ad",
                 "shape": "CI.Standard.E4.Flex",
             },
-            "streaming": {"kind": "oci_streaming", "incarnation": "pool"},
+            "streaming": {"kind": "oci_streaming", "stream_pool_id": "pool"},
         }
         flow = {
             "id": 1,
@@ -62,6 +65,7 @@ class RuntimeConfigTests(unittest.TestCase):
                 "private_note": "must-not-ship",
             },
         }
+        cloud.require_message_image = MagicMock()
         cloud.create_processor(flow)
         details = cloud.containers.create_container_instance.call_args.args[0]
         encoded = details.containers[0].environment_variables["AUDIT_WORKER_CONFIG"]
@@ -134,7 +138,7 @@ class RuntimeConfigTests(unittest.TestCase):
             "shape": "CI.Standard.E4.Flex",
         }
         flow = {"id": 1, "connector_name": "audit-test"}
-        payload = {"compartment_id": "scope", "writer_protocol": 2}
+        payload = {"compartment_id": "scope", "writer_protocol": 3}
         first = cloud.create_workload(
             flow, settings, payload, "history-writer", ["python", "worker.py"]
         )

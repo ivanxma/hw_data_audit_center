@@ -20,33 +20,6 @@ FORMS = {
             "retention", "Retention (hours)", "number", value=168, min=24, max=168, required=True
         ),
     ],
-    "connect_harness": [NAME],
-    "kafka_config": [NAME, field("properties", "Kafka properties (JSON)", "textarea", value="{}")],
-    "kafka_cluster": [
-        NAME,
-        field(
-            "cluster_config_id",
-            "Kafka configuration",
-            "select",
-            options="kafka_config",
-            required=True,
-        ),
-        field("config_version", "Configuration version", "number", value=1, min=1, required=True),
-        SUBNET,
-        field("kafka_version", "Supported Kafka version", required=True),
-        field("coordination_type", "Coordination type", required=True),
-        field(
-            "cluster_type",
-            "Cluster type",
-            "select",
-            choices=["PRODUCTION", "DEVELOPMENT"],
-            required=True,
-        ),
-        field("node_shape", "Broker node shape", required=True),
-        field("node_count", "Broker nodes", "number", value=3, min=1, required=True),
-        field("ocpus", "OCPUs per broker", "number", value=2, min=1, required=True),
-        field("storage", "Storage per broker (GB)", "number", value=100, min=50, required=True),
-    ],
     "repository": [NAME],
     "vault": [NAME],
     "secret": [

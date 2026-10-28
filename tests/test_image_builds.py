@@ -35,6 +35,38 @@ def cloud():
 
 
 class ImageBuildTests(unittest.TestCase):
+    def test_builder_restart_preserves_the_rootless_container_mount_namespace(self):
+        from scripts import install_image_builder as installer
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".runtime.env").write_text("")
+            (root / ".data").mkdir()
+            with (
+                patch.object(installer, "ROOT", root),
+                patch.object(installer, "inventory", return_value=[]),
+                patch.object(installer.pwd, "getpwuid", return_value=Obj(pw_name="appuser", pw_gid=1234)),
+                patch.object(installer.grp, "getgrgid", return_value=Obj(gr_name="appgroup")),
+                patch.object(installer, "install") as install,
+                patch.object(installer.subprocess, "run"),
+            ):
+                installer.main()
+            unit = install.call_args.args[1]
+            self.assertIn("PrivateTmp=false", unit)
+            self.assertIn("RuntimeDirectoryPreserve=yes", unit)
+            self.assertIn("ProtectSystem=strict", unit)
+            self.assertIn(" /var/tmp\n", unit)
+
+    def test_initial_gtid_release_contains_the_snapshotter_and_runtime_before_deployment(self):
+        from modules.debezium import require_initial_gtid_image
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, _ = builds.snapshot(ROOT, Path(tmp) / "context", "debezium")
+            require_initial_gtid_image(manifest)
+            manifest.pop("modules/initial_capture.py")
+            with self.assertRaisesRegex(ValueError, "newly built Debezium"):
+                require_initial_gtid_image(manifest)
+
     def test_launcher_loads_private_runtime_from_its_checkout(self):
         with tempfile.TemporaryDirectory(prefix="audit launcher ") as tmp:
             root = Path(tmp)
@@ -173,6 +205,11 @@ class ImageBuildTests(unittest.TestCase):
             self.assertEqual(args[0], "/usr/bin/podman")
             self.assertNotIn("--creds", args)
             self.assertNotIn("shell", run.call_args.kwargs)
+            environment = run.call_args.kwargs["env"]
+            temporary = Path(environment["TMPDIR"])
+            self.assertEqual(temporary, worker.runtime_directory() / "tmp")
+            self.assertTrue(temporary.is_dir())
+            self.assertEqual(temporary.stat().st_mode & 0o777, 0o700)
 
     def test_service_uses_volatile_runtime_with_persistent_image_storage(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(worker, "ROOT", Path(tmp)):

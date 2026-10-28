@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Native data path" id="page">
+    <mxGraphModel dx="1600" dy="870" page="1" pageScale="1" pageWidth="1600" pageHeight="300">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;Source binlog → native OCI Streaming → audit history&lt;/b&gt;" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=27;">
+          <mxGeometry x="30" y="0" width="1540" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="step0" value="&lt;b&gt;Source binlog&lt;/b&gt;&lt;br&gt;ROW / FULL images" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+          <mxGeometry x="35" y="55" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" value="&lt;b&gt;Debezium Engine&lt;/b&gt;&lt;br&gt;Full offsets · split if oversized" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+          <mxGeometry x="345" y="55" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" value="&lt;b&gt;OCI Streaming&lt;/b&gt;&lt;br&gt;Data stream + schema stream" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+          <mxGeometry x="655" y="55" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step3" value="&lt;b&gt;History writer&lt;/b&gt;&lt;br&gt;Reassemble · validate · fingerprint" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+          <mxGeometry x="965" y="55" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" value="&lt;b&gt;HeatWave target&lt;/b&gt;&lt;br&gt;Payload + identity ledger" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+          <mxGeometry x="1275" y="55" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="flow0" value="" parent="1" source="step0" target="step1" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow1" value="" parent="1" source="step1" target="step2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow2" value="" parent="1" source="step2" target="step3" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow3" value="" parent="1" source="step3" target="step4" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

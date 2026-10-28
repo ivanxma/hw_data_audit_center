@@ -1,4 +1,4 @@
-"""Author the public, illustrative five-minute demonstration."""
+"""Author the public, illustrative native Streaming demonstration."""
 
 import json
 from pathlib import Path
@@ -37,7 +37,7 @@ add(
     "architecture",
     "One compartment. One traceable data path.",
     20,
-    "The web application runs on Oracle Linux nine. Debezium and the history writer run on O C I Container Instances. Debezium reads source changes, publishes to O C I Streaming, and the writer commits history to the target. Vault holds credentials. Resource access stays in the virtual machine compartment.",
+    "The web application runs on Oracle Linux nine. Embedded Debezium Engine and the history writer run on private O C I Container Instances. Debezium reads MySQL binlogs and publishes with the native O C I Java S D K over H T T P S. The Python writer consumes Streaming and commits audit history. Vault holds secrets. Resource access remains compartment scoped.",
     "OL9 control plane · OCI Container Instances · OCI Streaming · HeatWave target",
     mode="full",
     card="architecture",
@@ -67,10 +67,10 @@ add(
     "streaming",
     "Select OCI Streaming resources",
     18,
-    "Create or select a stream pool, a data stream, and a Connect configuration. Add a queue connection using principal authentication. The mapping uses the data stream; its separate schema stream must also be ready. This demonstration uses O C I Streaming throughout.",
+    "Create or select an active stream pool and data stream. Register the pool connection using principal authentication. The mapping uses that data stream and its own single-partition schema stream. The source publishes with the native O C I S D K, and the writer consumes with the native Python S D K.",
     "Data stream: demo-orders · Schema stream: audit_1 · Principal authentication",
     mode="browser",
-    page="configuration?tab=resources&service=stream_pool",
+    page="configuration?tab=resources&service=streaming",
     target="streams",
 )
 add(
@@ -181,7 +181,84 @@ add(
     mode="full",
     card="summary",
 )
-assert sum(s["duration"] for s in scenes) == 300
+# Additional native Streaming and recovery chapters follow service setup.
+additional = [
+    dict(
+        id="source-scope",
+        title="One table, one database, or all eligible tables",
+        duration=28,
+        narration="A mapping can capture one table, every eligible table in one database, or eligible tables across databases. System databases and registered audit destinations are excluded. Included tables need stable primary keys. Target grouping chooses one audit table per flow, source database, or source table, all within the selected target schema. These are audit records, not column-for-column source replicas.",
+        caption="Source: table, database.* or *.* · Target grouping: flow, database or table",
+        mode="browser",
+        page="configuration?tab=flows",
+    ),
+    dict(
+        id="gtid-start",
+        title="Start after a validated processed G T I D set",
+        duration=32,
+        narration="End captures new changes without copying existing rows. Start reads current rows for a snapshot. For Specific G T I D, enter transactions already processed. Include all transactions removed from the source logs, and exclude transactions that have not executed. Keep each server identifier and its intervals. Multiple groups are allowed. Also validate transaction order and schema coverage.",
+        caption="Purged ⊆ selected ⊆ executed · Already processed, not a transaction to include",
+        mode="browser",
+        page="configuration?tab=flows",
+    ),
+    dict(
+        id="staging",
+        title="A durable buffer for delayed target apply",
+        duration=26,
+        narration="Streaming retains changes while the writer is stopped, slow, or being replaced. The writer catches up from durable delivery checkpoints, within stream retention. There is an important limit: capture offsets and private Debezium schema history also live in the target database. A full target outage can therefore pause extraction too. Keep source binlogs for that outage window.",
+        caption="Stream retention absorbs apply delay · Target-backed capture state remains a dependency",
+        mode="full",
+        card="explanation",
+        points=[
+            "Writer delayed: retained stream buffers changes",
+            "Restart: resume durable delivery checkpoints",
+            "Full target outage: capture state can pause extraction",
+        ],
+        note="Source binlog retention and stream retention protect different recovery windows.",
+    ),
+    dict(
+        id="message-limits",
+        title="Full row images can be much larger than a row",
+        duration=28,
+        narration="An update carries both images, source metadata, keys and a repeated schema description. The one mebibyte service maximum applies to a message and a P U T request. This publisher uses a lower encoded byte budget. Logical events default to sixteen mebibytes, with bounded incomplete custody. The target database still needs suitable J S O N, packet and memory capacity. The current release preserves the full schema; compact schema-free serialization is not implemented.",
+        caption="Full envelope + UTF-8 + encoding overhead · Service and target limits still apply",
+        mode="full",
+        card="explanation",
+        points=[
+            "Service: 1 MiB message and PUT request limit",
+            "Application: 16 MiB logical event default",
+            "Target: JSON, packet, storage and memory limits remain",
+        ],
+        note="Fragmentation preserves the full event. It does not compress it or raise database limits.",
+    ),
+    dict(
+        id="fragmentation",
+        title="Normal events stay single; large events split",
+        duration=28,
+        narration="An event within budget stays one message. An oversized event is split into checksum-protected parts with stable routing. Source progress is acknowledged only after every part is accepted. The writer saves incomplete parts durably and writes an audit event only after complete reassembly. A writer restart can resume those parts. Interrupted source attempts can leave older incomplete generations, which need retained-evidence review before cleanup.",
+        caption="Conditional split → durable part custody → checked reassembly → complete audit event",
+        mode="full",
+        card="explanation",
+        points=[
+            "Normal event: original key and envelope, one message",
+            "Oversized event: indexed parts and full checksums",
+            "Writer: durable custody before delivery progress",
+        ],
+        note="Incomplete generations are bounded and retained for review; partial events never become audit rows.",
+    ),
+    dict(
+        id="request-control",
+        title="Reduce requests before relying on retries",
+        duration=30,
+        narration="Small events share a request and remain separate messages. Batch limits and byte pacing smooth writes. Larger read batches and slower idle polling reduce calls. Retries handle remaining rate limit rejections. Check every result entry. Our test sent one hundred row events and one schema event in two write requests, with no rejected records. Apply stream settings updates the writer before the source.",
+        caption="Validated fixture: 101 messages in 2 PUT calls · Zero throttled entries",
+        mode="browser",
+        page="configuration/runtime",
+    ),
+]
+insert = next(i for i, scene in enumerate(scenes) if scene["id"] == "control")
+scenes[insert:insert] = additional
+
 start = 0
 for s in scenes:
     s["start"] = start
@@ -191,7 +268,7 @@ for s in scenes:
         {
             "title": "HeatWave Audit Center — OCI Streaming demonstration",
             "mode": "Illustrative replay; application templates with isolated fixture data. No live source mutations or OCI delivery claims.",
-            "duration": 300,
+            "duration": start,
             "width": 2560,
             "height": 1440,
             "scenes": scenes,
@@ -207,4 +284,4 @@ for s in scenes:
     )
     + "\n"
 )
-print("Authored", len(scenes), "scenes, 300 seconds.")
+print("Authored", len(scenes), "scenes,", start, "seconds.")

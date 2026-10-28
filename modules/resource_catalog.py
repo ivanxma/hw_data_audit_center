@@ -21,30 +21,6 @@ SERVICES = {
         "delete_stream_pool",
     ),
     "stream": ("streaming", "Streams", "streams", "list_streams", "get_stream", "delete_stream"),
-    "connect_harness": (
-        "streaming",
-        "Connect harnesses",
-        "streams",
-        "list_connect_harnesses",
-        "get_connect_harness",
-        "delete_connect_harness",
-    ),
-    "kafka_cluster": (
-        "kafka",
-        "Apache Kafka clusters",
-        "kafka",
-        "list_kafka_clusters",
-        "get_kafka_cluster",
-        "delete_kafka_cluster",
-    ),
-    "kafka_config": (
-        "kafka",
-        "Kafka configurations",
-        "kafka",
-        "list_kafka_cluster_configs",
-        "get_kafka_cluster_config",
-        "delete_kafka_cluster_config",
-    ),
     "container": (
         "containers",
         "OCI Container Instances",
@@ -81,7 +57,6 @@ SERVICES = {
 }
 TABS = [
     ("streaming", "OCI Streaming"),
-    ("kafka", "Apache Kafka"),
     ("containers", "OCI Container Instances"),
     ("registry", "Container Registry"),
     ("vault", "Vault"),
@@ -175,8 +150,6 @@ def build_spec(kind, form):
             "partitions": integer(form, "partitions", 1, 1, 1000),
             "retention_in_hours": integer(form, "retention", 168, 24, 168),
         }
-    elif kind == "connect_harness":
-        result = {"name": name}
     elif kind == "repository":
         result = {"display_name": name, "is_public": False}
     elif kind == "secret":
@@ -196,48 +169,6 @@ def build_spec(kind, form):
         }
     elif kind == "vault":
         result = {"display_name": name, "vault_type": "DEFAULT"}
-    elif kind == "kafka_config":
-        properties = json.loads(form.get("properties") or "{}")
-        if not isinstance(properties, dict) or any(
-            not isinstance(v, str) for v in properties.values()
-        ):
-            raise ValueError("Kafka properties must be a JSON object of strings.")
-        if any(
-            any(word in k.lower() for word in ("password", "jaas", "token", "private"))
-            for k in properties
-        ):
-            raise ValueError("Use Vault references for credentials, never Kafka properties.")
-        result = {"display_name": name, "latest_config": {"properties": properties}}
-    elif kind == "kafka_cluster":
-        result = {
-            "display_name": name,
-            "kafka_version": form.get("kafka_version", "").strip(),
-            "cluster_type": form.get("cluster_type", "PRODUCTION"),
-            "coordination_type": form.get("coordination_type", "").strip(),
-            "cluster_config_id": form.get("cluster_config_id", ""),
-            "cluster_config_version": integer(form, "config_version", 1, 1, 100000),
-            "access_subnets": [{"subnets": [form.get("subnet_id", "")]}],
-            "broker_shape": {
-                "node_count": integer(form, "node_count", 3, 1, 100),
-                "ocpu_count": integer(form, "ocpus", 2, 1, 64),
-                "storage_size_in_gbs": integer(form, "storage", 100, 50, 32768),
-                "node_shape": form.get("node_shape", "").strip(),
-            },
-        }
-        if result["cluster_type"] not in {"PRODUCTION", "DEVELOPMENT"}:
-            raise ValueError("Select a cluster type.")
-        if result["cluster_type"] == "PRODUCTION" and result["broker_shape"]["node_count"] < 3:
-            raise ValueError("Production Kafka requires at least three brokers.")
-        if not all(
-            (
-                result["kafka_version"],
-                result["coordination_type"],
-                result["broker_shape"]["node_shape"],
-            )
-        ):
-            raise ValueError(
-                "Provide the supported Kafka version, coordination type and node shape."
-            )
     elif kind == "heatwave":
         result = {
             "display_name": name,
@@ -375,17 +306,13 @@ def in_use(db, cloud, kind, resource_id, resource):
         return True
     if repo.query(
         db,
-        "SELECT id FROM queue_connections WHERE resource_ocid=%s OR secret_ocid=%s LIMIT 1",
+        "SELECT id FROM queue_connections WHERE resource_ocid=%s LIMIT 1",
         (resource_id, resource_id),
         one=True,
     ):
         return True
     if repo.query(
         db, "SELECT id FROM connections WHERE secret_ocid=%s LIMIT 1", (resource_id,), one=True
-    ):
-        return True
-    if repo.query(
-        db, "SELECT id FROM flows WHERE connect_harness_id=%s LIMIT 1", (resource_id,), one=True
     ):
         return True
     if kind == "container":
@@ -408,15 +335,6 @@ def in_use(db, cloud, kind, resource_id, resource):
         ).data
         if any(s.lifecycle_state != "DELETED" for s in streams):
             return True
-    if kind == "kafka_config":
-        clusters = oci.pagination.list_call_get_all_results(
-            cloud.kafka.list_kafka_clusters, compartment_id=cloud.compartment
-        ).data
-        items = clusters if isinstance(clusters, list) else clusters.items
-        for item in items:
-            detail = get_resource(cloud, "kafka_cluster", item.id)
-            if detail.cluster_config_id == resource_id:
-                return True
     if kind == "vault":
         secrets = oci.pagination.list_call_get_all_results(
             cloud.vault.list_secrets, cloud.compartment, vault_id=resource_id

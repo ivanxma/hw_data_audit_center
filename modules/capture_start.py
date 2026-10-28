@@ -12,7 +12,7 @@ def gtid_set(value):
     if not isinstance(value, str) or len(value) > 65536:
         raise ValueError("Enter a MySQL executed GTID set of at most 64 KiB.")
     groups = {}
-    for group in value.replace("\n", "").replace(" ", "").split(","):
+    for group in "".join(value.split()).split(","):
         parts = group.split(":")
         if len(parts) < 2 or not re.fullmatch(UUID, parts[0]):
             raise ValueError(

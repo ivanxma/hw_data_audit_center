@@ -8,14 +8,15 @@ import signal
 from modules.ingestion import BatchSettings, BatchWriter
 from modules.mysql_util import open_connection
 from modules.process_errors import MARKER, describe
-from modules.queue_service import create_consumer
+from modules.native_streaming import NativeConsumer
+from modules.repository import named_lock
 from modules.workload_secrets import WorkloadSecrets
 
 
 def run(status):
     flow = json.loads(os.environ["AUDIT_WORKER_CONFIG"])
-    if flow.get("writer_protocol") != 2:
-        raise ValueError("Deploy this image with writer protocol 2 configuration.")
+    if flow.get("writer_protocol") != 3:
+        raise ValueError("Deploy this image with writer protocol 3 configuration.")
     settings = BatchSettings.from_config(flow.get("batch", {}))
     status["stage"] = "secrets"
     secret = WorkloadSecrets(flow)
@@ -49,12 +50,17 @@ def run(status):
     signal.signal(signal.SIGINT, stop)
     try:
         status["stage"] = "queue_connect"
-        consumer = create_consumer(
-            flow["queue"], secret, "audit-writer-" + str(flow["id"]), resource_principal=True
-        )
-        writer = BatchWriter(consumer, db, flow, fingerprint_key, settings)
-        status["writer"] = writer
-        writer.run(lambda: stopping)
+        with named_lock(db, "writer", flow["target_schema"], flow["id"]):
+            from modules.message_fragments import initialize, recover_committed
+
+            initialize(db, flow["target_schema"])
+            recover_committed(db, flow)
+            consumer = NativeConsumer(
+                flow["queue"], resource_principal=True, poll_policy=flow.get("message_policy")
+            )
+            writer = BatchWriter(consumer, db, flow, fingerprint_key, settings)
+            status["writer"] = writer
+            writer.run(lambda: stopping)
     finally:
         if consumer is not None:
             consumer.close()

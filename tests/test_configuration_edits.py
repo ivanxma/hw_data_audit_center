@@ -85,6 +85,7 @@ class EditTests(unittest.TestCase):
         self.related.return_value = [{**FLOW, "status": "active"}]
         for kind, row, changes in [
             ("flow", FLOW, {"source_table": "other"}),
+            ("flow", FLOW, {"capture_gtid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1-32"}),
             ("connection", CONNECTION, {"secret_ocid": "ocid1.vaultsecret.test.other"}),
             ("queue", QUEUE, {"resource_ocid": "other-pool"}),
         ]:

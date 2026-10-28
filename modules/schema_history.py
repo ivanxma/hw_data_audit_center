@@ -59,7 +59,7 @@ def is_snapshot(source):
     return source.get("snapshot") in (True, "true", "last", "incremental")
 
 
-def schema_identity(flow, source, object_name, ordinal, topic, partition, offset):
+def schema_identity(flow, source, object_name, ordinal, topic, partition, offset, message_id=None):
     # Snapshot preparation can emit DROP and CREATE for the same table at the
     # same binlog boundary. Those are distinct observations, not binlog DDL.
     if not is_snapshot(source) and source.get("file") is not None and source.get("pos") is not None:
@@ -76,10 +76,19 @@ def schema_identity(flow, source, object_name, ordinal, topic, partition, offset
         )
     return digest(
         [flow["lineage_id"], flow["queue_incarnation"], topic, partition, offset, ordinal]
+        if message_id is None
+        else [
+            flow["lineage_id"],
+            flow["queue_incarnation"],
+            topic,
+            "framed-v1",
+            message_id,
+            ordinal,
+        ]
     )
 
 
-def write_schema_event(db, flow, raw, topic, partition, offset):
+def write_schema_event(db, flow, raw, topic, partition, offset, *, message_id=None):
     if raw is None:
         return
     decoded = json.loads(raw)
@@ -88,7 +97,9 @@ def write_schema_event(db, flow, raw, topic, partition, offset):
     event = decoded.get("payload", decoded)
     if not isinstance(event, dict) or "ddl" not in event:
         raise ValueError("Unsupported public schema envelope.")
-    if event.get("databaseName") != flow["source_schema"]:
+    from .capture_scope import matches, matches_schema
+
+    if not matches_schema(flow, event.get("databaseName")):
         return
     changes = event.get("tableChanges", [])
     if not isinstance(changes, list):
@@ -105,7 +116,7 @@ def write_schema_event(db, flow, raw, topic, partition, offset):
                 names = [
                     n.strip().replace("`", "").replace(chr(34), "") for n in object_name.split(",")
                 ]
-                if flow["source_schema"] + "." + flow["source_table"] not in names:
+                if not any("." in n and matches(flow, *n.split(".", 1)) for n in names):
                     continue
                 after = normalize(change.get("table"))
                 source = event.get("source", {})
@@ -118,7 +129,7 @@ def write_schema_event(db, flow, raw, topic, partition, offset):
                     else change.get("type")
                 )
                 identity = schema_identity(
-                    flow, source, object_name, ordinal, topic, partition, offset
+                    flow, source, object_name, ordinal, topic, partition, offset, message_id
                 )
                 existing = query(
                     db,
@@ -230,7 +241,7 @@ def write_schema_event(db, flow, raw, topic, partition, offset):
                     (
                         identity,
                         flow["id"],
-                        flow["source_schema"],
+                        event["databaseName"],
                         object_name,
                         kind,
                         canonical(position),

@@ -27,27 +27,13 @@ class ServiceErrorTests(unittest.TestCase):
         self.assertEqual(result["response_status"], 409)
         self.assertNotIn("private schema", str(result))
 
-    def test_kafka_diagnostics_distinguish_service_and_scope_the_required_permissions(self):
-        for operation, title in (
-            ("list_kafka_clusters", "Kafka clusters"),
-            ("list_kafka_cluster_configs", "Kafka configurations"),
-        ):
+    def test_native_stream_diagnostics_are_compartment_scoped_and_hide_service_body(self):
+        for operation, title in (("list_streams", "streams"), ("list_stream_pools", "stream pools")):
             with self.subTest(operation=operation):
-                result = oci_failure(
-                    oci.exceptions.ServiceError(
-                        404,
-                        "NotAuthorizedOrNotFound",
-                        {},
-                        "private service detail",
-                        operation_name=operation,
-                    )
-                )
+                result = oci_failure(oci.exceptions.ServiceError(404, "NotAuthorizedOrNotFound", {},
+                                     "private service detail", operation_name=operation))
                 self.assertIn(title, result["message"])
-                self.assertIn("do not cover", result["guidance"])
-                self.assertIn("KAFKA_CLUSTER_INSPECT", result["policy"])
-                self.assertIn("KAFKA_CLUSTER_CONFIG_INSPECT", result["policy"])
                 self.assertIn("in compartment id <VM_COMPARTMENT_OCID>", result["policy"])
-                self.assertNotIn("CREATE", result["policy"])
                 self.assertNotIn("in tenancy", result["policy"])
                 self.assertNotIn("private service detail", str(result))
 

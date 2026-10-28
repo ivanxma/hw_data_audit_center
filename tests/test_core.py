@@ -249,25 +249,19 @@ class WebTests(unittest.TestCase):
                     },
                 )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(profile.call_args.args[1]["username"], "")
-                self.assertEqual(profile.call_args.args[1]["secret_ocid"], "")
-                self.assertEqual(query.call_args.args[2][-2:], ["", ""])
+                self.assertNotIn("username", profile.call_args.args[1])
+                self.assertNotIn("secret_ocid", profile.call_args.args[1])
+                self.assertEqual(len(query.call_args.args[2]), 3)
 
 
 class TransportAndStorageTests(unittest.TestCase):
-    def test_backends_are_distinct(self):
-        from modules.transport import mechanism, producer_settings, state_topics
+    def test_only_native_streaming_profiles_are_supported(self):
+        from modules.transport import backend, uses_principal
 
-        self.assertEqual(mechanism({"kind": "oci_kafka"}), "SCRAM-SHA-512")
-        self.assertEqual(mechanism({"kind": "oci_streaming"}), "OCI-RSA-SHA256")
-        self.assertEqual(
-            mechanism({"kind": "oci_streaming", "secret_ocid": "legacy-secret"}), "PLAIN"
-        )
-        self.assertEqual(
-            producer_settings({"kind": "oci_streaming"})["enable.idempotence"], "false"
-        )
+        self.assertEqual(backend({"kind": "oci_streaming"}), "oci_streaming")
+        self.assertTrue(uses_principal({"kind": "oci_streaming"}))
         with self.assertRaises(ValueError):
-            state_topics({"kind": "oci_streaming"}, "flow")
+            backend({"kind": "oci_kafka"})
 
     def test_new_queue_offset_same_source_event(self):
         envelope = event()

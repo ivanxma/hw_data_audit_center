@@ -3,8 +3,8 @@
   <diagram name="OCI Streaming deployment" id="page">
     <mxGraphModel dx="1600" dy="1000" page="1" pageScale="1" pageWidth="1600" pageHeight="1000">
       <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
         <mxCell id="comp" value="VM compartment · application-owned resources only" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#69635e;dashed=1;dashPattern=8 4;align=left;verticalAlign=top;spacingTop=10;spacingLeft=16;fontSize=17;container=1;">
           <mxGeometry x="10" y="10" width="1580" height="925" as="geometry" />
         </mxCell>
@@ -526,7 +526,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="produce" value="Produce · 9092" parent="1" source="deb_2" target="queue_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;exitX=0.5;exitY=0;entryX=0;entryY=0.5;;fontSize=18;">
+        <mxCell id="produce" value="PutMessages · 443" parent="1" source="deb_2" target="queue_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;exitX=0.5;exitY=0;entryX=0;entryY=0.5;;fontSize=18;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="507" y="200" />
@@ -534,7 +534,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="consume" value="Consume · 9092" parent="1" source="queue_2" target="writer_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;exitX=0;exitY=0.5;entryX=1;entryY=0.5;;fontSize=18;">
+        <mxCell id="consume" value="GetMessages · HTTPS 443" parent="1" source="queue_2" target="writer_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;exitX=0;exitY=0.5;entryX=1;entryY=0.5;;fontSize=18;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1260" y="192" />
@@ -573,10 +573,10 @@
         <mxCell id="controls" value="&lt;b&gt;Control access&lt;/b&gt;  VM instance principal → OCI APIs :443&lt;br&gt;Workload resource principals → Vault / Registry :443&lt;br&gt;Private subnets: service CIDR → SGW; approved internet egress → NAT" parent="region" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;">
           <mxGeometry x="30" y="715" width="1100" height="105" as="geometry" />
         </mxCell>
-        <mxCell id="legend" value="Blue = data movement · Brown dashed = service attachment · Grey dashed = connector state&lt;br&gt;App ingress 443 from approved CIDRs · Workers → DB 3306 / queue 9092 · Connect REST on loopback only" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;">
+        <mxCell id="legend" value="Blue = data movement · Brown dashed = service attachment · Grey dashed = durable capture state&lt;br&gt;App ingress 443 from approved CIDRs · Workers → DB 3306 / native Streaming 443 · capture control on loopback only" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;">
           <mxGeometry x="20" y="945" width="1560" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="jdbc-history" value="JDBC history · 3306" parent="1" source="deb_2" target="tgt_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8D8380;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;dashed=1;dashPattern=5 4;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+        <mxCell id="jdbc-history" value="Offsets / JDBC · 3306" parent="1" source="deb_2" target="tgt_2" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8D8380;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;dashed=1;dashPattern=5 4;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="720" y="252" />

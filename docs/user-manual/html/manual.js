@@ -1,0 +1,1 @@
+'use strict';document.getElementById('nav-search').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('nav a').forEach(a=>a.hidden=!a.textContent.toLowerCase().includes(q));});document.querySelector('[data-print-manual]').addEventListener('click',()=>window.print());

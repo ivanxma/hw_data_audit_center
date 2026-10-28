@@ -6,8 +6,7 @@ Resource lists exclude the `DELETED` state. Resources still in `DELETING` remain
 
 | Service | Resources and actions |
 | --- | --- |
-| OCI Streaming | Create pools, streams and Kafka Connect configurations; select an existing pool in a queue connection; OCI principals handle messaging authentication. |
-| OCI Streaming with Apache Kafka | Create broker configurations and clusters; inspect/create/delete application topics through the selected queue connection. |
+| OCI Streaming | Create pools and streams; select an existing pool in a queue connection; OCI principals handle messaging authentication. |
 | OCI Container Instances | Select workload subnet, availability domain, private repository image release, authentication mode, shape and size; deploy a registered flow after readiness checks. |
 | Container Registry | List/create private repositories; Build & publish Debezium and history writer images on the VM, track progress and download build logs. |
 | Vault | List/create vaults and secrets using an existing symmetric encryption key. Secret and vault deletion is scheduled with an eight-day delay. |
@@ -17,13 +16,13 @@ Use [IAM and database access](iam-policy.md) for the consolidated policy templat
 
 ## Compartment boundary
 
-The only selectable compartment is the VM's compartment. Every Cloud client verifies private configuration against VM instance metadata and uses instance-principal authentication. Inventory is scoped to that compartment and returned objects are verified. Creation and deletion repeat these checks. Existing subnets, their VCNs, private endpoint attachments, registry images, secrets and Kafka configurations are checked before use. No IAM or shared-network modifications are performed.
+The only selectable compartment is the VM's compartment. Every Cloud client verifies private configuration against VM instance metadata and uses instance-principal authentication. Inventory is scoped to that compartment and returned objects are verified. Creation and deletion repeat these checks. Existing subnets, their VCNs, private endpoint attachments, registry images, and secrets are checked before use. No IAM or shared-network modifications are performed.
 
 An operator cannot extend scope by changing a form field or supplying a resource identifier. Missing service permissions remain an error; there is no credential fallback. The Database connection endpoint is not resolved to a DB-system OCID, in accordance with the connection design.
 
 ## Resolving stream-pool access errors
 
-A successful stream inventory does not establish permission to manage stream pools or Connect configurations. OCI uses separate `streams`, `stream-pools` and `connect-harness` resource types. A denied list request in the verified VM compartment returns `NotAuthorizedOrNotFound`; the app now shows the operation, code, request ID and scoped guidance without exposing request credentials or raw OCI response bodies.
+Stream and pool management require distinct OCI permissions. A denied request reports the scoped operation, safe code and request ID; it does not change principals or broaden the compartment.
 
 An OCI administrator should verify that the VM belongs to the intended dynamic group. For the complete Streaming workflow, use the family policy below; replace both placeholders, including the identity-domain prefix where needed:
 
@@ -31,13 +30,10 @@ An OCI administrator should verify that the VM belongs to the intended dynamic g
 Allow dynamic-group <VM_DYNAMIC_GROUP> to manage stream-family in compartment id <VM_COMPARTMENT_OCID>
 ```
 
-This family includes `streams`, `stream-pools` and `connect-harness`; it does not cover managed Apache Kafka. A private endpoint additionally requires `use vnics` and `use subnets` in the same compartment; an NSG requires its corresponding use permission when selected. The application does not apply IAM policies. Refresh inventory after the administrator resolves access, then retry the same rejected request.
 
 These permissions are documented in Oracle's [Streaming policy reference](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/streamingpolicyreference.htm) and [stream-pool private endpoint requirements](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/managing-stream-pools.htm).
 
-## Resolving managed Apache Kafka access errors
 
-OCI Streaming with Apache Kafka uses separate permissions from OCI Streaming's `stream-family`. For cluster and configuration inventory, an administrator can grant the VM dynamic group these permissions within the VM compartment:
 
 ```text
 Allow dynamic-group <VM_DYNAMIC_GROUP> to {KAFKA_CLUSTER_INSPECT, KAFKA_CLUSTER_CONFIG_INSPECT} in compartment id <VM_COMPARTMENT_OCID>
@@ -49,13 +45,11 @@ For the app's cluster/configuration create, read and delete workflow, the corres
 Allow dynamic-group <VM_DYNAMIC_GROUP> to {KAFKA_CLUSTER_INSPECT, KAFKA_CLUSTER_READ, KAFKA_CLUSTER_CREATE, KAFKA_CLUSTER_UPDATE, KAFKA_CLUSTER_DELETE, KAFKA_CLUSTER_CONFIG_INSPECT, KAFKA_CLUSTER_CONFIG_READ, KAFKA_CLUSTER_CONFIG_CREATE, KAFKA_CLUSTER_CONFIG_UPDATE, KAFKA_CLUSTER_CONFIG_DELETE} in compartment id <VM_COMPARTMENT_OCID>
 ```
 
-Cluster creation also requires administrator-configured `rawfka` service access to VNICs, subnets and network security groups in that same compartment. SASL/SCRAM setup requires the service's secret metadata and update permissions described in [Oracle's Kafka setup requirements](https://docs.oracle.com/en-us/iaas/Content/kafka/gs.htm). The app does not apply these policies. If the correct permissions and dynamic-group membership are already present, check regional service availability and retain the OCI request ID for support. Failed inventories show an unavailable state and policy guidance; Refresh retries the request without leaving stale selectable resources.
 
 ## Mapping and deployment
 
 1. Test and register the source and target MySQL connections using Vault credentials.
-2. Create or select a stream pool or managed Kafka cluster. Register its messaging connection; only managed Kafka requires broker credentials. Create the data stream/topic.
-3. Register a mapping. Select source schema/table and target schema from live database metadata. Select a compatible audit table or choose automatic creation. Select the messaging connection and data topic. OCI Streaming additionally requires an active Kafka Connect configuration.
+3. Register a mapping. Select source schema/table and target schema from live database metadata. Select a compatible audit table or choose automatic creation. Select the messaging connection and data topic.
 4. Run source validation. Choose **Prepare schema topic** in Control Center or the mapping toolbar. The schema-change topic is named `audit_<flow_id>` and requires exactly one partition. Wait for both this topic and the selected data topic to become ACTIVE. The data topic carries row images; the schema-change topic carries public DDL/schema events. The preparation action checks existing topics without changing their settings or contents.
 5. Build & publish the Debezium and history writer images in Container Registry, then select their releases and workload settings. Deploy from the service or Control Center workflow. The application creates OCI Container Instances only after replication, target layout, queue and scope checks pass.
 
@@ -68,7 +62,7 @@ The action validates
 the image, stops only Debezium, and waits for INACTIVE before replacement. The
 writer continues draining the queue. If shutdown is still pending after 60 seconds,
 wait for INACTIVE, reopen Update and choose the intended release again. The new instance
-uses the same connector name, Connect state topics and JDBC schema history.
+uses the same source identity, native offsets and JDBC schema history.
 The previous instance stays stopped for rollback and can be explicitly deleted
 from the OCI resource inventory after verification. Never start both copies.
 
@@ -95,13 +89,11 @@ Resource creation is asynchronous. Refresh the inventory until the resource beco
 
 Repeating an accepted stream/topic request re-reads its stored OCI identifier and verifies the compartment, app ownership, pool, name, partition count, retention and lifecycle state. An ACTIVE or CREATING match is reused without creating another stream or changing its settings. Different settings and unavailable states are rejected. Topic creation returns to the selected connection's inventory; Refresh updates its state. Mapping dropdowns include only ACTIVE topics, and stream lists exclude DELETED entries.
 
-Deletion is restricted to unused resources tagged as created by this app. Every selected resource is checked before any delete call. Referenced queues, credentials, active containers, nonempty pools/vaults and referenced configurations are refused. OCI deletion can still partially succeed if a later service call fails; refresh before retrying. Existing Kafka topics are never adopted as app-owned merely because a create request found the name already present.
+Deletion is restricted to unused resources tagged as created by this app. Every selected resource is checked before any delete call. Referenced queues, credentials, active containers, nonempty pools/vaults and referenced configurations are refused. OCI deletion can still partially succeed if a later service call fails; refresh before retrying. Existing streams are never adopted as app-owned merely because a create request found the name already present.
 
-OCI Streaming supports the Kafka API with service-specific constraints. Debezium uses Kafka Connect with the exact Connect configuration topics and durable JDBC schema history. Managed Apache Kafka uses Kafka internal state topics and SCRAM-SHA-512. Both paths use a separate history writer with bounded batches and acknowledgement after durable target commit. Keep Connect state and schema history across restarts; do not treat a configuration switch as a new source snapshot.
 
 Queue provisioning does not increase source binlog extraction parallelism: a MySQL source remains ordered. Scale independent source databases with separate connector identities, spread data topics across partitions and scale writer consumers within each consumer group. Keep all events for a row on the same partition. Large transactions, hot keys, source retention and target index/partition overhead remain capacity constraints; monitor lag and size retention for the longest recoverable interruption.
 
-References: [OCI Streaming Kafka compatibility](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm), [Kafka Connect with OCI Streaming](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility_topic-Kafka_Connect.htm), [OCI Streaming with Apache Kafka](https://docs.oracle.com/en-us/iaas/Content/kafka/home.htm).
 
 ## Image build and publish
 
@@ -114,11 +106,7 @@ In Configuration & setup → OCI resources → Container Registry, create or sel
 
 For example, a history writer release tag is `historywriter-20261023T181500Z-a1b2c3d4e5f6`. The twelve hexadecimal revision characters identify a SHA-256 manifest of the copied application build inputs. They do not require a Git commit. The timestamp uses UTC to the second. Existing release tags are refused. Dependency/base-image changes can produce a different binary for the same source revision; the registry digest identifies the exact published image.
 
-Debezium uses Kafka Connect's versions of shared runtime libraries. The image
-removes duplicate OCI SDK dependency jars for artifacts already supplied by
-Connect, preventing mixed Jersey/HK2 versions. The image check detects duplicate
-Jersey classes and initializes the Jersey server runtime before publication;
-loading the OCI SASL provider alone cannot detect this startup failure.
+The embedded capture image aligns Debezium, JDBC history, MySQL driver and OCI SDK dependencies in one build. Runtime checks validate provider loading and the native capture stack before publication.
 
 The image releases table shows the destination, release, component, status, creation time and result. Select a row to download its build log. CSV download, search, paging, sorting, resizing and column reordering use the shared table controls. Completed releases appear by name in OCI Container Instances → Workload settings for initial deployment defaults, and in the matching Control Center Update image dialog for a specific flow. The dialog lists only available completed app-built releases from the configured repository; the current digest is excluded. Submitting resolves the release to a verified, same-compartment `@sha256:` address without changing other flows or global defaults. Creating a build does not replace a running workload.
 
@@ -139,7 +127,6 @@ ALL {resource.type='computecontainerinstance', resource.compartment.id='<VM_COMP
 Allow dynamic-group <CONTAINER_DYNAMIC_GROUP> to read repos in compartment id <VM_COMPARTMENT_OCID>
 ```
 
-Vault image pull authentication remains optional for an explicitly configured workload. Existing configurations with a pull secret retain that mode until changed. Source and target passwords remain in Vault. New OCI Streaming connections do not use a messaging token secret; managed Kafka credentials remain separate. The application does not create or modify IAM policies.
 
 An interrupted upload can leave an image in Registry even when the build status is failed/interrupted. Review releases before retrying; a new request receives a new timestamp. The worker removes temporary contexts and its local release reference; shared build layers and logs remain for diagnostics and reuse. Monitor VM disk space and apply an operator-controlled cache/log retention policy. Container image retention is separate from target audit-table housekeeping; do not remove an image still needed for deployment or rollback.
 
@@ -163,23 +150,31 @@ Delete is disabled when the selection is empty or contains any resource not mana
 
 New resources carry both `managed-by=heatwave-audit` and an `audit-app-id` matching the stable, private `.data/app-instance-id` of the installation. A resource carrying another installation's identity is never eligible. Older resources with only the application tag require a matching successful provisioning record in this installation's embedded MySQL repository; the generic tag alone is insufficient. Preserve the private identity and repository during backup/restore. Existing unmanaged resources are not retagged or adopted automatically.
 
-## OCI Streaming without a queue token
+## Native OCI Streaming configuration
 
-New OCI Streaming connections require only a name and a selected stream pool. The application derives the pool endpoint and authenticates VM-side validation and Message Explorer with the VM instance principal. Debezium and the history writer authenticate with their OCI Container Instances resource principals using Oracle's `OCI-RSA-SHA256` Kafka SASL provider. No OCI user lookup, formatted Kafka username or auth-token secret is needed for this mode.
+Add a queue connection with only a name and the selected stream pool. The VM
+validates the pool, streams and private attachments with its instance principal.
+The capture and writer use their own resource principals for native Streaming
+is required. Database passwords and the fingerprint key remain in Vault.
 
-The Python history writer calls the Java Kafka consumer through JPype. It retains the existing Kafka protocol, topic/partition coordinates, group names, offsets and target-side checkpoints. Consumer rebalances seek to validated checkpoints without cancelling group subscriptions. Automatic topic creation, offset reset and commit remain disabled; target writes and checkpoint persistence precede synchronous Kafka acknowledgement. The change does not introduce an OCI REST consumer group or silently translate offsets.
+Select/prepare the data stream for the mapping. Deploy prepares its separate
+single-partition public schema stream automatically. The persisted stream IDs,
+not just names, bind checkpoints to the correct retained evidence. Recreating a
+stream with the same name is not a recovery shortcut.
 
-`setup.sh` installs Java 21 and the pinned Java dependencies. The VM dependency jars live in private `.data/java/streaming-libs/`; the two workload images include their required provider dependencies. Build & publish and select new image releases before deploying a principal-based flow. Existing queue registrations containing SASL credentials continue to use their existing authentication, and their secrets are not deleted or overwritten automatically.
+The Java capture publisher acknowledges Debezium batches only after every OCI
+publish succeeds. The Python writer uses individual partition cursors; target
+commit and durable checkpoints precede in-memory acknowledgment. Retention gaps,
+partial publishes and oversized records fail without silently skipping evidence.
+Message Explorer samples recent messages without changing the writer checkpoint.
 
-The container dynamic group must have Streaming access in the VM compartment, in addition to its existing repository/Vault permissions. An administrator can use the following scoped permission set:
+An administrator grants workload Streaming access, scoped to the VM compartment:
 
 ```text
 Allow dynamic-group <CONTAINER_DYNAMIC_GROUP> to {STREAM_INSPECT, STREAM_READ, STREAM_CONSUME, STREAM_PRODUCE} in compartment id <VM_COMPARTMENT_OCID>
 ```
 
-The app does not create or change IAM policies. Source/target database passwords and the row-fingerprint key still use Vault. Apache Kafka broker authentication remains SASL/SCRAM with its configured username and password secret; OCI Streaming principal authentication is not applied to that service.
-
-References: [Oracle resource-principal Kafka authentication](https://docs.oracle.com/en/learn/ocifn-kafka-resource-principal/), [Oracle Java resource-principal login module](https://github.com/oracle/oci-java-sdk/blob/master/bmc-addons/bmc-sasl/src/main/java/com/oracle/bmc/auth/sasl/ResourcePrincipalsLoginModule.java).
+The app does not modify IAM. See [IAM and database access](iam-policy.md).
 
 DB system Start/Stop does not send ETag/If-Match headers. Errors identify the requested action, resource, last checked lifecycle state and OCI request ID. See the observed failure and concurrency considerations below.
 

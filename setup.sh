@@ -47,7 +47,6 @@ fi
 if [[ -n "${LOCAL_MYSQL_ADMIN_PASSWORD:-}" ]]; then
   .venv/bin/python scripts/enroll_admin.py --environment
 fi
-.venv/bin/python scripts/install_streaming_java.py
 .venv/bin/python -m compileall -q app.py modules scripts deploy worker.py
 .venv/bin/pip check
 .venv/bin/python scripts/install_image_builder.py

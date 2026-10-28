@@ -18,7 +18,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const select=async(locator,value)=>{await mouse(locator);await locator.selectOption(value);};
  const snap=async name=>{await page.screenshot({path:path.join(output,name+'.png')});};
  const chosen=selectedScene?story.scenes.filter(s=>s.id===selectedScene):story.scenes;const start=chosen[0].start,total=chosen.reduce((n,s)=>n+s.duration,0);const begin=Date.now();
- if(!quick)await page.evaluate(start=>{window.movieBegin=performance.now();window.movieClock=setInterval(()=>demo.tick(Math.min(300,start+(performance.now()-movieBegin)/1000)),100);},start);
+ if(!quick)await page.evaluate(start=>{window.movieBegin=performance.now();window.movieClock=setInterval(()=>demo.tick(Math.min(demo.story.duration,start+(performance.now()-movieBegin)/1000)),100);},start);
  const waitUntil=async seconds=>{const remaining=begin+(seconds-start)*1000*scale-Date.now();if(remaining>0)await sleep(remaining);};
  for(let index=0;index<story.scenes.length;index++){
   const scene=story.scenes[index];if(selectedScene&&scene.id!==selectedScene)continue;await waitUntil(scene.start);await page.evaluate(i=>demo.setScene(i),index);await sleep(quick?160:750);
@@ -39,15 +39,38 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
    await select(form.locator('[name=source_id]'),'1');await select(form.locator('[name=target_id]'),'2');
    await select(form.locator('[name=source_schema]'),'demo_sales');await select(form.locator('[name=target_schema]'),'demo_audit');
    await select(form.locator('[name=source_table]'),'orders');await select(form.locator('[name=target_table]'),'__new__');
-   await select(form.locator('[name=queue_connection_id]'),'1');await select(form.locator('[name=topic]'),'demo-orders');await select(form.locator('[name=connect_harness_id]'),'demo-harness');await select(form.locator('[name=capture_mode]'),'end');
+   await select(form.locator('[name=queue_connection_id]'),'1');await select(form.locator('[name=topic]'),'demo-orders');await select(form.locator('[name=capture_mode]'),'end');
   }else if(scene.id==='streaming'){
    await frame().locator('#resource-stream_pool .row-selection').first().waitFor();
    await at(3,()=>mouse(frame().locator('#resource-stream')));
    await at(5,()=>snap('streaming-resources'));
    await at(7,()=>click(frame().locator('[data-service-tab=queues]')));
-   await at(9,()=>click(frame().getByRole('button',{name:'Add queue connection',exact:true})));
+   await at(9,()=>click(frame().getByRole('button',{name:'Add OCI Streaming connection',exact:true})));
    const form=frame().locator('#queue-dialog');await form.locator('[name=name]').fill('Demo Streaming connection');await select(form.locator('[name=resource_ocid]'),'demo-pool');
    await at(14,()=>snap('principal-authentication'));
+  }else if(scene.id==='source-scope'||scene.id==='gtid-start'){
+   await frame().getByRole('button',{name:'Register table',exact:true}).waitFor();
+   await at(2,()=>click(frame().getByRole('button',{name:'Register table',exact:true})));
+   const form=frame().locator('#flow-dialog');await form.locator('[name=name]').fill('demo-scope-history');
+   await select(form.locator('[name=source_id]'),'1');await select(form.locator('[name=target_id]'),'2');
+   await select(form.locator('[name=target_schema]'),'demo_audit');await select(form.locator('[name=target_table]'),'__new__');
+   await select(form.locator('[name=queue_connection_id]'),'1');await select(form.locator('[name=topic]'),'demo-orders');
+   if(scene.id==='source-scope'){
+    await select(form.locator('[name=source_schema]'),'demo_sales');await select(form.locator('[name=source_table]'),'*');
+    await at(10,()=>select(form.locator('[name=target_grouping]'),'database'));
+    await at(14,()=>select(form.locator('[name=source_schema]'),'*'));
+    await at(18,()=>select(form.locator('[name=target_grouping]'),'table'));
+   }else{
+    await select(form.locator('[name=source_schema]'),'demo_sales');await select(form.locator('[name=source_table]'),'orders');
+    await at(10,()=>select(form.locator('[name=capture_mode]'),'gtid'));
+    await form.locator('[name=capture_gtid]').fill('11111111-1111-1111-1111-111111111111:1-32:40-45,22222222-2222-2222-2222-222222222222:1-18');
+    await at(14,()=>click(form.locator('[data-gtid-check]')));
+    await form.locator('[data-gtid-result]').filter({hasText:'Valid retained boundary'}).waitFor();
+    await at(20,()=>form.locator('[name=capture_gtid]').scrollIntoViewIfNeeded());
+   }
+  }else if(scene.id==='request-control'){
+   await frame().locator('.json-editor').waitFor();await at(3,()=>frame().locator('.json-editor').scrollIntoViewIfNeeded());
+   await at(10,()=>snap('runtime-stream-limits'));
   }else if(scene.id==='control'){
    await frame().locator('#control-flows .row-selection').first().waitFor();
    await at(2,()=>click(frame().locator('#control-flows .row-selection').first()));

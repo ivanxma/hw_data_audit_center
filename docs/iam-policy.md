@@ -1,6 +1,6 @@
 # IAM and database access
 
-Reviewed 24 October 2026 against the implemented OCI calls. An OCI administrator
+Reviewed 28 October 2026 against the implemented OCI calls. An OCI administrator
 applies these policies; the application and setup scripts do not create IAM,
 change shared networking or switch to API-key credentials.
 
@@ -71,9 +71,9 @@ Allow dynamic-group <VM_DYNAMIC_GROUP> to manage secrets in compartment id <VM_C
 Allow dynamic-group <VM_DYNAMIC_GROUP> to use keys in compartment id <VM_COMPARTMENT_OCID>
 ```
 
-`stream-family` covers streams, stream pools and Connect configurations, including
+`stream-family` covers streams and stream pools, including
 messaging access. It replaces separate management statements for these Streaming
-resources; it does **not** cover managed Apache Kafka. Existing private endpoints
+resources. Existing private endpoints
 still need the network attachment permissions above.
 [Streaming policy reference](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/streamingpolicyreference.htm).
 
@@ -105,31 +105,9 @@ permissions. `read secrets` is necessary for the workload's compartment check;
 `read secret-bundles` supplies the actual value. Restrict both statements to the
 approved secret OCIDs with `target.secret.id` conditions when managing narrower
 workload groups. The connector uses its source and target credentials; the writer
-uses target and fingerprint secrets. Kafka credential/pull secrets are additional
-only when their modes are configured. A container needs no provisioning grants.
+uses target and fingerprint secrets. Native stream APIs need no Kafka username, token or SASL secret. A container needs no provisioning grants.
 [Private pulls](https://docs.oracle.com/en-us/iaas/Content/container-instances/permissions/policy-reference.htm),
 [secret metadata and bundles](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/keypolicyreference.htm).
-
-## Managed Apache Kafka alternative
-
-For cluster/configuration lifecycle management, add:
-
-```text
-Allow dynamic-group <VM_DYNAMIC_GROUP> to {KAFKA_CLUSTER_INSPECT, KAFKA_CLUSTER_READ, KAFKA_CLUSTER_CREATE, KAFKA_CLUSTER_UPDATE, KAFKA_CLUSTER_DELETE, KAFKA_CLUSTER_CONFIG_INSPECT, KAFKA_CLUSTER_CONFIG_READ, KAFKA_CLUSTER_CONFIG_CREATE, KAFKA_CLUSTER_CONFIG_UPDATE, KAFKA_CLUSTER_CONFIG_DELETE} in compartment id <VM_COMPARTMENT_OCID>
-Allow service rawfka to use vnics in compartment id <VM_COMPARTMENT_OCID>
-Allow service rawfka to use subnets in compartment id <VM_COMPARTMENT_OCID>
-Allow service rawfka to use network-security-groups in compartment id <VM_COMPARTMENT_OCID>
-Allow service rawfka to read secrets in compartment id <VM_COMPARTMENT_OCID>
-Allow service rawfka to use secrets in compartment id <VM_COMPARTMENT_OCID> where request.operation = 'UpdateSecret'
-```
-
-The service statements support private broker attachments and SASL/SCRAM secret
-association. Listing alone only needs the two `INSPECT` permissions. Broker
-authentication and topic permissions are separate from OCI cluster IAM: configure
-the supported SCRAM user, Vault reference and appropriate broker ACLs. Connect
-requires access to its dedicated state/schema topics as well as the data topic.
-The implementation uses SCRAM-SHA-512 over TLS on 9092. mTLS is not implemented.
-[Oracle Kafka prerequisites](https://docs.oracle.com/en-us/iaas/Content/kafka/gs.htm).
 
 ## MySQL grants are separate from OCI IAM
 
@@ -149,7 +127,7 @@ implemented. No source SQL or IAM is changed by source validation.
 ## Verify access without changing IAM
 
 Run `.venv/bin/python scripts/check_setup.py --oci --transport streaming` on the VM
-(or `kafka` / `both`). It loads `.runtime.env`, verifies the VM scope, checks selected
+for native Streaming. It loads `.runtime.env`, verifies the VM scope, checks selected
 resources and lists service inventories without retrieving secret values. A passed
 list/get proves that read only: it does not certify create/delete permissions,
 container-principal access, broker authentication or end-to-end capture.

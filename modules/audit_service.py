@@ -64,6 +64,9 @@ def overview(flows, cloud, filters):
             continue
         try:
             with connect(flow["target"], cloud) as db:
+                from .audit_relation import metadata_relation
+
+                table = metadata_relation(db, flow)
                 clause, params = (
                     "flow_id=%s AND event_time >= %s AND event_time <= %s",
                     [flow["id"], start, end],
@@ -71,9 +74,37 @@ def overview(flows, cloud, filters):
                 if filters.get("operation"):
                     clause += " AND operation=%s"
                     params.append(filters["operation"])
+                if filters.get("source_schema"):
+                    clause += " AND source_schema=%s"
+                    params.append(filters["source_schema"])
+                if flow["source_table"] == "*":
+                    counts = query(
+                        db,
+                        f"SELECT /*+ MAX_EXECUTION_TIME(5000) */ source_schema,source_table,COUNT(*) AS n FROM {table} WHERE {clause} GROUP BY source_schema,source_table ORDER BY source_schema,source_table LIMIT 1001",
+                        params,
+                    )
+                    if len(rows) + len(counts) > 1000:
+                        item["state"] = "not counted (1000-table view limit)"
+                        rows.append(item)
+                        continue
+                    for count in counts:
+                        rows.append(
+                            {
+                                **item,
+                                "database": flow["source"]["name"] + " / " + count["source_schema"],
+                                "schema": count["source_schema"],
+                                "source_table": count["source_table"],
+                                "label": count["source_schema"] + "." + count["source_table"],
+                                "count": count["n"],
+                                "state": "available",
+                            }
+                        )
+                    if not counts:
+                        rows.append({**item, "count": 0, "state": "available"})
+                    continue
                 item["count"] = query(
                     db,
-                    f"SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*) AS n FROM {quote(flow['target_schema'])}.{quote(flow['target_table'])} WHERE {clause}",
+                    f"SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*) AS n FROM {table} WHERE {clause}",
                     params,
                     one=True,
                 )["n"]
@@ -94,7 +125,7 @@ def overview(flows, cloud, filters):
 
 def browse(flow, cloud, filters):
     chart_start, chart_end, interval = chart_window(filters)
-    table = f"{quote(flow['target_schema'])}.{quote(flow['target_table'])}"
+
     clauses = ["flow_id=%s"]
     params = [flow["id"]]
     if filters.get("operation") in {
@@ -106,7 +137,29 @@ def browse(flow, cloud, filters):
     }:
         clauses.append("operation=%s")
         params.append(filters["operation"])
+    from .capture_scope import matches, wildcard
+
+    selected_schema = filters.get("source_database", "").strip()
+    selected_table = filters.get("source_table_filter", "").strip()
+    if selected_schema or selected_table:
+        if selected_schema and not selected_table:
+            from .capture_scope import matches_schema
+
+            if not matches_schema(flow, selected_schema):
+                raise ValueError("Choose a database inside this capture scope.")
+        elif selected_table and not matches(
+            flow, selected_schema or flow["source_schema"], selected_table
+        ):
+            raise ValueError("Choose a database and table inside this capture scope.")
+        for name, value in [("source_schema", selected_schema), ("source_table", selected_table)]:
+            if value:
+                clauses.append(name + "=%s")
+                params.append(value)
     if filters.get("key"):
+        if wildcard(flow) and (
+            not selected_table or (flow["source_schema"] == "*" and not selected_schema)
+        ):
+            raise ValueError("For wildcard row-key lookup, select the source database and table.")
         from .fingerprints import row_hash
 
         try:
@@ -118,7 +171,12 @@ def browse(flow, cloud, filters):
         from .config import fingerprint_secret
 
         key = cloud.secret(fingerprint_secret(cloud.config)).encode()
-        namespace = {**flow, "source_identity": flow["source"]["server_identity"]}
+        namespace = {
+            **flow,
+            "source_identity": flow["source"]["server_identity"],
+            "source_schema": selected_schema or flow["source_schema"],
+            "source_table": selected_table or flow["source_table"],
+        }
         clauses.append("key_hash=%s")
         params.append(row_hash(typed_key, namespace, key))
     start, end = time_bounds(filters)
@@ -132,12 +190,13 @@ def browse(flow, cloud, filters):
         filters.get("sort"), "event_time"
     )
     with connect(flow["target"], cloud) as db:
+        from .audit_relation import metadata_relation
+
+        table = metadata_relation(db, flow)
         total = query(db, f"SELECT COUNT(*) AS n FROM {table} WHERE {where}", params, one=True)["n"]
-        rows = query(
-            db,
-            f"SELECT * FROM {table} WHERE {where} ORDER BY {sort} DESC,event_id DESC LIMIT 50 OFFSET %s",
-            params + [(page - 1) * 50],
-        )
+        from .audit_relation import payload_page
+
+        rows = payload_page(db, flow, table, where, params, sort, page)
         for row in rows:
             for field in ("record_key", "before_image", "after_image", "source_metadata"):
                 if isinstance(row[field], str):

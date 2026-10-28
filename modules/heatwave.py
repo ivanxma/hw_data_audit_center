@@ -109,7 +109,7 @@ def assess(settings):
     return {"ok": all(r["ok"] for r in results), "checks": results}
 
 
-def validate_source(connection, schema, table, cloud):
+def validate_source(connection, schema, table, cloud, *, scope=None):
     from .repository import query
 
     with connect(connection, cloud) as db:
@@ -119,17 +119,35 @@ def validate_source(connection, schema, table, cloud):
         )
         settings = {r["Variable_name"]: r["Value"] for r in rows}
         result = assess(settings)
-        columns = query(
-            db,
-            """SELECT COLUMN_NAME AS column_name, COLUMN_KEY AS column_key
-            FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s ORDER BY ORDINAL_POSITION""",
-            (schema, table),
-        )
-        primary = [r["column_name"] for r in columns if r["column_key"] == "PRI"]
+        if table == "*":
+            from .capture_scope import inventory
+
+            tables = inventory(db, scope or {"source_schema": schema, "source_table": table})
+            missing_keys = [
+                r["source_schema"] + "." + r["source_table"] for r in tables if not r["has_primary"]
+            ]
+            primary = (
+                []
+                if missing_keys
+                else ["All " + str(len(tables)) + " eligible tables have a primary key"]
+            )
+        else:
+            columns = query(
+                db,
+                """SELECT COLUMN_NAME AS column_name, COLUMN_KEY AS column_key
+                FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s ORDER BY ORDINAL_POSITION""",
+                (schema, table),
+            )
+            primary = [r["column_name"] for r in columns if r["column_key"] == "PRI"]
         result["checks"].append(
             {
                 "name": "registered_table_primary_key",
-                "observed": ", ".join(primary) or "Missing",
+                "observed": ", ".join(primary)
+                or (
+                    ("Missing primary keys: " + ", ".join(missing_keys[:10]))
+                    if table == "*"
+                    else "Missing"
+                ),
                 "recommended": "A stable primary key",
                 "ok": bool(primary),
                 "advice": "A primary key enables precise record lookup and stable Debezium message keys.",
@@ -208,7 +226,7 @@ def audit_ddl(schema, table, partitioned=True, retention_months=12):
     ) ENGINE=InnoDB""" + (" " + clauses(retention_months=retention_months) if partitioned else "")
 
 
-def prepare_target(db, flow):
+def prepare_target(db, flow, *, payload_only=False):
     """Create new objects and verify existing payload tables; never silently migrate history."""
     from .repository import query
     from .retention import initialize as initialize_retention
@@ -235,6 +253,14 @@ def prepare_target(db, flow):
         raise ValueError(
             "Existing audit table has an incompatible layout. An explicit migration is required."
         )
+    if payload_only:
+        return
+    from .target_routes import initialize as initialize_routes
+
+    initialize_routes(db, flow)
+    from .message_fragments import initialize as initialize_fragments
+
+    initialize_fragments(db, schema)
     initialize(db, schema)
     initialize_retention(db, schema, flow["id"], table)
     from .checkpoints import initialize as initialize_checkpoints

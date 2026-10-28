@@ -18,8 +18,8 @@ def mysql_failure(error, endpoint):
     status = 503
     if code == 1146:
         guidance = (
-            "An audit table is unavailable. For a new mapping, complete source checks, prepare "
-            "the schema topic and deploy from Control Center to initialize the target tables. "
+            "An audit table is unavailable. For a new mapping, complete source checks and "
+            "deploy from Control Center to initialize the target tables. "
             "For an existing deployment, verify the target schema and table access."
             if endpoint in {"audit", "audit_partitions"}
             else "A required database table is unavailable. Check repository setup and the selected source/target objects."
@@ -58,9 +58,6 @@ def oci_failure(error):
     for fragment, title, policy_type in (
         ("dbsystem", "HeatWave DB systems", None),
         ("streampool", "stream pools", "stream-pools"),
-        ("connectharness", "Connect configurations", "connect-harness"),
-        ("kafkaclusterconfig", "Kafka configurations", None),
-        ("kafkacluster", "Kafka clusters", None),
         ("subnet", "subnets", None),
         ("vcn", "VCNs", None),
         ("stream", "streams", "streams"),
@@ -109,29 +106,11 @@ def oci_failure(error):
             "and permissions in that compartment."
         )
         if resource:
-            guidance += " Access to streams alone does not grant access to stream pools or Connect configurations."
+            guidance += " Access to streams alone does not grant access to stream pools."
             policy = (
                 "Allow dynamic-group <VM_DYNAMIC_GROUP> to manage "
                 + resource
                 + " in compartment id <VM_COMPARTMENT_OCID>"
-            )
-        if "kafkacluster" in normalized:
-            guidance += (
-                " OCI Streaming stream-family permissions do not cover OCI Streaming with Apache Kafka. "
-                "Listing requires KAFKA_CLUSTER_INSPECT and KAFKA_CLUSTER_CONFIG_INSPECT. "
-                "If these are already granted, verify the policy scope and service availability in the VM region."
-            )
-            permissions = ["KAFKA_CLUSTER_INSPECT", "KAFKA_CLUSTER_CONFIG_INSPECT"]
-            if not normalized.startswith("list"):
-                permissions = [
-                    prefix + suffix
-                    for prefix in ("KAFKA_CLUSTER_", "KAFKA_CLUSTER_CONFIG_")
-                    for suffix in ("INSPECT", "READ", "CREATE", "UPDATE", "DELETE")
-                ]
-            policy = (
-                "Allow dynamic-group <VM_DYNAMIC_GROUP> to {"
-                + ", ".join(permissions)
-                + "} in compartment id <VM_COMPARTMENT_OCID>"
             )
         response_status = 403
     elif code in {"LimitExceeded", "QuotaExceeded"}:

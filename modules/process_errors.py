@@ -24,6 +24,14 @@ STAGES = {
     "unknown": "Workload execution",
 }
 MESSAGES = {
+    "INITIAL_GTID_SCHEMA_FAILED": (
+        "Initial GTID schema capture did not complete",
+        "Keep the seeded checkpoint and inspect capture task readiness. Do not clear initialization state or enable a row snapshot.",
+    ),
+    "INITIAL_GTID_CHECKPOINT_UNCONFIRMED": (
+        "Initial GTID schema checkpoint is not confirmed",
+        "The requested GTID seed was preserved. Verify schema completion and durable offset flushing before resuming.",
+    ),
     "DB_UNREACHABLE": (
         "Database connection unavailable",
         "Verify the configured database is ACTIVE, then check endpoint/port, DNS, routes and security rules. Resume the workload after connectivity is restored; preserve its checkpoints.",
@@ -105,6 +113,11 @@ MYSQL_CODES = {
     **dict.fromkeys((1153, 1264, 1292, 1406), "DB_VALUE_ERROR"),
 }
 SAFE_ERRORS = {
+    "Initial GTID schema capture failed. Inspect Debezium task logs.": "INITIAL_GTID_SCHEMA_FAILED",
+    "Initial GTID schema checkpoint does not match the requested boundary.": "INITIAL_GTID_CHECKPOINT_UNCONFIRMED",
+    "Initial GTID schema checkpoint could not be verified.": "INITIAL_GTID_CHECKPOINT_UNCONFIRMED",
+    "Initial GTID completed checkpoint verification failed.": "INITIAL_GTID_CHECKPOINT_UNCONFIRMED",
+    "Stream origin may have expired and no checkpoint exists. Review capture coverage.": "CHECKPOINT_OUT_OF_RANGE",
     "Queue checkpoint is outside retained history. Capture coverage must be reviewed.": "CHECKPOINT_OUT_OF_RANGE",
     "No recoverable queue checkpoint. Review coverage before resetting this group.": "CHECKPOINT_OUT_OF_RANGE",
     "Missing BEFORE image; offset will not be committed.": "ROW_IMAGE_MISSING",

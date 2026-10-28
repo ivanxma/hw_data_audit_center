@@ -72,7 +72,7 @@ class ProcessErrorTests(unittest.TestCase):
         import worker
 
         config = dict(
-            writer_protocol=2,
+            writer_protocol=3,
             fingerprint_secret_ocid="example-key",
             target_schema="example_schema",
             target=dict(
@@ -88,7 +88,7 @@ class ProcessErrorTests(unittest.TestCase):
             patch.dict(os.environ, {"AUDIT_WORKER_CONFIG": json.dumps(config)}),
             patch("worker.WorkloadSecrets", return_value=secrets),
             patch("worker.open_connection", side_effect=DatabaseError("PRIVATE", errno=2003)),
-            patch("worker.create_consumer") as consumer,
+            patch("worker.NativeConsumer") as consumer,
         ):
             with self.assertLogs(level="ERROR") as output, self.assertRaises(DatabaseError):
                 worker.main()
@@ -140,7 +140,9 @@ class ProcessErrorTests(unittest.TestCase):
                 if not line.startswith("COPY "):
                     continue
                 for item in line.split()[1:-1]:
-                    if item.startswith("modules/") and item.endswith(".py"):
+                    if item == "modules":
+                        shutil.copytree(root / item, target / item, dirs_exist_ok=True)
+                    elif item.startswith("modules/") and item.endswith(".py"):
                         shutil.copy2(root / item, target / item)
                     elif item == "deploy/debezium_bootstrap.py":
                         shutil.copy2(root / item, target / "debezium_bootstrap.py")

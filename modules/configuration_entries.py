@@ -12,7 +12,7 @@ from .fingerprints import digest
 TABLES = {"connection": "connections", "queue": "queue_connections", "flow": "flows"}
 FIELDS = {
     "connection": ("name", "role", "host", "port", "database_name", "username", "secret_ocid"),
-    "queue": ("name", "kind", "resource_ocid", "username", "secret_ocid"),
+    "queue": ("name", "kind", "resource_ocid"),
     "flow": (
         "name",
         "source_id",
@@ -23,8 +23,9 @@ FIELDS = {
         "target_table",
         "queue_connection_id",
         "topic",
-        "connect_harness_id",
+        "target_grouping",
         "capture_mode",
+        "capture_gtid",
     ),
 }
 
@@ -32,7 +33,10 @@ FIELDS = {
 def row_values(kind, row):
     values = {name: row.get(name) for name in FIELDS[kind]}
     if kind == "flow":
-        values["capture_mode"] = selection(row.get("capture_start"))["mode"]
+        values["target_grouping"] = row.get("target_grouping") or "flow"
+        capture = selection(row.get("capture_start"))
+        values["capture_mode"] = capture["mode"]
+        values["capture_gtid"] = capture.get("value", "") if capture["mode"] == "gtid" else ""
     return values
 
 
@@ -63,7 +67,7 @@ def deployed(db, flow):
         or repo.query(
             db,
             "SELECT id FROM operations WHERE flow_id=%s AND action IN "
-            "('deploy','start','resume','restart','update_debezium','update_writer') LIMIT 1",
+            "('deploy','start','resume','restart','update_debezium','update_writer','apply_stream_settings') LIMIT 1",
             (flow["id"],),
             one=True,
         )
@@ -122,19 +126,14 @@ def edit_details(db, kind, entry_id):
 
 
 def queue_values(form):
-    name, kind = form.get("name", "").strip(), form.get("kind")
-    if not name or len(name) > 100 or kind not in {"oci_streaming", "oci_kafka"}:
-        raise ValueError("Enter a name of up to 100 characters and choose a messaging service.")
-    data = {
+    name = form.get("name", "").strip()
+    if not name or len(name) > 100 or form.get("kind", "oci_streaming") != "oci_streaming":
+        raise ValueError("Enter a name of up to 100 characters and select OCI Streaming.")
+    return {
         "name": name,
-        "kind": kind,
+        "kind": "oci_streaming",
         "resource_ocid": form.get("resource_ocid", "").strip(),
-        "username": form.get("username", "").strip() if kind == "oci_kafka" else "",
-        "secret_ocid": form.get("secret_ocid", "").strip() if kind == "oci_kafka" else "",
     }
-    if kind == "oci_kafka" and not data["username"]:
-        raise ValueError("Enter the Kafka/SASL username.")
-    return data
 
 
 def connection_identity(db, values, result):
@@ -218,7 +217,6 @@ def mapping_values(db, cloud, form, *, entry_id=None):
     from .database_objects import discover, new_audit_name
     from .mappings import validate_mapping
     from .queue_connections import profile, topics
-    from .resource_catalog import get_resource
     from .validation import identifier
 
     data = {
@@ -234,8 +232,15 @@ def mapping_values(db, cloud, form, *, entry_id=None):
     }
     if data["target_table"] == "__new__":
         data["target_table"] = new_audit_name(data["source_schema"], data["source_table"])
+    if data["source_schema"] == "*" and data["source_table"] != "*":
+        raise ValueError("All databases requires all tables. Use *.* or database.*.")
     for key in ("source_schema", "source_table", "target_schema", "target_table"):
+        if key.startswith("source_") and data[key] == "*":
+            continue
         identifier(data[key])
+    data["target_grouping"] = form.get("target_grouping", "flow")
+    if data["target_grouping"] not in {"flow", "database", "table"}:
+        raise ValueError("Choose target grouping by flow, database or table.")
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", data["name"]):
         raise ValueError("Use letters, numbers, underscore or hyphen for the flow name.")
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,249}", data["topic"]) or data["topic"] in {".", ".."}:
@@ -250,15 +255,9 @@ def mapping_values(db, cloud, form, *, entry_id=None):
         raise ValueError("Choose a registered queue connection from OCI resources.")
     profile(cloud, queue)
     data["queue_connection_id"] = queue["id"]
-    data["transport"] = "streaming" if queue["kind"] == "oci_streaming" else "kafka"
+    data["transport"] = "streaming"
     if data["topic"] not in {t["name"] for t in topics(cloud, queue) if t["state"] == "ACTIVE"}:
-        raise ValueError("Choose an existing ACTIVE stream or Kafka topic.")
-    data["connect_harness_id"] = None
-    if data["transport"] == "streaming":
-        harness = get_resource(cloud, "connect_harness", form.get("connect_harness_id", ""))
-        if harness.lifecycle_state != "ACTIVE":
-            raise ValueError("Choose an ACTIVE Connect harness.")
-        data["connect_harness_id"] = harness.id
+        raise ValueError("Choose an existing ACTIVE OCI stream.")
     candidate = {"id": entry_id}
     for role in ("source", "target"):
         row = repo.query(
@@ -271,13 +270,27 @@ def mapping_values(db, cloud, form, *, entry_id=None):
             raise ValueError("Select registered source and target connections.")
         candidate[role] = row
         data[role + "_id"] = row["id"]
-    capture = selection({"mode": form.get("capture_mode", "start")})
-    if capture["mode"] not in {"start", "end"}:
-        raise ValueError("New flows need Start or End to establish schema history.")
+    capture = selection(
+        {"mode": form.get("capture_mode", "end"), "value": form.get("capture_gtid")}
+    )
+    if capture["mode"] not in {"start", "end", "gtid"}:
+        raise ValueError("Choose Start, End or Specific GTID for initial capture.")
     data["capture_start"] = json.dumps(capture)
-    source_tables = discover(candidate["source"], cloud, data["source_schema"])["tables"]
-    if data["source_table"] not in {r["name"] for r in source_tables}:
-        raise ValueError("Choose an existing source base table.")
+    if data["source_schema"] != "*":
+        source_tables = discover(candidate["source"], cloud, data["source_schema"])["tables"]
+        if data["source_table"] != "*" and data["source_table"] not in {
+            r["name"] for r in source_tables
+        }:
+            raise ValueError("Choose an existing source base table.")
+    source_system = candidate["source"]["server_identity"]
+    namespaces = repo.query(
+        db,
+        "SELECT DISTINCT t.server_identity,f.target_schema FROM flows f JOIN connections t ON t.id=f.target_id",
+    )
+    excluded = {r["target_schema"] for r in namespaces if r["server_identity"] == source_system}
+    if candidate["target"]["server_identity"] == source_system:
+        excluded.add(data["target_schema"])
+    data["source_exclusions"] = json.dumps(sorted(excluded) if data["source_schema"] == "*" else [])
     if form.get("target_table") != "__new__":
         target_tables = discover(candidate["target"], cloud, data["target_schema"])["tables"]
         if data["target_table"] not in {r["name"] for r in target_tables if r.get("compatible")}:
@@ -285,4 +298,10 @@ def mapping_values(db, cloud, form, *, entry_id=None):
     elif data["target_schema"] not in discover(candidate["target"], cloud)["schemas"]:
         raise ValueError("Choose an accessible target schema.")
     validate_mapping(db, {**candidate, **data})
+    if capture["mode"] == "gtid":
+        from .gtid_position import locate_gtid
+        from .heatwave import connect
+
+        with connect(candidate["source"], cloud) as source:
+            locate_gtid(source, capture["value"], check_schema=True)
     return data

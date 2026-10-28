@@ -3,21 +3,21 @@
   <diagram name="Capture and lookup workflow" id="page">
     <mxGraphModel dx="1600" dy="870" page="1" pageScale="1" pageWidth="1600" pageHeight="870">
       <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
         <mxCell id="title" value="&lt;b&gt;Capture, commit and retrieve one row history&lt;/b&gt;" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=27;">
           <mxGeometry x="30" y="20" width="1540" height="50" as="geometry" />
         </mxCell>
         <mxCell id="step0" value="&lt;b&gt;Source binlog&lt;/b&gt;&lt;br&gt;ROW / FULL images" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
           <mxGeometry x="35" y="135" width="280" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="step1" value="&lt;b&gt;Debezium&lt;/b&gt;&lt;br&gt;Read source coordinates" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+        <mxCell id="step1" value="&lt;b&gt;Debezium Engine&lt;/b&gt;&lt;br&gt;Full offsets · split if oversized" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
           <mxGeometry x="345" y="135" width="280" height="120" as="geometry" />
         </mxCell>
         <mxCell id="step2" value="&lt;b&gt;OCI Streaming&lt;/b&gt;&lt;br&gt;Data stream + schema stream" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
           <mxGeometry x="655" y="135" width="280" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="step3" value="&lt;b&gt;History writer&lt;/b&gt;&lt;br&gt;Validate + batch + fingerprint" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
+        <mxCell id="step3" value="&lt;b&gt;History writer&lt;/b&gt;&lt;br&gt;Reassemble · validate · fingerprint" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
           <mxGeometry x="965" y="135" width="280" height="120" as="geometry" />
         </mxCell>
         <mxCell id="step4" value="&lt;b&gt;HeatWave target&lt;/b&gt;&lt;br&gt;Payload + identity ledger" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#F5F4F2;strokeColor=#AE562C;fontSize=19;">
@@ -35,7 +35,7 @@
         <mxCell id="flow3" value="" parent="1" source="step3" target="step4" edge="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#467B83;strokeWidth=2;endArrow=block;endFill=1;labelBackgroundColor=#FFFFFF;fontSize=11;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="contract" value="&lt;b&gt;Commit before acknowledgement&lt;/b&gt;&lt;br&gt;Target payload / identity evidence → durable target delivery checkpoint → queue offset acknowledgement&lt;br&gt;A failure can replay messages. Identity checks deduplicate supported replays; conflicts stop for investigation." parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=21;">
+        <mxCell id="contract" value="&lt;b&gt;Commit before acknowledgement&lt;/b&gt;&lt;br&gt;Target evidence or durable fragment custody → delivery checkpoint → in-memory acknowledgment&lt;br&gt;Only complete, checksum-verified events become audit rows. Source-coordinate checks deduplicate supported replays." parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=21;">
           <mxGeometry x="40" y="310" width="1510" height="110" as="geometry" />
         </mxCell>
         <mxCell id="key" value="&lt;b&gt;Complete typed record key&lt;/b&gt;&lt;br&gt;{&quot;id&quot;:1042}" parent="1" vertex="1" style="fontFamily=Helvetica;fontColor=#312D2A;fontSize=13;html=1;whiteSpace=wrap;rounded=1;fillColor=#ECF4F1;strokeColor=#467B83;fontSize=21;">

@@ -1,4 +1,4 @@
-"""Run the supported Kafka Connect offset API on loopback, once per audited request."""
+"""Apply audited position changes through the native capture loopback API."""
 
 import json
 import time
@@ -20,9 +20,9 @@ def open_db(target, secret):
     return db
 
 
-class ConnectOffsets:
+class CaptureControl:
     def __init__(self, name):
-        self.url = "http://127.0.0.1:8083/connectors/" + name
+        self.url = "http://127.0.0.1:8083/capture/" + name
 
     def call(self, method, suffix, body=None):
         response = requests.request(method, self.url + suffix, json=body, timeout=10)
@@ -125,7 +125,7 @@ def poll(config, secret):
 
             try:
                 apply_request(
-                    db, target["database"], row, ConnectOffsets(config["connector_name"]), check
+                    db, target["database"], row, CaptureControl(config["connector_name"]), check
                 )
                 return {"state": "complete", "request_id": row["request_id"]}
             except Exception as error:

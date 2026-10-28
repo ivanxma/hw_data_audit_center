@@ -1,7 +1,6 @@
 """All control-plane mutations are VM instance-principal and compartment constrained."""
 
 import base64
-import hashlib
 import json
 
 import oci
@@ -32,7 +31,6 @@ class Cloud:
         self.signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         self.sdk_config = {"region": self.config["region"]}
         self.containers = self.client(oci.container_instances.ContainerInstanceClient)
-        self.kafka = self.client(oci.managed_kafka.KafkaClusterClient)
         self.streams = self.client(oci.streaming.StreamAdminClient)
         self.vault = self.client(oci.vault.VaultsClient)
         self.secrets = self.client(oci.secrets.SecretsClient)
@@ -77,99 +75,11 @@ class Cloud:
 
             flow["queue_connection"] = profile(self, flow["queue_connection"])
         transport = transport_profile(self.config, flow)
-        from .transport import backend, state_topics
-
-        selected = backend(transport)
-        state_topics(transport, flow["connector_name"])
-        if selected == "oci_streaming":
-            harness = self.check(
-                self.streams.get_connect_harness(transport["connect_harness_id"]).data
-            )
-            if harness.lifecycle_state != "ACTIVE":
-                raise ValueError("Connect harness must be ACTIVE.")
-            pool = self.check(self.streams.get_stream_pool(transport["stream_pool_id"]).data)
-            if pool.lifecycle_state != "ACTIVE":
-                raise ValueError("Stream pool must be ACTIVE.")
-            if pool.private_endpoint_settings:
-                subnet = self.check(
-                    self.network.get_subnet(pool.private_endpoint_settings.subnet_id).data
-                )
-                self.check(self.network.get_vcn(subnet.vcn_id).data)
-                for nsg_id in pool.private_endpoint_settings.nsg_ids or []:
-                    self.check(self.network.get_network_security_group(nsg_id).data)
-            expected = pool.kafka_settings.bootstrap_servers if pool.kafka_settings else None
-            if not expected or transport["bootstrap_servers"] != expected:
-                raise ValueError("Bootstrap endpoint must match the selected OCI stream pool.")
-            schema_topic = "audit_" + str(flow["id"])
-            if flow["topic"] == schema_topic:
-                raise ValueError(
-                    "The data topic and schema-change topic must have different names."
-                )
-            for topic in (flow["topic"], schema_topic):
-                streams = oci.pagination.list_call_get_all_results(
-                    self.streams.list_streams,
-                    compartment_id=self.compartment,
-                    name=topic,
-                    stream_pool_id=transport["stream_pool_id"],
-                ).data
-                streams = [s for s in streams if s.lifecycle_state != "DELETED"]
-                for stream in streams:
-                    self.check(stream)
-                if not streams:
-                    action = (
-                        "Choose Prepare schema topic for this mapping in Control Center."
-                        if topic == schema_topic
-                        else "Create the data stream in the selected pool under OCI resources."
-                    )
-                    raise ValueError(
-                        "Required stream '"
-                        + topic
-                        + "' is missing from the selected pool. "
-                        + action
-                    )
-                if len(streams) != 1:
-                    raise ValueError(
-                        "Multiple streams match '" + topic + "'. Review OCI inventory."
-                    )
-                if streams[0].lifecycle_state != "ACTIVE":
-                    raise ValueError(
-                        "Required stream '"
-                        + topic
-                        + "' is "
-                        + streams[0].lifecycle_state
-                        + ". Refresh OCI resources and wait for ACTIVE before deployment."
-                    )
-                if topic == schema_topic and streams[0].partitions != 1:
-                    raise ValueError(
-                        "Schema-change stream '" + topic + "' must have exactly one partition."
-                    )
-        else:
-            cluster = self.check(self.kafka.get_kafka_cluster(transport["cluster_id"]).data)
-            if cluster.lifecycle_state != "ACTIVE":
-                raise ValueError("Managed Kafka cluster must be ACTIVE.")
-            allowed = {
-                u.url.removeprefix("SASL_SSL://").removeprefix("SSL://")
-                for u in cluster.kafka_bootstrap_urls or []
-            }
-            supplied = {v.strip() for v in transport["bootstrap_servers"].split(",")}
-            if not supplied or not supplied <= allowed:
-                raise ValueError(
-                    "Bootstrap endpoints must match the verified managed Kafka cluster."
-                )
-            for attachment in cluster.access_subnets or []:
-                for subnet_id in attachment.subnets or []:
-                    subnet = self.check(self.network.get_subnet(subnet_id).data)
-                    self.check(self.network.get_vcn(subnet.vcn_id).data)
-        from .transport import uses_principal
-
-        if not uses_principal(transport):
-            self.check(self.vault.get_secret(transport["secret_ocid"]).data)
         from .config import fingerprint_secret
+        from .streaming_service import resolve_streams
 
         self.check(self.vault.get_secret(fingerprint_secret(self.config)).data)
-        if not transport.get("incarnation"):
-            raise ValueError("Configure a stable queue incarnation ID before deployment.")
-        return transport
+        return resolve_streams(self, flow, transport)
 
     def owned_container(self, resource_id, flow_id):
         instance = self.check(self.containers.get_container_instance(resource_id).data)
@@ -184,9 +94,9 @@ class Cloud:
 
     def require_writer_protocol(self, resource_id, flow_id):
         instance = self.owned_container(resource_id, flow_id)
-        if (instance.freeform_tags or {}).get("writer-protocol") != "2":
+        if (instance.freeform_tags or {}).get("writer-protocol") != "3":
             raise ValueError(
-                "Legacy writer must be replaced with the retention-aware image before restart or cleanup."
+                "Migrate this flow to the native OCI Streaming writer before restarting it."
             )
         return instance
 
@@ -196,6 +106,17 @@ class Cloud:
             action == "stop" and instance.lifecycle_state == "INACTIVE"
         ):
             return None
+        if action in {"start", "restart"}:
+            tags = instance.freeform_tags or {}
+            protocol = (
+                "writer-protocol"
+                if tags.get("workload-role") == "history-writer"
+                else "capture-control-protocol"
+            )
+            if tags.get(protocol) != "3":
+                raise ValueError(
+                    "Migrate this flow to native OCI Streaming before starting its legacy workload."
+                )
         if action == "start":
             return self.containers.start_container_instance(resource_id)
         if action == "restart":
@@ -205,7 +126,10 @@ class Cloud:
         raise ValueError("Unsupported container action.")
 
     def create_processor(self, flow, *, replacement_of=None):
-        self.validate_flow(flow)
+        queue = self.validate_flow(flow)
+        self.require_native_image("processor")
+        self.require_message_image("processor")
+        self.validate_scope_image(flow, "processor")
         settings = self.config["processor"]
         self.check(self.network.get_subnet(settings["subnet_id"]).data)
         self.check(self.registry.get_container_repository(settings["repository_id"]).data)
@@ -227,25 +151,27 @@ class Cloud:
                 "transport",
             )
         }
+        from .message_policy import policy
+
+        payload["message_policy"] = policy(self.config)
+        payload["message_protocol"] = 1
+        payload["source_exclusions"] = flow.get("source_exclusions") or []
+        payload["target_grouping"] = flow.get("target_grouping") or "flow"
         payload["target"] = target
         payload["source_identity"] = source["server_identity"]
         payload["lineage_id"] = flow.get("lineage_id") or flow["connector_name"]
         payload["queue_incarnation"] = transport_profile(self.config, flow)["incarnation"]
-        payload["writer_protocol"] = 2
+        payload["writer_protocol"] = 3
         from dataclasses import asdict
 
         from .ingestion import BatchSettings
 
         payload["batch"] = asdict(BatchSettings.from_config(settings.get("batch", {})))
-        interval = settings.get("offset_commit_interval_ms", 500)
-        if type(interval) is not int or not 250 <= interval <= 5000:
-            raise ValueError("Offset commit interval must be between 250 and 5000 ms.")
-        payload["offset_commit_interval_ms"] = interval
         payload["schema_topic"] = "audit_" + str(flow["id"])
         payload["fingerprint_secret_ocid"] = self.config["fingerprint_secret_ocid"]
         payload["compartment_id"] = self.compartment
         payload["region"] = self.config["region"]
-        payload["queue"] = transport_profile(self.config, flow)
+        payload["queue"] = queue
         return self.create_workload(
             flow,
             settings,
@@ -256,60 +182,179 @@ class Cloud:
         )
 
     def create_debezium(self, flow, *, replacement_of=None):
-        self.validate_flow(flow)
+        self.require_message_image("processor")
+        queue = self.validate_flow(flow)
         from .debezium import connector_config
 
         settings = self.config["debezium"]
         payload = {
             "compartment_id": self.compartment,
             "region": self.config["region"],
-            "queue": transport_profile(self.config, flow),
+            "queue": queue,
+            "streams": queue["streams"],
+            "runtime_protocol": 3,
             "source_secret_ocid": flow["source"]["secret_ocid"],
             "history_secret_ocid": flow["target"]["secret_ocid"],
             "connector_name": flow["connector_name"],
             "connector": connector_config(flow, self.config),
         }
+        from .message_policy import policy
+
+        payload["message_policy"] = policy(self.config)
+        payload["message_protocol"] = 1
+        payload["state_jdbc_url"] = payload["connector"][
+            "schema.history.internal.jdbc.connection.url"
+        ]
+        from .debezium import require_initial_gtid_image
+        from .capture_requests import initialize
+        from .heatwave import connect
+        from .repository import query
+        from .validation import quote
+
+        capture_manifest = self.debezium_build_manifest()
+        require_initial_gtid_image(capture_manifest)
+        with connect(flow["target"], self) as db:
+            initialize(db, flow["target_schema"])
+            if flow.get("connector_ocid"):
+                offsets = query(
+                    db,
+                    "SELECT offset_key FROM "
+                    + quote(flow["target_schema"])
+                    + ".audit_native_offsets WHERE flow_id=%s",
+                    (flow["id"],),
+                )
+                if not offsets:
+                    raise ValueError(
+                        "Migrate the existing capture checkpoint before deploying its native replacement."
+                    )
+        control = {"flow_id": flow["id"]}
+        for role, database in (
+            ("source", flow["source_schema"]),
+            ("target", flow["target_schema"]),
+        ):
+            control[role] = {k: flow[role][k] for k in ("host", "port", "username", "secret_ocid")}
+            control[role].update(
+                database=(flow[role].get("database_name") or None) if database == "*" else database,
+                **self.tls_profile(container=True),
+            )
+        payload["capture_control"] = control
+        from .capture_start import selection
+
+        initial = selection(flow.get("capture_start"))
+        if initial["mode"] == "gtid":
+            require_initial_gtid_image(capture_manifest)
+            from .gtid_position import locate_gtid
+            from .heatwave import connect
+
+            if not flow.get("connector_ocid"):
+                with connect(flow["source"], self) as source:
+                    locate_gtid(source, initial["value"], check_schema=True)
+            payload["initial_capture"] = initial
+            payload["initial_capture_table"] = flow["source_table"]
+            payload["initial_capture_scope"] = {
+                k: flow.get(k) for k in ("source_schema", "source_table", "source_exclusions")
+            }
+        return self.create_workload(
+            flow, settings, payload, "debezium", None, replacement_of=replacement_of
+        )
+
+    def debezium_build_manifest(self, role="debezium"):
         from .image_builds import inventory, job_path, load
 
+        settings = self.config[role]
         release = next(
             (
                 r
                 for r in inventory()
                 if r["status"] == "complete"
-                and r["role"] == "debezium"
+                and r["role"] == role
                 and r["image_id"] == settings.get("image_id")
                 and settings["image_url"].endswith("@" + str(r.get("digest", "")))
             ),
             None,
         )
-        capture_manifest = load(job_path(release["id"]))["manifest"] if release else {}
-        capture_files = (
-            "modules/capture_runtime.py",
-            "modules/capture_requests.py",
-            "modules/capture_start.py",
-        )
-        if release and all(
-            capture_manifest.get(name) == hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
-            for name in capture_files
-        ):
-            from .capture_requests import initialize
-            from .heatwave import connect
+        return load(job_path(release["id"]))["manifest"] if release else {}
 
-            with connect(flow["target"], self) as db:
-                initialize(db, flow["target_schema"])
-            control = {"flow_id": flow["id"]}
-            for role, database in (
-                ("source", flow["source_schema"]),
-                ("target", flow["target_schema"]),
-            ):
-                control[role] = {
-                    k: flow[role][k] for k in ("host", "port", "username", "secret_ocid")
-                }
-                control[role].update(database=database, **self.tls_profile(container=True))
-            payload["capture_control"] = control
-        return self.create_workload(
-            flow, settings, payload, "debezium", None, replacement_of=replacement_of
+    def validate_initial_capture_image(self, flow):
+        from .capture_start import selection
+        from .debezium import require_initial_gtid_image
+
+        require_initial_gtid_image(self.debezium_build_manifest())
+        if flow.get("processor_ocid"):
+            writer = self.owned_container(flow["processor_ocid"], flow["id"])
+            if (writer.freeform_tags or {}).get("message-protocol") != "1":
+                raise ValueError(
+                    "Update the history writer image first. Oversized-message capture requires a writer with durable fragment reassembly."
+                )
+        if flow.get("connector_ocid"):
+            instance = self.owned_container(flow["connector_ocid"], flow["id"])
+            if (instance.freeform_tags or {}).get("capture-control-protocol") != "3":
+                raise ValueError(
+                    "Migrate this flow's existing capture checkpoint before updating to the native image."
+                )
+
+    def require_message_image(self, role):
+        from .debezium import matches_build
+
+        files = (
+            (
+                "modules/message_policy.py",
+                "modules/message_fragments.py",
+                "modules/native_streaming.py",
+                "modules/ingestion.py",
+                "modules/events.py",
+                "modules/schema_history.py",
+                "worker.py",
+            )
+            if role == "processor"
+            else (
+                "modules/message_policy.py",
+                "deploy/native-capture/src/main/java/local/heatwave/audit/MessageFraming.java",
+                "deploy/native-capture/src/main/java/local/heatwave/audit/StreamingPublisher.java",
+            )
         )
+        if not matches_build(self.debezium_build_manifest(role), files):
+            raise ValueError(
+                "Build and select a current " + role + " image with oversized-message support."
+            )
+
+    def validate_scope_image(self, flow, role):
+        if flow["source_table"] != "*" and (flow.get("target_grouping") or "flow") == "flow":
+            return
+        from .debezium import matches_build
+
+        files = (
+            ("modules/capture_scope.py", "modules/debezium.py", "modules/initial_capture.py")
+            if role == "debezium"
+            else (
+                "modules/capture_scope.py",
+                "modules/target_routes.py",
+                "modules/events.py",
+                "modules/schema_history.py",
+                "modules/ingestion.py",
+                "modules/heatwave.py",
+                "modules/retention.py",
+            )
+        )
+        if not matches_build(self.debezium_build_manifest(role), files):
+            raise ValueError(
+                "Build and select a current "
+                + role
+                + " image with wildcard capture and target grouping support."
+            )
+
+    def require_native_image(self, role):
+        from .workload_images import releases
+
+        settings = self.config[role]
+        if not any(
+            row["image_id"] == settings.get("image_id")
+            and row["image_url"] == settings.get("image_url")
+            for row in releases(self, role)
+        ):
+            raise ValueError(
+                "Build and select a verified native OCI Streaming image for this workload before deployment."
+            )
 
     def validate_workload(self, settings, *, require_image=False):
         """Verify deployment attachments before stopping an existing workload."""
@@ -393,8 +438,9 @@ class Cloud:
                 "audit-app-id": app_instance_id(),
                 "flow-id": str(flow["id"]),
                 "workload-role": name,
-                "writer-protocol": "2" if name == "history-writer" else "none",
-                "capture-control-protocol": "2" if payload.get("capture_control") else "none",
+                "writer-protocol": str(payload.get("writer_protocol", "none")),
+                "message-protocol": str(payload.get("message_protocol", "none")),
+                "capture-control-protocol": str(payload.get("runtime_protocol", "none")),
             },
             graceful_shutdown_timeout_in_seconds=120,
             container_restart_policy="ALWAYS",
@@ -414,16 +460,6 @@ class Cloud:
     def provision(self, kind, spec, retry_token=None):
         """Create typed, allowlisted resources after verifying every attachment's compartment."""
         models = {
-            "kafka_cluster": (
-                self.kafka,
-                "create_kafka_cluster",
-                oci.managed_kafka.models.CreateKafkaClusterDetails,
-            ),
-            "connect_harness": (
-                self.streams,
-                "create_connect_harness",
-                oci.streaming.models.CreateConnectHarnessDetails,
-            ),
             "stream_pool": (
                 self.streams,
                 "create_stream_pool",
@@ -443,11 +479,6 @@ class Cloud:
             ),
         }
         models["secret"] = (self.vault, "create_secret", oci.vault.models.CreateSecretDetails)
-        models["kafka_config"] = (
-            self.kafka,
-            "create_kafka_cluster_config",
-            oci.managed_kafka.models.CreateKafkaClusterConfigDetails,
-        )
         if kind not in models:
             raise ValueError("Unsupported resource kind.")
         spec = dict(spec)
@@ -465,7 +496,6 @@ class Cloud:
             validate_creation(self, spec)
         # Every reference that can attach an existing OCI resource must be verified.
         checks = {
-            "cluster_config_id": self.kafka.get_kafka_cluster_config,
             "subnet_id": self.network.get_subnet,
             "vcn_id": self.network.get_vcn,
             "stream_pool_id": self.streams.get_stream_pool,

@@ -1,10 +1,10 @@
 """Single-threaded partition lanes with bounded batches and explicit durable offsets."""
 
 import logging
+import json
 import time
 from dataclasses import dataclass
 
-from confluent_kafka import TopicPartition
 
 from .events import decode, write_batch
 from .schema_history import write_schema_event
@@ -41,16 +41,13 @@ class BatchSettings:
 
 def validate_topics(consumer, flow):
     if flow["topic"] == flow["schema_topic"]:
-        raise ValueError("Data and public schema topics must be distinct.")
+        raise ValueError("Data and schema streams must be distinct.")
     for name in (flow["topic"], flow["schema_topic"]):
-        metadata = consumer.list_topics(name, timeout=10)
-        topic = metadata.topics.get(name)
-        if topic is None or topic.error or not topic.partitions:
-            raise ValueError("Provision both registered topics before starting the writer.")
-        if name == flow["schema_topic"] and len(topic.partitions) != 1:
-            raise ValueError(
-                "Public schema topic must have exactly one partition to serialize structural history."
-            )
+        stream = consumer.streams.get(name)
+        if not stream or stream["partitions"] < 1:
+            raise ValueError("Prepare both OCI streams before starting the writer.")
+        if name == flow["schema_topic"] and stream["partitions"] != 1:
+            raise ValueError("Schema stream must have exactly one partition.")
 
 
 class BatchWriter:
@@ -63,22 +60,7 @@ class BatchWriter:
         self.pending_bytes = 0
         self.started = None
         self.owned = set()
-        self.last_commit = None
         self.stage = "queue_validation"
-
-    def assigned(self, consumer, partitions):
-        from .checkpoints import assignment
-
-        self.stage = "checkpoint_recovery"
-        assignment(consumer, self.db, self.flow, partitions)
-        self.owned = {(p.topic, p.partition) for p in partitions}
-
-    def revoked(self, _consumer, _partitions):
-        # Nothing is acknowledged on loss/revocation. Any buffered work replays.
-        self.pending.clear()
-        self.pending_bytes = 0
-        self.started = None
-        self.owned.clear()
 
     def add(self, message):
         if message.error():
@@ -112,67 +94,105 @@ class BatchWriter:
             return
         messages = self.pending
         events = []
+        event_sizes = []
         schemas = []
         offsets = {}
+        completed_groups = set()
+        from .message_fragments import frame, accept, note_event_time, commit_groups
+        from .message_policy import DEFAULT_EVENT_BYTES
+
         self.stage = "decode"
         for message in messages:
             lane = (message.topic(), message.partition())
             if lane not in self.owned:
                 raise RuntimeError("Partition ownership changed; no acknowledgement sent.")
+            if message.topic() not in {self.flow["topic"], self.flow["schema_topic"]}:
+                raise ValueError("Message is outside the registered streams.")
+            value, key, message_id = message.value(), message.key(), None
+            part = frame(
+                value,
+                self.flow.get("message_policy", {}).get("max_event_bytes", DEFAULT_EVENT_BYTES),
+            )
+            if part is not None:
+                self.stage = "fragment_custody"
+                assembled = accept(
+                    self.db,
+                    self.flow,
+                    message.topic(),
+                    message.partition(),
+                    message.offset(),
+                    part,
+                    completed_groups,
+                )
+                offsets[lane] = max(offsets.get(lane, 0), message.offset() + 1)
+                if assembled is None:
+                    continue
+                value, key, message_id = (
+                    assembled["value"],
+                    assembled["key"],
+                    assembled["message_id"],
+                )
+                completed_groups.add(assembled["group_id"])
+            self.stage = "decode"
             if message.topic() == self.flow["schema_topic"]:
-                schemas.append(message)
-            elif message.topic() == self.flow["topic"]:
+                schemas.append(
+                    (value, message.topic(), message.partition(), message.offset(), message_id)
+                )
+            else:
+                extra = {"message_id": message_id} if message_id else {}
                 event = decode(
-                    message.value(),
-                    message.key(),
+                    value,
+                    key,
                     message.topic(),
                     message.partition(),
                     message.offset(),
                     self.flow,
                     self.key,
+                    **extra,
                 )
                 if event is not None:
                     events.append(event)
-            else:
-                raise ValueError("Message is outside the registered topics.")
+                    event_sizes.append(len(value or b"") + len(key or b""))
+                    if message_id:
+                        note_event_time(
+                            self.db, self.flow, assembled["group_id"], event["event_time"]
+                        )
             offsets[lane] = max(offsets.get(lane, 0), message.offset() + 1)
         started = self.clock()
         self.stage = "target_write"
-        written = write_batch(self.db, self.flow, events)
-        # One public-schema partition has one owner in the stable writer group.
-        # Cross-topic causal ordering is not inferred from arrival or event_time.
+        batches = []
+        current, size = [], 0
+        for event, cost in zip(events, event_sizes):
+            if current and size + cost > self.settings.max_bytes:
+                batches.append(current)
+                current = []
+                size = 0
+            current.append(event)
+            size += cost
+        if current:
+            batches.append(current)
+        written = 0
+        for batch in batches:
+            if self.flow.get("target_grouping", "flow") == "flow":
+                written += write_batch(self.db, self.flow, batch)
+            else:
+                from .target_routes import write
+
+                written += write(self.db, self.flow, batch)
+        # Partition checkpoints can include durable, incomplete fragments. Their
+        # custody survives restart; only complete envelopes reach audit payloads.
         self.stage = "schema_write"
-        for message in schemas:
-            write_schema_event(
-                self.db,
-                self.flow,
-                message.value(),
-                message.topic(),
-                message.partition(),
-                message.offset(),
-            )
+        for value, topic, partition, offset, message_id in schemas:
+            extra = {"message_id": message_id} if message_id else {}
+            write_schema_event(self.db, self.flow, value, topic, partition, offset, **extra)
         from .checkpoints import save
 
         self.stage = "checkpoint_write"
         save(self.db, self.flow, offsets)
-        # Pace synchronous commits, including full batches, to avoid OCI Streaming's
-        # offset-commit rate ceiling. Nothing is acknowledged until persistence succeeds.
-        interval = self.flow.get("offset_commit_interval_ms", 500) / 1000
-        if self.last_commit is not None:
-            remaining = self.last_commit + interval - self.clock()
-            if remaining > 0:
-                time.sleep(remaining)
+        self.stage = "fragment_receipt"
+        commit_groups(self.db, self.flow, completed_groups)
         self.stage = "queue_ack"
-        committed = self.consumer.commit(
-            offsets=[
-                TopicPartition(topic, part, offset)
-                for (topic, part), offset in sorted(offsets.items())
-            ],
-            asynchronous=False,
-        )
-        if any(p.error for p in (committed or [])):
-            raise RuntimeError("Queue offset commit failed; stored events will replay.")
-        self.last_commit = self.clock()
+        self.consumer.acknowledge(offsets)
         LOG.info(
             "batch_committed records=%d inserted=%d bytes=%d duration_ms=%d",
             len(messages),
@@ -186,13 +206,14 @@ class BatchWriter:
 
     def run(self, stopping):
         validate_topics(self.consumer, self.flow)
-        self.consumer.subscribe(
-            [self.flow["topic"], self.flow["schema_topic"]],
-            on_assign=self.assigned,
-            on_revoke=self.revoked,
-            on_lost=self.revoked,
-        )
+        self.stage = "checkpoint_recovery"
+        partitions = self.consumer.attach(self.db, self.flow)
+        self.owned = {(p.topic, p.partition) for p in partitions}
+        last_metrics = self.clock()
         while not stopping():
+            if self.clock() - last_metrics >= 15:
+                LOG.info("AUDIT_STREAM_CONSUMER %s", json.dumps(self.consumer.metrics()))
+                last_metrics = self.clock()
             self.stage = "queue_poll"
             message = self.consumer.poll(0.1)
             if message is not None:

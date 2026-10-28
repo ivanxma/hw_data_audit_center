@@ -143,6 +143,37 @@ class CaptureWebTests(unittest.TestCase):
         with patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()):
             self.assertEqual(self.client.get("/flows/1/capture-start").status_code, 403)
 
+    def test_initial_gtid_check_requires_admin_and_csrf(self):
+        self.auth()
+        self.assertEqual(self.client.post("/configuration/gtid-check").status_code, 400)
+        with patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()):
+            self.assertEqual(self.client.post(
+                "/configuration/gtid-check", data={"csrf": "test-form-token"}
+            ).status_code, 403)
+
+    def test_rejected_gtid_check_still_returns_purged_and_executed_information(self):
+        self.auth()
+        limits = {"purged": "source-a:1-20,source-b:1-5", "executed": "source-a:1-100,source-b:1-40"}
+        value = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1-10"
+        with (
+            patch.object(self.mod.CONNECTIONS, "borrow", return_value=MagicMock()),
+            patch.object(self.mod, "ROOT") as root,
+            patch.object(self.mod, "Cloud"),
+            patch("modules.capture_pages.repo.query", return_value={"id": 1}),
+            patch("modules.capture_pages.connect"),
+            patch("modules.gtid_position.source_range", return_value=limits),
+            patch("modules.gtid_position.locate_gtid", side_effect=ValueError("Required binlog transactions have been purged.")),
+        ):
+            root.__truediv__.return_value.exists.return_value = True
+            root.__truediv__.return_value.read_text.return_value = '{"admin_users":["operator"]}'
+            response = self.client.post("/configuration/gtid-check", data={
+                "csrf": "test-form-token", "source_id": "1", "gtid": value,
+            }, headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json["source_range"], limits)
+        self.assertIn("purged", response.json["message"])
+        self.assertNotIn("never-render-this-password", response.get_data(as_text=True))
+
     def test_initial_form_explains_snapshot_and_preserves_password_secrecy(self):
         from flask import g, render_template
 
@@ -162,8 +193,12 @@ class CaptureWebTests(unittest.TestCase):
                 preview=None,
                 last=None,
                 message=None,
+                gtid_range={"purged": "source-a:1-20", "executed": "source-a:1-32"},
             )
         self.assertIn("snapshot current rows", page)
         self.assertIn("Datetime", page)
         self.assertIn("Normal Start, Stop and Resume keep the existing checkpoint", page)
+        self.assertIn("Purged GTIDs", page)
+        self.assertIn("source-a:1-20", page)
+        self.assertIn("source-a:1-32", page)
         self.assertNotIn("never-render-this-password", page)

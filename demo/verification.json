@@ -1,28 +1,16 @@
 {
-  "duration_seconds": 300,
+  "duration_seconds": 542,
   "resolution": [
     2560,
     1440
   ],
   "fps": 25,
-  "narration": "English, AI-generated voice narration using the supplied voice profile",
+  "narration": "English; local AI synthesis conditioned on the supplied consented voice profile",
   "captions": "embedded mov_text, WebVTT and SRT",
-  "chapters": 16,
+  "chapters": 22,
   "browser_errors": [],
-  "mode": "Illustrative replay; no live OCI or database mutations",
-  "bytes": 21800832,
-  "source_checks": "Three DML fixtures use the application event decoder and the same key fingerprint; schema delta uses the application comparison function.",
-  "narration_duration_seconds": 300.0,
-  "full_video_audio_decode": "passed",
-  "chapter_seek": "passed",
-  "mobile_player_layout": "passed",
-  "player_browser_errors": [],
-  "chart_counts": "Overview and table drill-down use the same 549-event orders sample",
-  "visual_review": "Architecture, row images, schema changes, security audit boundary and charts inspected from encoded video",
-  "sha256": "a1a7094fcd63cb37b9d3b27a36db9066c1251bd1edfe6ce1643b96636b6ff822",
-  "voice_engine": "Qwen3-TTS local MLX; reference recording not uploaded",
-  "narration_regenerated_utc": "2026-10-26",
-  "caption_alignment": "Chapter audio transcribed locally; script cues aligned to recognized word timings",
-  "speech_text_agreement_min": 0.92,
-  "video_frames": "Original video stream preserved without re-encoding"
+  "mode": "Illustrative replay with isolated sample data; no live OCI or source mutations",
+  "bytes": 33076787,
+  "sha256": "0647ce049fbce5bb9bb0eb257e33308618f0492ac6f94ae6a8d50ee86552e86d",
+  "source_checks": "DML fixtures use the application event decoder and stable typed-key fingerprints. Runtime behavior was separately validated before material creation."
 }

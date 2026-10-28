@@ -175,7 +175,7 @@ class CatalogScopeTests(unittest.TestCase):
             )
             lock.return_value.__exit__.assert_called_once()
 
-    def test_stream_and_kafka_specs_preserve_service_contracts(self):
+    def test_native_stream_specs_preserve_service_contracts(self):
         spec = build_spec(
             "stream",
             {"name": "orders", "stream_pool_id": "pool", "partitions": "8", "retention": "168"},
@@ -191,9 +191,9 @@ class CatalogScopeTests(unittest.TestCase):
             )
         self.assertFalse(build_spec("repository", {"name": "images"})["is_public"])
 
-    def test_mapping_uses_selected_connection_and_harness(self):
+    def test_mapping_preserves_pool_identity_and_discards_obsolete_connect_settings(self):
         profile = transport_profile(
-            {"streaming": {"kind": "oci_streaming", "username": "global"}},
+            {"region": "example-region", "streaming": {"kind": "oci_streaming", "username": "global"}},
             {
                 "transport": "streaming",
                 "connector_name": "reader",
@@ -205,8 +205,10 @@ class CatalogScopeTests(unittest.TestCase):
                 "connect_harness_id": "ocid1.connectharness.test.id",
             },
         )
-        self.assertEqual(profile["username"], "selected")
-        self.assertEqual(profile["connect_topics"]["config"], "ocid1.connectharness.test.id-config")
+        self.assertEqual(profile["incarnation"], "pool")
+        self.assertNotIn("username", profile)
+        self.assertNotIn("connect_topics", profile)
+        self.assertNotIn("connect_harness_id", profile)
 
 
 class ObjectDiscoveryTests(unittest.TestCase):

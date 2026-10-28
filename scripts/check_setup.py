@@ -55,7 +55,7 @@ def local_checks():
         require(not Path(os.environ["AUDIT_CONFIG_FILE"]).expanduser().stat().st_mode & 0o077)
 
     check(rows, "private_deployment_configuration", private_config)
-    for binary in ("java", "mvn", "podman"):
+    for binary in ("podman",):
         check(rows, binary + "_installed", lambda name=binary: require(bool(shutil.which(name))))
     for binary in ("mysqld", "mysql", "mysqlbinlog"):
         path = ROOT / ".embedded/mysql-server/current/bin" / binary
@@ -64,13 +64,6 @@ def local_checks():
             "embedded_" + binary,
             lambda p=path: require(p.is_file() and os.access(p, os.X_OK)),
         )
-    check(
-        rows,
-        "streaming_principal_jars",
-        lambda: require(
-            any((ROOT / ".data/java/streaming-libs").glob("oci-java-sdk-addons-sasl-*.jar"))
-        ),
-    )
     for service in ("local-mysql", "https", "image-builder"):
 
         def active(name=service):
@@ -93,10 +86,7 @@ def cloud_checks(cloud, transport):
 
     rows = []
     kinds = ["container", "repository", "vault", "secret", "heatwave"]
-    if transport in {"streaming", "both"}:
-        kinds += ["stream_pool", "stream", "connect_harness"]
-    if transport in {"kafka", "both"}:
-        kinds += ["kafka_cluster", "kafka_config"]
+    kinds += ["stream_pool", "stream"]
     for kind in kinds:
 
         def inspect(name=kind):
@@ -148,7 +138,7 @@ def main():
     parser.add_argument(
         "--oci", action="store_true", help="Use the VM instance principal; no resource mutations."
     )
-    parser.add_argument("--transport", choices=("streaming", "kafka", "both"), default="streaming")
+    parser.add_argument("--transport", choices=("streaming",), default="streaming")
     args = parser.parse_args()
     rows = local_checks()
     if args.oci:

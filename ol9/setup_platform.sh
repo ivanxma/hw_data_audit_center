@@ -5,7 +5,7 @@ platform_verify() {
   [[ "$ID" == ol && "${VERSION_ID%%.*}" == 9 ]] || { echo 'Only Oracle Linux 9 is supported.' >&2; exit 1; }
 }
 platform_install_dependencies() {
-  sudo dnf install -y --setopt=install_weak_deps=False python3.12 python3.12-pip python3.12-devel libaio ncurses-libs xz curl openssl firewalld podman java-21-openjdk-headless maven >&2
+  sudo dnf install -y --setopt=install_weak_deps=False python3.12 python3.12-pip python3.12-devel libaio ncurses-libs xz curl openssl firewalld podman >&2
 }
 platform_open_https() {
   sudo timeout 20 systemctl enable --now firewalld

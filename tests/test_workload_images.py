@@ -41,6 +41,7 @@ class WorkloadImageTests(unittest.TestCase):
             id="a" * 32,
             status="complete",
             role="debezium",
+            runtime_protocol=3,
             compartment_id="scope",
             region="uk-london-1",
             repository_id="repo",
@@ -95,6 +96,7 @@ class WorkloadImageTests(unittest.TestCase):
             ("compartment_id", "foreign"),
             ("region", "foreign"),
             ("status", "failed"),
+            ("runtime_protocol", 2),
             ("digest", "bad"),
         ]:
             with self.subTest(key=key):
@@ -196,6 +198,89 @@ class WorkloadImageTests(unittest.TestCase):
             )
             self.assertEqual(operate.call_args.args[0].config["debezium"]["image_id"], "image")
             self.assertEqual(original["debezium"]["image_url"], "old-image")
+
+
+class StreamSettingsTests(unittest.TestCase):
+    def setUp(self):
+        from modules.message_policy import policy
+
+        self.cloud = MagicMock()
+        self.cloud.config = {
+            "processor": {"image_url": "writer-image"},
+            "debezium": {"image_url": "source-image"},
+        }
+        self.flow = dict(
+            id=1, status="active", processor_ocid="writer-old", connector_ocid="source-old"
+        )
+        self.previous = policy({})
+        self.instances = {
+            key: Obj(
+                id=key,
+                lifecycle_state="INACTIVE",
+                containers=[Obj(container_id=key + "-container")],
+            )
+            for key in ["writer-old", "source-old"]
+        }
+        self.cloud.owned_container.side_effect = lambda key, flow_id: self.instances[key]
+        self.cloud.check.side_effect = lambda value: value
+
+        def container(key):
+            owner = key.removesuffix("-container")
+            return Obj(
+                data=Obj(
+                    container_instance_id=owner,
+                    image_url="writer-image" if owner.startswith("writer") else "source-image",
+                    environment_variables={
+                        "AUDIT_WORKER_CONFIG": json.dumps({"message_policy": self.previous})
+                    },
+                )
+            )
+
+        self.cloud.containers.get_container.side_effect = container
+        self.cloud.create_processor.return_value = "writer-new"
+        self.cloud.create_debezium.return_value = "source-new"
+        self.service = WorkflowService(MagicMock(), lambda: self.cloud, "operator")
+        self.service._ready = MagicMock()
+        self.service._update = MagicMock()
+
+    def test_unchanged_policy_and_images_do_not_replace_workloads(self):
+        self.service._apply_stream_settings(self.cloud, self.flow)
+        self.cloud.create_processor.assert_not_called()
+        self.cloud.create_debezium.assert_not_called()
+
+    def test_writer_replaced_first_and_its_new_id_used_for_source(self):
+        self.cloud.config["streaming"] = {"put_requests_per_second": 2}
+        order = []
+        self.cloud.create_processor.side_effect = lambda flow, **kw: (
+            order.append("writer") or "writer-new"
+        )
+
+        def source(flow, **kw):
+            self.assertEqual(flow["processor_ocid"], "writer-new")
+            order.append("source")
+            return "source-new"
+
+        self.cloud.create_debezium.side_effect = source
+        self.service._apply_stream_settings(self.cloud, self.flow)
+        self.assertEqual(order, ["writer", "source"])
+        self.assertEqual(self.flow["connector_ocid"], "source-new")
+
+    def test_reduced_limits_fail_before_stopping_or_replacing(self):
+        self.cloud.config["streaming"] = {"max_event_bytes": 8 * 1024 * 1024}
+        with self.assertRaisesRegex(ValueError, "reducing message limits"):
+            self.service._apply_stream_settings(self.cloud, self.flow)
+        self.cloud.container_action.assert_not_called()
+        self.cloud.create_processor.assert_not_called()
+
+    def test_source_preflight_failure_leaves_writer_untouched(self):
+        self.cloud.validate_initial_capture_image.side_effect = ValueError(
+            "incompatible checkpoint"
+        )
+        self.cloud.config["streaming"] = {"put_requests_per_second": 2}
+        with self.assertRaisesRegex(ValueError, "incompatible checkpoint"):
+            self.service._apply_stream_settings(self.cloud, self.flow)
+        self.cloud.container_action.assert_not_called()
+        self.cloud.create_processor.assert_not_called()
 
 
 class WorkloadImageWebTests(unittest.TestCase):

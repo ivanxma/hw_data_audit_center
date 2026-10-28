@@ -46,6 +46,7 @@ def releases(cloud, role, *, available_only=False):
         if (
             job.get("status") != "complete"
             or job.get("role") != role
+            or job.get("runtime_protocol") != 3
             or job.get("compartment_id") != cloud.compartment
             or job.get("region") != cloud.config["region"]
             or job.get("repository_id") != repository_id

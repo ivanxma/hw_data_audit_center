@@ -3,10 +3,8 @@ import unittest
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-from confluent_kafka import TopicPartition
 
 from deploy.debezium_bootstrap import properties
-from modules.checkpoints import assignment
 from modules.events import decode
 from modules.fingerprints import row_hash
 from modules.ingestion import BatchSettings, BatchWriter, validate_topics
@@ -62,7 +60,6 @@ def message(offset, *, value=None, partition=0):
 class IngestionTests(unittest.TestCase):
     def writer(self):
         consumer = MagicMock()
-        consumer.commit.return_value = [TopicPartition("orders", 0, 3)]
         writer = BatchWriter(consumer, MagicMock(), FLOW, b"test-key")
         writer.owned = {("orders", 0), ("orders", 1)}
         return writer
@@ -82,11 +79,11 @@ class IngestionTests(unittest.TestCase):
                 "modules.checkpoints.save", side_effect=lambda *args: sequence.append("checkpoint")
             ),
         ):
-            writer.consumer.commit.side_effect = lambda **kwargs: sequence.append("ack") or []
+            writer.consumer.acknowledge.side_effect = lambda offsets: sequence.append("ack")
             writer.flush()
         self.assertEqual(sequence, ["target", "checkpoint", "ack"])
-        offsets = writer.consumer.commit.call_args.kwargs["offsets"]
-        self.assertEqual({p.partition: p.offset for p in offsets}, {0: 3, 1: 9})
+        offsets = writer.consumer.acknowledge.call_args.args[0]
+        self.assertEqual(offsets, {("orders", 0): 3, ("orders", 1): 9})
 
     def test_malformed_record_never_leaps_offset(self):
         writer = self.writer()
@@ -95,7 +92,7 @@ class IngestionTests(unittest.TestCase):
         with patch("modules.ingestion.write_batch") as write, self.assertRaises(ValueError):
             writer.flush()
         write.assert_not_called()
-        writer.consumer.commit.assert_not_called()
+        writer.consumer.acknowledge.assert_not_called()
 
     def test_failed_target_never_acknowledges(self):
         writer = self.writer()
@@ -105,7 +102,7 @@ class IngestionTests(unittest.TestCase):
             self.assertRaises(RuntimeError),
         ):
             writer.flush()
-        writer.consumer.commit.assert_not_called()
+        writer.consumer.acknowledge.assert_not_called()
         self.assertEqual(len(writer.pending), 1)
 
     def test_failed_checkpoint_does_not_acknowledge(self):
@@ -117,27 +114,22 @@ class IngestionTests(unittest.TestCase):
             self.assertRaises(RuntimeError),
         ):
             writer.flush()
-        writer.consumer.commit.assert_not_called()
+        writer.consumer.acknowledge.assert_not_called()
 
-    def test_rebalance_discards_only_unacknowledged_buffer(self):
+    def test_unowned_partition_cannot_advance_a_checkpoint(self):
         writer = self.writer()
-        writer.add(message(1))
-        writer.revoked(writer.consumer, [TopicPartition("orders", 0)])
-        writer.flush()
-        writer.consumer.commit.assert_not_called()
         with self.assertRaises(RuntimeError):
-            writer.add(message(2))
+            writer.add(message(2, partition=99))
+        writer.consumer.acknowledge.assert_not_called()
 
-    def test_offset_result_error_is_not_success(self):
+    def test_acknowledgement_failure_preserves_buffer_for_replay(self):
         writer = self.writer()
         writer.add(message(1))
-        bad = MagicMock()
-        bad.error = "commit failed"
-        writer.consumer.commit.return_value = [bad]
+        writer.consumer.acknowledge.side_effect = ValueError("invalid checkpoint")
         with (
             patch("modules.ingestion.write_batch", return_value=1),
             patch("modules.checkpoints.save"),
-            self.assertRaises(RuntimeError),
+            self.assertRaises(ValueError),
         ):
             writer.flush()
         self.assertTrue(writer.pending)
@@ -148,27 +140,9 @@ class IngestionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             BatchSettings.from_config({"max_wait_ms": 0})
         consumer = MagicMock()
-        topic = MagicMock()
-        topic.error = None
-        topic.partitions = {0: None, 1: None}
-        consumer.list_topics.return_value.topics = {"orders": topic, "audit_7": topic}
+        consumer.streams = {"orders": {"partitions": 2}, "audit_7": {"partitions": 2}}
         with self.assertRaises(ValueError):
             validate_topics(consumer, FLOW)
-
-    def test_queue_expiry_and_lost_group_recovery(self):
-        consumer = MagicMock()
-        consumer.committed.return_value = [TopicPartition("orders", 0, -1001)]
-        consumer.get_watermark_offsets.return_value = (20, 100)
-        with (
-            patch("modules.checkpoints.query", return_value={"next_offset": 10}),
-            self.assertRaises(ValueError),
-        ):
-            assignment(consumer, MagicMock(), FLOW, [TopicPartition("orders", 0)])
-        consumer.assign.assert_not_called()
-        consumer.get_watermark_offsets.return_value = (0, 100)
-        with patch("modules.checkpoints.query", return_value={"next_offset": 42}):
-            assignment(consumer, MagicMock(), FLOW, [TopicPartition("orders", 0)])
-        self.assertEqual(consumer.assign.call_args.args[0][0].offset, 42)
 
     def test_key_types_and_secret_requirement(self):
         one = row_hash({"id": 1}, FLOW, b"key")
@@ -255,6 +229,13 @@ class RetentionAndMappingTests(unittest.TestCase):
         feedback = {**flow, "source": target, "source_schema": "history", "source_table": "another"}
         with patch("modules.mappings.query", return_value=[row]), self.assertRaises(ValueError):
             validate_mapping(MagicMock(), feedback)
+
+    def test_capture_control_tables_cannot_be_used_as_audit_payload_tables(self):
+        for name in ("audit_initial_capture", "audit_capture_requests"):
+            flow = {**FLOW, "source": {"server_identity": "source"},
+                    "target": {"server_identity": "target"}, "target_table": name}
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "reserved"):
+                validate_mapping(MagicMock(), flow)
 
 
 class HistoryRangeTests(unittest.TestCase):

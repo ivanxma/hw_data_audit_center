@@ -26,30 +26,20 @@ class WorkflowService:
 
     def _ready(self, cloud, flow):
         validate_mapping(self.db, flow)
-        result = validate_source(flow["source"], flow["source_schema"], flow["source_table"], cloud)
+        result = validate_source(
+            flow["source"], flow["source_schema"], flow["source_table"], cloud, scope=flow
+        )
         if not result["ok"]:
             raise SourceNotReady(flow, result)
-        cloud.validate_flow(flow)
-        from .transport import state_topics, transport_profile
+        from .queue_connections import prepare_schema_topic
+        import json
 
-        topics = set(
-            state_topics(transport_profile(cloud.config, flow), flow["connector_name"]).values()
-        )
-        for summary in repo.query(
-            self.db, "SELECT id,connector_name,transport FROM flows WHERE id<>%s", (flow["id"],)
-        ):
-            other = repo.get_flow(self.db, summary["id"])
-            if other["transport"] == flow["transport"]:
-                other_topics = state_topics(
-                    transport_profile(cloud.config, other), other["connector_name"]
-                )
-                if topics.intersection(other_topics.values()):
-                    raise ValueError(
-                        "Independent connector groups cannot share Connect state topics or a harness."
-                    )
-        from .queue_service import validate_registered_topics
-
-        validate_registered_topics(flow, cloud)
+        prepare_schema_topic(self.db, cloud, flow, self.actor, wait=True)
+        queue = cloud.validate_flow(flow)
+        bindings = {name: stream["id"] for name, stream in queue["streams"].items()}
+        if not flow.get("stream_bindings"):
+            self._update(flow["id"], stream_bindings=json.dumps(bindings))
+            flow["stream_bindings"] = bindings
 
     def _wait_stopped(self, cloud, resource_id, flow_id, label, timeout=60):
         deadline = time.monotonic() + timeout
@@ -80,6 +70,7 @@ class WorkflowService:
             "retire",
             "update_debezium",
             "update_writer",
+            "apply_stream_settings",
         }:
             raise ValueError("Unknown workflow action.")
         with repo.named_lock(self.db, "flow", flow_id):
@@ -131,8 +122,74 @@ class WorkflowService:
                 repo.record(self.db, flow_id, action, "failed", self.actor)
                 raise
 
+    def _apply_stream_settings(self, cloud, flow):
+        import json
+        from .message_policy import policy
+
+        if flow["status"] == "retired" or not all(
+            flow.get(field) for field in ("processor_ocid", "connector_ocid")
+        ):
+            raise ValueError("Deploy both workloads before applying stream settings.")
+        selected = policy(cloud.config)
+        current = {}
+        # Inspect both workloads and every image before stopping either one.
+        for role, field in (("processor", "processor_ocid"), ("debezium", "connector_ocid")):
+            instance = cloud.owned_container(flow[field], flow["id"])
+            if instance.lifecycle_state not in {"ACTIVE", "INACTIVE"}:
+                raise ValueError(
+                    "Wait for the current OCI operation to finish before applying settings."
+                )
+            containers = []
+            for entry in instance.containers:
+                container = cloud.check(cloud.containers.get_container(entry.container_id).data)
+                if container.container_instance_id != instance.id:
+                    raise ValueError("Container does not belong to this flow's workload.")
+                payload = json.loads(
+                    (container.environment_variables or {}).get("AUDIT_WORKER_CONFIG", "{}")
+                )
+                previous = payload.get("message_policy", {})
+                if any(
+                    selected[key] < previous.get(key, selected[key])
+                    for key in ("max_event_bytes", "max_pending_bytes")
+                ):
+                    raise ValueError(
+                        "Drain and review retained fragments before reducing message limits. This action allows unchanged or increased limits."
+                    )
+                containers.append((container.image_url, previous))
+            if len(containers) != 1:
+                raise ValueError("Expected one application container per workload.")
+            current[role] = (instance, containers[0])
+            cloud.validate_workload(cloud.config[role], require_image=True)
+            cloud.require_native_image(role)
+            cloud.require_message_image(role)
+            cloud.validate_scope_image(flow, role)
+        self._ready(cloud, flow)
+        # The writer is replaced first; validate source checkpoint compatibility now.
+        cloud.validate_initial_capture_image({**flow, "processor_ocid": None})
+        for role, field, label, create in (
+            ("processor", "processor_ocid", "History writer", cloud.create_processor),
+            ("debezium", "connector_ocid", "Debezium", cloud.create_debezium),
+        ):
+            instance, (image, previous) = current[role]
+            if image == cloud.config[role]["image_url"] and previous == selected:
+                continue
+            old_id = instance.id
+            if instance.lifecycle_state == "ACTIVE":
+                cloud.container_action(old_id, "stop", flow["id"])
+                self._update(flow["id"], status="stopping", last_action="apply_stream_settings")
+                if not self._wait_stopped(cloud, old_id, flow["id"], label):
+                    return "stopping"
+            if cloud.owned_container(old_id, flow["id"]).lifecycle_state != "INACTIVE":
+                raise ValueError(label + " must be INACTIVE before replacement.")
+            new_id = create(flow, replacement_of=old_id)
+            self._update(flow["id"], **{field: new_id, "status": "deploying"})
+            flow[field] = new_id
+        return "deploying"
+
     def _operate(self, cloud, flow, action):
         flow_id = flow["id"]
+        if action == "apply_stream_settings":
+            return self._apply_stream_settings(cloud, flow)
         if action in {"update_debezium", "update_writer"}:
             field, role, label, create = (
                 ("connector_ocid", "debezium", "Debezium", cloud.create_debezium)
@@ -159,6 +216,11 @@ class WorkflowService:
                 )
             self._ready(cloud, flow)
             cloud.validate_workload(cloud.config[role], require_image=True)
+            cloud.require_native_image(role)
+            cloud.require_message_image(role)
+            cloud.validate_scope_image(flow, role)
+            if role == "debezium":
+                cloud.validate_initial_capture_image(flow)
             if old.lifecycle_state == "ACTIVE":
                 cloud.container_action(old_id, "stop", flow_id)
                 self._update(flow_id, status="stopping", last_action=action)
@@ -182,6 +244,8 @@ class WorkflowService:
             if flow["status"] == "retired":
                 raise ValueError("Retired flows cannot be redeployed.")
             self._ready(cloud, flow)
+            if not flow["connector_ocid"]:
+                cloud.validate_initial_capture_image(flow)
             with connect(flow["target"], cloud) as target:
                 prepare_target(target, flow)
             for field, create in (

@@ -9,8 +9,67 @@ from unittest.mock import MagicMock, patch
 import test_core
 
 from modules.connector_health import from_logs, summarize
-from modules.flow_status import inspect_flow
+from modules.flow_status import inspect_flow, snapshot
 from modules.workflows import WorkflowService
+
+
+class SharedStatusCacheTests(unittest.TestCase):
+    def test_separate_callers_share_one_cloud_sample_and_changes_invalidate(self):
+        flow = dict(id=7, status="active", connector_ocid="capture", processor_ocid="writer")
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("modules.flow_status.ROOT", Path(directory)),
+            patch("modules.flow_status.os.environ", {}),
+            patch(
+                "modules.flow_status.inspect_flow",
+                return_value={"id": 7, "status": "active", "workloads": []},
+            ) as inspect,
+            patch("modules.flow_status.time.time", return_value=1000),
+        ):
+            first = snapshot(flow, MagicMock())
+            second = snapshot(flow, MagicMock())
+            self.assertEqual(first, second)
+            self.assertEqual(first["checked_at"], 1000)
+            self.assertEqual(inspect.call_count, 1)
+            snapshot({**flow, "connector_ocid": "replacement"}, MagicMock())
+            self.assertEqual(inspect.call_count, 2)
+
+    def test_settled_sample_expires_after_45_seconds(self):
+        flow = dict(id=7, status="active")
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("modules.flow_status.ROOT", Path(directory)),
+            patch("modules.flow_status.os.environ", {}),
+            patch(
+                "modules.flow_status.inspect_flow",
+                return_value={"id": 7, "status": "active", "workloads": []},
+            ) as inspect,
+            patch("modules.flow_status.time.time") as now,
+        ):
+            now.return_value = 1000
+            snapshot(flow, MagicMock())
+            now.return_value = 1044
+            snapshot(flow, MagicMock())
+            self.assertEqual(inspect.call_count, 1)
+            now.return_value = 1046
+            snapshot(flow, MagicMock())
+            self.assertEqual(inspect.call_count, 2)
+
+    def test_throttle_is_shared_without_repeating_cloud_calls(self):
+        import oci
+
+        flow = dict(id=7, status="active")
+        error = oci.exceptions.ServiceError(429, "TooManyRequests", {}, "fixture")
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("modules.flow_status.ROOT", Path(directory)),
+            patch("modules.flow_status.os.environ", {}),
+            patch("modules.flow_status.inspect_flow", side_effect=error) as inspect,
+        ):
+            first = snapshot(flow, MagicMock())
+            self.assertEqual(first["status"], "unavailable")
+            snapshot(flow, MagicMock())
+            self.assertEqual(inspect.call_count, 1)
 
 
 class FlowStatusTests(unittest.TestCase):
@@ -46,6 +105,14 @@ class FlowStatusTests(unittest.TestCase):
 
     def test_live_processes_replace_stale_deploying_display(self):
         self.assertEqual(inspect_flow(self.cloud, self.flow)["status"], "active")
+
+    def test_image_default_difference_does_not_replace_running_health_guidance(self):
+        result = inspect_flow(self.cloud, self.flow)
+        self.assertEqual(result["status"], "active")
+        connector = result["workloads"][0]
+        self.assertTrue(connector["update_available"])
+        self.assertEqual(connector["task_state"], "RUNNING")
+        self.assertNotIn("guidance", connector)
 
     def test_running_process_with_failed_task_is_not_active(self):
         health = summarize(
@@ -153,6 +220,19 @@ class FlowStatusTests(unittest.TestCase):
         service = WorkflowService(MagicMock(), lambda: self.cloud, "operator")
         self.cloud.validate_workload.side_effect = ValueError("image unavailable")
         with patch.object(service, "_ready"), self.assertRaisesRegex(ValueError, "unavailable"):
+            service._operate(self.cloud, self.flow, "update_debezium")
+        self.cloud.container_action.assert_not_called()
+        self.cloud.create_debezium.assert_not_called()
+
+    def test_initial_gtid_image_capability_is_checked_before_stopping_capture(self):
+        service = WorkflowService(MagicMock(), lambda: self.cloud, "operator")
+        self.cloud.validate_initial_capture_image.side_effect = ValueError(
+            "GTID initialization support is missing"
+        )
+        with (
+            patch.object(service, "_ready"),
+            self.assertRaisesRegex(ValueError, "GTID initialization"),
+        ):
             service._operate(self.cloud, self.flow, "update_debezium")
         self.cloud.container_action.assert_not_called()
         self.cloud.create_debezium.assert_not_called()

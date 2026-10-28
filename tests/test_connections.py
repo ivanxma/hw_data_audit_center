@@ -111,6 +111,24 @@ class ConnectionWebTests(unittest.TestCase):
         self.assertNotIn('name="ssl_ca"', text)
         self.assertIn("Test connection", text)
 
+    def test_configuration_exposes_native_streaming_and_defaults_to_no_row_snapshot(self):
+        from flask import g, render_template
+        from modules.resource_catalog import SERVICES, TABS
+        from modules.resource_forms import FORMS
+
+        with self.app.test_request_context("/configuration"):
+            g.record = {"username": "operator", "csrf": "token"}
+            text = render_template("configuration.html", connections=[], flows=[], queue_connections=[],
+                                   resources={}, provisioned=[], configured=False, setup_sql="",
+                                   services=SERVICES, service_tabs=TABS, resource_forms=FORMS)
+        self.assertNotIn("Apache Kafka", text)
+        self.assertNotIn("Connect harness", text)
+        self.assertNotIn('name="connect_harness_id"', text)
+        self.assertIn('<option value="end" selected>', text)
+        self.assertIn("schema stream is prepared automatically", text)
+        self.assertIn("Stream pool *", text)
+
+
 
 class GlobalTlsPolicyTests(unittest.TestCase):
     def test_default_is_encrypted_without_certificate_files(self):
@@ -159,6 +177,9 @@ class GlobalTlsPolicyTests(unittest.TestCase):
             connector_config({**flow, "capture_start": '{"mode":"end"}'}, config)["snapshot.mode"],
             "no_data",
         )
+        self.assertEqual(connector_config({**flow, "capture_start": {
+            "mode": "gtid", "value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1-32",
+        }}, config)["snapshot.mode"], "no_data")
         self.assertEqual(settings["database.ssl.mode"], "required")
         self.assertTrue(
             settings["schema.history.internal.jdbc.connection.url"].endswith("sslMode=REQUIRED")
