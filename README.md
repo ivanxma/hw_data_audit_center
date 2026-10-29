@@ -110,7 +110,7 @@ configuration, registrations, backups and deployment runbooks out of source cont
 
 ## Guides and demonstration
 
-- [Third-party dependencies and licenses](docs/third-party-licenses.md)
+- Third-party dependencies and licenses: [reference](docs/third-party-licenses.md), [Word inventory](docs/Third-Party-Libraries.docx)
 - [Setup and operations](docs/operations.md)
 - [IAM and database access](docs/iam-policy.md)
 - [OCI service provisioning](docs/service-provisioning.md)
