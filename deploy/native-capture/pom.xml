@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>local.heatwave.audit</groupId><artifactId>native-capture</artifactId><version>1.0</version>
-  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><debezium.version>3.4.3.Final</debezium.version><oci.version>3.96.0</oci.version></properties>
+  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><debezium.version>3.4.3.Final</debezium.version><oci.version>3.96.0</oci.version><mysql.connector.version>26.10.0</mysql.connector.version></properties>
   <dependencyManagement><dependencies>
     <dependency><groupId>org.glassfish.jersey</groupId><artifactId>jersey-bom</artifactId><version>3.1.10</version><type>pom</type><scope>import</scope></dependency>
     <dependency><groupId>jakarta.ws.rs</groupId><artifactId>jakarta.ws.rs-api</artifactId><version>3.1.0</version></dependency>
@@ -11,7 +11,7 @@
     <dependency><groupId>io.debezium</groupId><artifactId>debezium-embedded</artifactId><version>${debezium.version}</version></dependency>
     <dependency><groupId>io.debezium</groupId><artifactId>debezium-connector-mysql</artifactId><version>${debezium.version}</version></dependency>
     <dependency><groupId>io.debezium</groupId><artifactId>debezium-storage-jdbc</artifactId><version>${debezium.version}</version></dependency>
-    <dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><version>26.10.0</version></dependency>
+    <dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><version>${mysql.connector.version}</version></dependency>
     <dependency><groupId>com.oracle.oci.sdk</groupId><artifactId>oci-java-sdk-streaming</artifactId><version>${oci.version}</version></dependency>
     <dependency><groupId>com.oracle.oci.sdk</groupId><artifactId>oci-java-sdk-common-httpclient-jersey3</artifactId><version>${oci.version}</version></dependency>
     <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-simple</artifactId><version>1.7.36</version></dependency>

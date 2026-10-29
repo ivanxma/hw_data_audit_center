@@ -24,15 +24,15 @@ and eligibility for the exception are not established by this review.
 Connector/J brings in `protobuf-java` **4.36.1**, licensed BSD-3-Clause, as declared
 in its [published POM](https://repo.maven.apache.org/maven2/com/mysql/mysql-connector-j/26.10.0/mysql-connector-j-26.10.0.pom).
 The optional OCI dependency in that POM does not replace this project's explicit
-OCI SDK version. Connector/Python is a separate dependency and retains its
-existing `>=9.5,<10` range; this Java-driver upgrade does not change it.
+OCI SDK version. Connector/Python is a separate dependency and is pinned to `26.10.0` in the
+application requirements and both workload Containerfiles.
 
 ## Declared Python runtime dependencies
 
 | Package | Declared version | Upstream license |
 | --- | --- | --- |
 | [Flask](https://github.com/pallets/flask/blob/main/LICENSE.txt) | `>=3.1,<4` | BSD-3-Clause |
-| [mysql-connector-python](https://github.com/mysql/mysql-connector-python/blob/trunk/LICENSE.txt) | `>=9.5,<10` | GPLv2 with FOSS exception; consult the selected distribution's terms |
+| [mysql-connector-python](https://github.com/mysql/mysql-connector-python/blob/trunk/LICENSE.txt) | `26.10.0` | GPLv2 with FOSS exception; consult the selected distribution's terms |
 | [oci](https://github.com/oracle/oci-python-sdk/blob/master/LICENSE.txt) | `>=2.160,<3` | UPL-1.0 OR Apache-2.0 |
 | [gunicorn](https://github.com/benoitc/gunicorn/blob/23.0.0/LICENSE) | `>=23,<24` | MIT |
 | [requests](https://github.com/psf/requests/blob/main/LICENSE) | `>=2.32,<3` | Apache-2.0 |
@@ -70,7 +70,7 @@ Connector/J, with no additional test database engine dependency.
 
 ## Installed Python transitive dependencies
 
-The local review environment contains Flask 3.1.3, Connector/Python 9.7.0,
+The local review environment contains Flask 3.1.3, Connector/Python 26.10.0,
 OCI SDK 2.189.0, Gunicorn 23.0.0 and Requests 2.34.2. Its transitive package
 metadata reports these additional licenses:
 
