@@ -262,3 +262,19 @@ is informational and does not imply that the source database is stopped.
 
 [Source scopes and target layouts](table-scopes.md) explains wildcard inventory,
 physical target routing and the grouped-retention/historical-position boundaries.
+
+## Java MySQL integration tests
+
+Offset-store tests use real MySQL through the same Connector/J driver as capture.
+H2 is not used. Point the tests at a **disposable MySQL 8.4+ test service**, with
+strict SQL mode enabled and an account permitted to create and drop test schemas.
+Each test creates a unique `audit_offset_test_` schema and drops it afterward.
+Never point this configuration at a production, source or target database service.
+
+Set `AUDIT_TEST_MYSQL_JDBC_URL` to the test service's `jdbc:mysql://` URL without
+credentials. Set `AUDIT_TEST_MYSQL_CREDENTIALS_FILE` to a private, mode-0600 Java
+properties file containing `username` and `history_password`. Keep both values
+outside source control. Run `mvn -B -f deploy/native-capture/pom.xml verify` with
+Java 21 and Maven. Other Java tests run normally without the service; offset-store
+integration tests are explicitly skipped when the JDBC URL is unset. A configured
+but unreachable or misconfigured service fails the tests.

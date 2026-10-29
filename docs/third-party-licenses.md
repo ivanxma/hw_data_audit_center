@@ -49,13 +49,11 @@ versions and transitive dependencies.
 | MySQL Connector/J | 26.10.0 | GPL-2.0-only with Universal FOSS Exception 1.0 and additional permission |
 | OCI Java SDK Streaming and Jersey 3 HTTP client | 3.96.0 | UPL-1.0 OR Apache-2.0 |
 | SLF4J simple logger | 1.7.36 | MIT |
-| H2 (tests only) | 2.3.232 | MPL-2.0 OR EPL-1.0 |
 | JUnit (tests only) | 4.13.2 | EPL-1.0 |
 
 Sources: [Debezium parent POM](https://repo.maven.apache.org/maven2/io/debezium/debezium-build-parent/3.4.3.Final/debezium-build-parent-3.4.3.Final.pom),
 [OCI SDK parent POM](https://repo.maven.apache.org/maven2/com/oracle/oci/sdk/oci-java-sdk/3.96.0/oci-java-sdk-3.96.0.pom),
 [SLF4J parent POM](https://repo.maven.apache.org/maven2/org/slf4j/slf4j-parent/1.7.36/slf4j-parent-1.7.36.pom),
-[H2 license](https://github.com/h2database/h2database/blob/version-2.3.232/LICENSE.txt),
 [JUnit POM](https://repo.maven.apache.org/maven2/junit/junit/4.13.2/junit-4.13.2.pom).
 
 Dependency management also selects Jersey 3.1.10, Jakarta REST API 3.1.0 and
@@ -66,6 +64,9 @@ license for every included file. See the
 [Jersey POM](https://repo.maven.apache.org/maven2/org/glassfish/jersey/project/3.1.10/project-3.1.10.pom),
 [Jakarta REST POM](https://repo.maven.apache.org/maven2/jakarta/ws/rs/jakarta.ws.rs-api/3.1.0/jakarta.ws.rs-api-3.1.0.pom)
 and [Jackson BOM](https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-bom/2.21.5/jackson-bom-2.21.5.pom).
+
+H2 has been removed. Java offset-store integration tests use MySQL through
+Connector/J, with no additional test database engine dependency.
 
 ## Installed Python transitive dependencies
 

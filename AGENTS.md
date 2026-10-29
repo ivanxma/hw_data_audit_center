@@ -43,3 +43,17 @@
 
 ## skill
 - Use myapp skills for app menu, flow, security, mysql connectivity, embedded mysql login, Layout with Table, Icon, Action Button, color scheme, TabView
+
+## Database tests
+
+- Do not add or use H2 Database in this project, including test dependencies,
+  compatibility modes, containers, embedded databases, or JDBC URLs.
+- Use real MySQL for database integration tests, with Connector/J for Java tests.
+  File fixtures and mocks may cover pure logic but must not replace transaction,
+  SQL-dialect, durability, or rollback integration checks.
+- Run integration tests only against an explicitly configured disposable MySQL
+  test service. Use randomly named test schemas, clean them up, and never use
+  production/source/target schemas for test fixtures. Keep test credentials in
+  private files or environment configuration; never commit them.
+- Report MySQL integration tests as skipped when the test service is unavailable;
+  do not claim they passed or silently substitute another database.
