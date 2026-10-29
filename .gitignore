@@ -30,3 +30,7 @@ downloads/
 
 # Repository automation configuration stays private.
 /.github/
+
+# Publish only the finished demonstration video.
+/demo/*
+!/demo/heatwave-audit-oci-streaming-demo.mp4

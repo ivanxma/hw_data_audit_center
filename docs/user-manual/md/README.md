@@ -413,10 +413,10 @@ Enabled buttons can still be rejected by server-side scope, ownership, state and
 
 Use this page for a first health overview. If a flow needs attention, open Control Center and inspect both workload tips. A green process state does not establish that data has arrived. Use Message Explorer and Audit Center for evidence, and workload logs/checkpoints for diagnosis.
 
-**Watch demo** opens the signed-in `/demo/` playback page. Play or pause the narrated video in the browser, use native seek/full-screen controls, enable English captions or select a chapter. The page does not require an MP4 download.
+**Watch demo** opens the MP4 directly through the signed-in `/demo/` route. Use the browser’s native playback and seeking controls. Only the finished MP4 is distributed with the application.
 
 
-**User manual** opens the deployed HTML guide. Its downloads include the PDF and PowerPoint overview. Watch demo opens the signed-in video player with narration, captions and chapters.
+**User manual** opens the deployed HTML guide. Its downloads include the PDF and PowerPoint overview. Watch demo opens the signed-in MP4 with narration.
 
 
 <a id="connections"></a>

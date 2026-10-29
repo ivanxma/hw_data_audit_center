@@ -118,7 +118,7 @@ configuration, registrations, backups and deployment runbooks out of source cont
 - [Coverage and limitations](docs/limitations.md)
 - User manual: [HTML](docs/user-manual/html/index.html), [PDF](docs/user-manual/pdf/HeatWave-Audit-Center-User-Manual.pdf), [Markdown](docs/user-manual/md/README.md)
 - [Presentation](internal_docs/presentations/HeatWave-Audit-Center-Native-OCI-Streaming.pptx) (local, Git-ignored)
-- [Watch the narrated demonstration](https://ivanxma.github.io/hw_data_audit_center/demo/)
+- [Watch the narrated demonstration](https://ivanxma.github.io/hw_data_audit_center/demo/heatwave-audit-oci-streaming-demo.mp4)
 
 Screenshots and video use isolated illustrative data. The implementation captures
 row changes and supported schema evidence; it does not implement a database

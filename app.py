@@ -945,32 +945,12 @@ def create_app(test_config=None):
         )
 
     @app.route("/demo/")
+    @app.route("/demo/heatwave-audit-oci-streaming-demo.mp4")
     @protected()
     def demo_player():
-        return send_from_directory(ROOT / "demo", "index.html", as_attachment=False)
-
-    @app.route("/demo/<path:name>")
-    @protected()
-    def demo_asset(name):
-        allowed = {
-            "index.html": "text/html",
-            "heatwave-audit-oci-streaming-demo.mp4": "video/mp4",
-            "player.css": "text/css",
-            "player.js": "text/javascript",
-            "captions.vtt": "text/vtt",
-            "captions.srt": "text/plain",
-            "narration.txt": "text/plain",
-            "assets/poster.jpg": "image/jpeg",
-            "assets/oci-streaming-architecture.png": "image/png",
-            "assets/oci-streaming-architecture.drawio": "application/xml",
-            "sql/demo-source.sql": "text/plain",
-            "sql/schema-inspection.sql": "text/plain",
-            "sql/dcl-examples.sql": "text/plain",
-        }
-        if name not in allowed:
-            abort(404)
         return send_from_directory(
-            ROOT / "demo", name, mimetype=allowed[name], as_attachment=False, conditional=True
+            ROOT / "demo", "heatwave-audit-oci-streaming-demo.mp4",
+            mimetype="video/mp4", as_attachment=False, conditional=True,
         )
 
     @app.route("/control")
