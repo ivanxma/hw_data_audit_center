@@ -73,7 +73,7 @@ private attachments are shown separately. CIDRs are illustrative examples.</p>
 delivery checkpoints, complete source offsets and private JDBC schema history.
 Source and writer restarts preserve those namespaces. A full target outage can
 therefore pause capture as well as apply; source binlog retention remains essential.</p>
-<p><a href="../diagrams/deployment-architecture.drawio">Editable deployment architecture</a></p></section><section class="section" id="network"><div class="kicker">Overview and design</div><h2>4. Network access and security boundaries</h2><p><a href="../diagrams/network-access.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Network access and principal boundaries" src="../diagrams/network-access.png" / loading="lazy"></a></p>
+</section><section class="section" id="network"><div class="kicker">Overview and design</div><h2>4. Network access and security boundaries</h2><p><a href="../diagrams/network-access.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Network access and principal boundaries" src="../diagrams/network-access.png" / loading="lazy"></a></p>
 <table>
 <thead>
 <tr>
@@ -115,7 +115,7 @@ to the target. IAM permits an operation but does not create a network route.</p>
 approved regional service-gateway destinations and any separately approved NAT
 egress. Check endpoint DNS, routes and NSGs together. Private service endpoints
 need their own attachment/routing review. The app does not alter shared networking.</p>
-<p><a href="../diagrams/network-access.drawio">Editable network reference</a></p></section><section class="section" id="data-flow"><div class="kicker">Overview and design</div><h2>5. Data flow, fingerprints and evidence</h2><p><a href="../diagrams/capture-workflow.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Capture, delivery and fingerprint lookup" src="../diagrams/capture-workflow.png" / loading="lazy"></a></p>
+</section><section class="section" id="data-flow"><div class="kicker">Overview and design</div><h2>5. Data flow, fingerprints and evidence</h2><p><a href="../diagrams/capture-workflow.png" target="_blank" rel="noopener" title="Open full-size image"><img alt="Capture, delivery and fingerprint lookup" src="../diagrams/capture-workflow.png" / loading="lazy"></a></p>
 <p>A row change passes through source binlog, embedded Debezium Engine, the data
 stream and the history writer. Schema events use a separate single-partition
 stream. Source recovery uses target-backed full offsets and JDBC schema history.
@@ -133,7 +133,7 @@ fragment custody can permit delivery progress before the whole event arrives.</p
 <p>Canonical JSON preserves types and sorts object keys. <code>{"id":1042}</code> differs from
 <code>{"id":"1042"}</code>. Preserve the fingerprint secret and source identity with retained
 history. Automatic stitching of histories across a primary-key change is not implemented.</p>
-<p><a href="../diagrams/capture-workflow.drawio">Editable workflow</a></p></section><section class="section" id="prerequisites"><div class="kicker">Setup and installation</div><h2>6. Installation prerequisites</h2><p>Deployment is supported on <strong>Oracle Linux 9 only</strong>. Use the non-root application owner with sudo and an architecture-compatible Python 3.12+ environment. The installer uses app-managed MySQL 9.x, Gunicorn/systemd, rootless Podman, Java and Maven dependencies.</p>
+</section><section class="section" id="prerequisites"><div class="kicker">Setup and installation</div><h2>6. Installation prerequisites</h2><p>Deployment is supported on <strong>Oracle Linux 9 only</strong>. Use the non-root application owner with sudo and an architecture-compatible Python 3.12+ environment. The installer uses app-managed MySQL 9.x, Gunicorn/systemd, rootless Podman, Java and Maven dependencies.</p>
 <h3>Prepare before installation</h3>
 <ol>
 <li>Choose an OL9 Compute VM and the one compartment that will contain this deployment's resources and network attachments. Confirm region, capacity and service availability.</li>

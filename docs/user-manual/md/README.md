@@ -173,8 +173,6 @@ delivery checkpoints, complete source offsets and private JDBC schema history.
 Source and writer restarts preserve those namespaces. A full target outage can
 therefore pause capture as well as apply; source binlog retention remains essential.
 
-[Editable deployment architecture](../diagrams/deployment-architecture.drawio)
-
 <a id="network"></a>
 
 ## 4. Network access and security boundaries
@@ -198,8 +196,6 @@ The reference public subnet uses an internet gateway. Private subnet access uses
 approved regional service-gateway destinations and any separately approved NAT
 egress. Check endpoint DNS, routes and NSGs together. Private service endpoints
 need their own attachment/routing review. The app does not alter shared networking.
-
-[Editable network reference](../diagrams/network-access.drawio)
 
 <a id="data-flow"></a>
 
@@ -225,8 +221,6 @@ fragment custody can permit delivery progress before the whole event arrives.
 Canonical JSON preserves types and sorts object keys. `{"id":1042}` differs from
 `{"id":"1042"}`. Preserve the fingerprint secret and source identity with retained
 history. Automatic stitching of histories across a primary-key change is not implemented.
-
-[Editable workflow](../diagrams/capture-workflow.drawio)
 
 <a id="prerequisites"></a>
 

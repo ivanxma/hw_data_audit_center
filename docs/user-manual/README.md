@@ -14,7 +14,7 @@ diagrams, operational limitations, scaling, upgrades and cleanup. Appendix K
 explains the same-compartment limitation for Vaults, secrets and other OCI
 resources, including the limits of host-only database registration.
 
-Screenshots are shared under `assets/`; editable architecture diagrams and their previews are under `diagrams/`.
+Screenshots and diagrams appear within the manual.
 
 The current guide covers native OCI Streaming, wildcard source scopes, all three
 target groupings, GTID/purged-history checks, durable staging, conditional
