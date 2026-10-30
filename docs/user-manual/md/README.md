@@ -416,7 +416,7 @@ Use this page for a first health overview. If a flow needs attention, open Contr
 **Watch demo** opens the MP4 directly through the signed-in `/demo/` route. Use the browser’s native playback and seeking controls. Only the finished MP4 is distributed with the application.
 
 
-**User manual** opens the deployed HTML guide. Its downloads include the PDF and PowerPoint overview. Watch demo opens the signed-in MP4 with narration.
+**User manual** opens the deployed HTML guide. Its downloads include the PDF and Markdown editions. Watch demo opens the signed-in MP4 with narration.
 
 
 <a id="connections"></a>
