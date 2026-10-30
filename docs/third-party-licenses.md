@@ -4,6 +4,40 @@ Reviewed 29 October 2026 against the dependency declarations, installed Python
 package metadata and upstream license files/Maven POMs. Version ranges below are
 the project's declarations, not a lockfile or a list of deployed image contents.
 
+## Application license and compatibility
+
+Application license reviewed 30 October 2026. Original project code and
+documentation are licensed under [MIT](../LICENSE), copyright 2026 Ivan Ma.
+The Python and Maven project metadata declare MIT for this project's code;
+this does not relicense dependencies bundled in a package, JAR or container.
+
+MIT is [OSI-approved](https://opensource.org/license/mit). It permits retaining
+the application license alongside the declared BSD, Apache, UPL, MPL, EPL and
+LGPL components, subject to each component's conditions. The principal
+additional compatibility condition is the MySQL connectors' GPLv2 licensing:
+both pinned 26.10.0 distributions include the Universal FOSS Exception 1.0.
+See the versioned [Connector/J license](https://raw.githubusercontent.com/mysql/mysql-connector-j/26.10.0/LICENSE)
+and [Connector/Python license](https://raw.githubusercontent.com/mysql/mysql-connector-python/26.10.0/LICENSE.txt).
+
+Under [Oracle's exception](https://oss.oracle.com/licenses/universal-foss-exception/),
+an application distributed with complete corresponding source under an
+OSI-approved or FSF-free license qualifies as Other FOSS. When only interfaces,
+and no other code, are copied between the application and connector, the
+exception permits linking and distribution with separate licenses for the
+respective portions. This project's connector integrations use their APIs;
+MIT was selected on that basis. Keep the complete corresponding application
+source available with distributions relying on this exception. The connectors
+and any copied connector interfaces retain their original terms, and connector
+source and notices must be supplied as required by those terms. MIT alone does
+not authorize a closed-source distribution of the combined application.
+
+The LGPL crc32c and MPL/EPL components also retain their source, modification,
+notice and replacement/relinking requirements where applicable. Preserve the
+license choices and notices for each resolved artifact. The review below records
+declared dependencies and a prior local environment; release-specific transitive
+dependencies, shaded JARs and container contents still need the distribution
+checks described at the end of this document.
+
 ## MySQL Connector/J
 
 The capture build pins `com.mysql:mysql-connector-j` to **26.10.0**, replacing
@@ -18,8 +52,8 @@ additional linking permission described in its
 [versioned license file](https://github.com/mysql/mysql-connector-j/blob/26.10.0/LICENSE).
 The upgrade does not convert the driver to a permissive license. The exception
 has conditions; it is not a blanket permission for every proprietary application.
-The repository has no application LICENSE file, so the application's licensing
-and eligibility for the exception are not established by this review.
+The application now uses MIT; the compatibility conditions and scope of this
+selection are described above.
 
 Connector/J brings in `protobuf-java` **4.36.1**, licensed BSD-3-Clause, as declared
 in its [published POM](https://repo.maven.apache.org/maven2/com/mysql/mysql-connector-j/26.10.0/mysql-connector-j-26.10.0.pom).
@@ -102,7 +136,7 @@ packages have not been inventoried. Container builds also use Python/Debian,
 Maven and Eclipse Temurin/OpenJDK, and setup installs MySQL Community Server;
 their own distributions include additional licenses and notices.
 
-Before distributing an application package or image, establish its application
+Before distributing an application package or image, include its MIT application
 license, inventory the actual resolved artifacts and OS packages, retain required
 copyright/license/NOTICE files, and satisfy applicable source and relinking
 requirements. The capture build shades dependencies into one JAR; overlapping

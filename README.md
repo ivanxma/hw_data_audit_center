@@ -7,6 +7,13 @@ on Oracle Linux 9; capture and history writing run on private OCI Container Inst
 **Independent prototype for evaluation, demonstration and rehearsal. Not an Oracle
 product; not supported or endorsed by Oracle.**
 
+## License
+
+Original project code and documentation are licensed under the [MIT License](LICENSE).
+Third-party components retain their own licenses. See the
+[dependency license review](docs/third-party-licenses.md) for the MySQL connector
+exceptions and redistribution requirements, including source and notice obligations.
+
 ## Architecture
 
 Source HeatWave binlog → embedded Debezium Engine → native OCI Streaming → Python
